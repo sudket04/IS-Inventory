@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IT Inventory — UI demo (ไม่ต้องต่อฐานข้อมูล)</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .demo-note{background:#152238;color:#C7CEDA;font-size:13px;padding:9px 18px;
+    display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .demo-note b{color:#fff}
+  .demo-note span{color:#8FA0B8}
+</style>
+</head>
+<body>
+<div class="demo-note">
+  <b>UI demo</b>
+  <span>หน้าตาจริงของระบบ ใช้ข้อมูลจำลองในเบราว์เซอร์ — ไม่ต้องรัน Node หรือต่อ SQL Server
+  · เข้าสู่ระบบด้วยอะไรก็ได้</span>
+</div>
+<div id="root"><div class="boot">กำลังโหลด…</div></div>
+
+<script>
+/* ---- demo backend: intercepts fetch and answers with canned data ---- */
+(function () {
+  const today = new Date();
+  const d = (n) => new Date(today.getTime() + n * 86400000).toISOString().slice(0, 10);
+  const now = () => new Date().toISOString().slice(0, 19).replace("T", " ");
+
+  const F = (name, label, type = "text", group = "Details", extra = {}) =>
+    ({ name, label, type, group, required: false, options: null, ref: null,
+       onlyFor: null, placeholder: "", help: "", ...extra });
+  const C = (name, label, kind = "text", width = "", filterOn = "") =>
+    ({ name, label, kind, width, filterOn });
+  const K = (key, label, counts = false) => ({ key, label, counts });
+
+  const HW_ROWS = [
+    { hardware_id: "HW-001", asset_type: "Server", manufacturer: "Dell",
+      model: "PowerEdge R750", serial_number: "CN7412001", status: "In Use",
+      identity: "Dell PowerEdge R750", location_label: "HQ Bangkok › Factory 1 › Floor 2 › Server Room A › Rack A-01",
+      u_label: "U10–11", location_id: "LOC-006", warranty_expiry: d(420),
+      fixed_asset: "IS0101", purchase_price: 480000, owner: "IT Infrastructure",
+      cost_center: "IT-CC-1001", u_start: 10, u_height: 2, port_no: "Gi1/0/1",
+      port_name: "SW-Core-01", commission_date: d(-600), warranty_start: d(-600),
+      eol_date: d(1150), updated_at: now(), updated_by: "somchai.p", is_deleted: 0 },
+    { hardware_id: "HW-004", asset_type: "Server", manufacturer: "HPE",
+      model: "ProLiant DL380 Gen10", serial_number: "SGH301X4A1", status: "In Use",
+      identity: "HPE ProLiant DL380 Gen10", location_label: "… › Rack A-02", u_label: "U8–9",
+      warranty_expiry: d(61), fixed_asset: "IS0121", purchase_price: 395000,
+      updated_at: now(), updated_by: "somchai.p", is_deleted: 0 },
+    { hardware_id: "HW-006", asset_type: "Server", manufacturer: "Lenovo",
+      model: "ThinkSystem SR650", serial_number: "LNV88A0031", status: "Maintenance",
+      identity: "Lenovo ThinkSystem SR650", location_label: "… › Rack A-02", u_label: "U20–21",
+      warranty_expiry: d(-45), fixed_asset: "IS0141", purchase_price: 350000,
+      updated_at: now(), updated_by: "nutthapong", is_deleted: 0 },
+    { hardware_id: "HW-007", asset_type: "Server", manufacturer: "Nutanix",
+      model: "NX-3170-G8", serial_number: "NTX55B0090", status: "In Use",
+      identity: "Nutanix NX-3170-G8", location_label: "… › Rack A-03", u_label: "U6–7",
+      warranty_expiry: d(900), fixed_asset: "IS0161", purchase_price: 890000,
+      updated_at: now(), updated_by: "somchai.p", is_deleted: 0 },
+    { hardware_id: "HW-009", asset_type: "Storage", manufacturer: "Dell",
+      model: "PowerStore 3200T", serial_number: "PS3200T0001", status: "In Use",
+      storage_name: "SAN-PROD-01", storage_array_type: "SAN", capacity_gb: 122880,
+      identity: "SAN-PROD-01 · PowerStore 3200T", location_label: "… › Rack A-03",
+      u_label: "U20–23", warranty_expiry: d(555), fixed_asset: "IS0201",
+      purchase_price: 2400000, updated_at: now(), updated_by: "somchai.p", is_deleted: 0 },
+    { hardware_id: "HW-010", asset_type: "Storage", manufacturer: "Other",
+      model: "Synology RS4021xs+", serial_number: "SYN4021X001", status: "In Use",
+      storage_name: "NAS-BACKUP-01", storage_array_type: "NAS", capacity_gb: 61440,
+      identity: "NAS-BACKUP-01 · Synology RS4021xs+", location_label: "… › Rack DR-01",
+      u_label: "U20–22", warranty_expiry: d(-30), fixed_asset: "",
+      purchase_price: 420000, updated_at: now(), updated_by: "seed", is_deleted: 0 },
+  ];
+
+  const LIC_ROWS = [
+    { license_id: "LIC-00001", software_label: "Windows Server 2022 Datacenter · Microsoft",
+      software_id: "SW-0001", license_type: "Perpetual", license_model: "Core",
+      license_quantity: 256, used_quantity: 208, expiry_date: null, status: "Active",
+      vendor: "SoftDeal Co., Ltd", cost: 1850000, currency: "THB",
+      license_key: "WSDC-2022-AAAA-0001", agreement_no: "AGR-2024-0011",
+      updated_at: now(), updated_by: "wanida.k", is_deleted: 0 },
+    { license_id: "LIC-00002", software_label: "VMware vSphere · Broadcom",
+      license_type: "Subscription", license_model: "Core", license_quantity: 96,
+      used_quantity: 96, expiry_date: d(35), status: "Active", vendor: "VMware partner",
+      cost: 2600000, updated_at: now(), updated_by: "somchai.p", is_deleted: 0 },
+    { license_id: "LIC-00004", software_label: "Veeam Backup & Replication · Veeam",
+      license_type: "Subscription", license_model: "Server", license_quantity: 40,
+      used_quantity: 44, expiry_date: d(58), status: "Expiring", vendor: "Backup partner",
+      cost: 890000, updated_at: now(), updated_by: "somchai.p", is_deleted: 0 },
+    { license_id: "LIC-00005", software_label: "Microsoft 365 E3 · Microsoft",
+      license_type: "Subscription", license_model: "User", license_quantity: 1200,
+      used_quantity: 1147, expiry_date: d(245), status: "Active", vendor: "CSP partner",
+      cost: 9600000, updated_at: now(), updated_by: "wanida.k", is_deleted: 0 },
+    { license_id: "LIC-00006", software_label: "Trend Micro Apex One · Trend Micro",
+      license_type: "Subscription", license_model: "Device", license_quantity: 1400,
+      used_quantity: 1362, expiry_date: d(-26), status: "Expired",
+      vendor: "Security partner", cost: 1120000, updated_at: now(),
+      updated_by: "kanya.s", is_deleted: 0 },
+  ];
+
+  const PERM_ROWS = [
+    { permission_id: "PRM-00001", folder_name: "Production Control",
+      folder_path: "\\\\FS-PROD-01\\Share\\ProductionControl", server_label: "FS-PROD-01",
+      server_name: "FS-PROD-01", server_id: "SRV-001", level: "Level 1",
+      department: "Production Control", rw_group: "Production Control_Modify",
+      ro_group: "", quota_gb: 500, owner: "sudket.i", updated_at: now(),
+      updated_by: "somchai.p", is_deleted: 0 },
+    { permission_id: "PRM-00002", folder_name: "PC Common",
+      folder_path: "\\\\FS-PROD-01\\Share\\PC_Common", server_label: "FS-PROD-01",
+      server_name: "FS-PROD-01", level: "Level 2", department: "Production Control",
+      rw_group: "PC Common_Modify", ro_group: "All Staff_Read Only", quota_gb: 200,
+      updated_at: now(), updated_by: "somchai.p", is_deleted: 0 },
+    { permission_id: "PRM-00004", folder_name: "PU Secret",
+      folder_path: "\\\\FS-HQ-02\\Secret\\Purchasing", server_label: "FS-HQ-02",
+      server_name: "FS-HQ-02", level: "Level 1", department: "Purchasing",
+      rw_group: "PU Secret_Modify", ro_group: "PU Secret_Read Only", quota_gb: 120,
+      updated_at: now(), updated_by: "kanya.s", is_deleted: 0 },
+    { permission_id: "PRM-00010", folder_name: "Scan Drop",
+      folder_path: "\\\\FS-ENG-01\\Share\\ScanDrop", server_label: "FS-ENG-01",
+      server_name: "FS-ENG-01", level: "Level 3", department: "Engineering",
+      rw_group: "", ro_group: "", quota_gb: null, updated_at: now(),
+      updated_by: "thanit.r", is_deleted: 0 },
+  ];
+
+  const AD_ROWS = [
+    { ad_user_id: "AD-00001", user_logon: "somchai.p", display_name: "Somchai Pattana",
+      department: "IT Infrastructure", job_title: "System Engineer", group_count: 4,
+      email: "somchai.p@company.co.th", status: "Enabled", updated_at: now(),
+      updated_by: "import", is_deleted: 0 },
+    { ad_user_id: "AD-00003", user_logon: "sudket.i", display_name: "Sudket Innuput",
+      department: "Production Control", job_title: "Staff", group_count: 4,
+      email: "sudket.i@company.co.th", status: "Enabled", updated_at: now(),
+      updated_by: "import", is_deleted: 0 },
+    { ad_user_id: "AD-00005", user_logon: "pisit.t", display_name: "Pisit Thongdee",
+      department: "Production", job_title: "Operator", group_count: 1, email: "",
+      status: "Disabled", updated_at: now(), updated_by: "import", is_deleted: 0 },
+    { ad_user_id: "AD-00007", user_logon: "thanit.r", display_name: "Thanit Rakchai",
+      department: "Engineering", job_title: "Design Engineer", group_count: 3,
+      email: "thanit.r@company.co.th", status: "Enabled", updated_at: now(),
+      updated_by: "import", is_deleted: 0 },
+  ];
+
+  const SRV_ROWS = [
+    { server_id: "SRV-001", hosting_type: "Virtual", system_name: "FS-PROD-01",
+      ip_address: "10.10.20.21", context: "ESX-PROD-01 · CL-PROD-VMW",
+      environment: "Production", status: "Active", server_role: "File Server",
+      operating_system: "Windows Server 2022", cpu_cores: 8, ram_gb: 32,
+      storage_gb: 4096, server_zone: "Trust", updated_at: now(),
+      updated_by: "somchai.p", is_deleted: 0 },
+    { server_id: "SRV-005", hosting_type: "Virtual", system_name: "SQL-ERP-01",
+      ip_address: "10.10.20.31", context: "ESX-PROD-02 · CL-PROD-VMW",
+      environment: "Production", status: "Active", server_role: "Database Server",
+      updated_at: now(), updated_by: "somchai.p", is_deleted: 0 },
+    { server_id: "SRV-009", hosting_type: "Physical", system_name: "BKP-HQ-01",
+      ip_address: "10.10.20.51", context: "LNV88A0031", environment: "Production",
+      status: "Active", server_role: "Backup Server", updated_at: now(),
+      updated_by: "somchai.p", is_deleted: 0 },
+    { server_id: "SRV-010", hosting_type: "Physical", system_name: "FS-DR-01",
+      ip_address: "10.20.20.21", context: "DRP99C0011", environment: "DR",
+      status: "Standby", server_role: "File Server", updated_at: now(),
+      updated_by: "somchai.p", is_deleted: 0 },
+  ];
+
+  const DATA = {
+    hardware: HW_ROWS, licenses: LIC_ROWS, server_permissions: PERM_ROWS,
+    ad_users: AD_ROWS, servers: SRV_ROWS,
+    clusters: [
+      { cluster_id: "CLU-001", cluster_name: "CL-PROD-VMW", hypervisor_platform: "Vmware",
+        infrastructure_type: "3-Tier (SAN-based)", node_count: 3,
+        criticality: "Tier 1 (High)", status: "Active", environment: "Production",
+        management_console: "10.10.10.5", updated_at: now(), updated_by: "somchai.p", is_deleted: 0 },
+      { cluster_id: "CLU-002", cluster_name: "CL-DEV-HV", hypervisor_platform: "Hyper-V",
+        infrastructure_type: "HCI - Azure Stack HCI", node_count: 1,
+        criticality: "Tier 3 (Low)", status: "Active", environment: "Development",
+        updated_at: now(), updated_by: "somchai.p", is_deleted: 0 },
+    ],
+    cluster_nodes: [
+      { node_id: "NODE-001", host_name: "ESX-PROD-01", cluster_id: "CLU-001",
+        hardware_id: "HW-001", hardware_label: "CN7412001 · PowerEdge R750",
+        ip_host: "10.10.10.11", ip_management: "10.10.99.11", updated_at: now(),
+        updated_by: "somchai.p", is_deleted: 0 },
+      { node_id: "NODE-002", host_name: "ESX-PROD-02", cluster_id: "CLU-001",
+        hardware_id: "HW-002", hardware_label: "CN7412002 · PowerEdge R750",
+        ip_host: "10.10.10.12", ip_management: "10.10.99.12", updated_at: now(),
+        updated_by: "somchai.p", is_deleted: 0 },
+    ],
+    network_devices: [
+      { device_id: "NET-001", category: "Network Device", subcategory: "Core Switch",
+        device_name: "SW-Core-01", brand: "Cisco", model: "C9500-24Y4C",
+        ip_management: "10.10.99.1", location_label: "… › Rack A-01", u_label: "U40",
+        warranty_expiry: d(370), status: "Use", serial_number: "FCW2345A0A1",
+        fixed_asset: "IS0301", updated_at: now(), updated_by: "nutthapong", is_deleted: 0 },
+      { device_id: "NET-003", category: "Network Security Device", subcategory: "NGFW",
+        device_name: "FW-EDGE-01", brand: "Fortinet", model: "FortiGate 600F",
+        ip_management: "10.10.99.41", location_label: "… › Rack A-01", u_label: "U38",
+        warranty_expiry: d(-15), status: "Use", serial_number: "FG6H1A0C3",
+        fixed_asset: "IS0341", updated_at: now(), updated_by: "nutthapong", is_deleted: 0 },
+      { device_id: "NET-002", category: "Network Device", subcategory: "Access Switch",
+        device_name: "SW-ACC-F2-01", brand: "HPE", model: "Aruba 6300M",
+        ip_management: "10.10.99.21", location_label: "… › Rack A-02", u_label: "U40",
+        warranty_expiry: d(75), status: "Use", serial_number: "SG99K1A0B2",
+        fixed_asset: "IS0321", updated_at: now(), updated_by: "nutthapong", is_deleted: 0 },
+    ],
+    vlans: [
+      { vlan_pk: "VLA-001", vlan_number: 20, vlan_name: "VL20-SERVER",
+        purpose: "Server network", subnet: "10.10.20.0 / 255.255.255.0",
+        gateway: "10.10.20.254", firewall_zone: "Trust", dhcp_enabled: "No",
+        network_address: "10.10.20.0", subnet_mask: "255.255.255.0",
+        updated_at: now(), updated_by: "nutthapong", is_deleted: 0 },
+      { vlan_pk: "VLA-002", vlan_number: 30, vlan_name: "VL30-OFFICE",
+        purpose: "Office clients", subnet: "10.10.40.0 / 255.255.252.0",
+        gateway: "10.10.40.1", firewall_zone: "Trust", dhcp_enabled: "Yes",
+        updated_at: now(), updated_by: "nutthapong", is_deleted: 0 },
+      { vlan_pk: "VLA-004", vlan_number: 60, vlan_name: "VL60-DMZ",
+        purpose: "DMZ servers", subnet: "10.10.60.0 / 255.255.255.0",
+        gateway: "10.10.60.254", firewall_zone: "DMZ Server", dhcp_enabled: "No",
+        updated_at: now(), updated_by: "nutthapong", is_deleted: 0 },
+    ],
+    software: [
+      { software_id: "SW-0001", software_name: "Windows Server 2022 Datacenter",
+        publisher: "Microsoft", category: "Operating System", version: "2022",
+        license_count: 1, status: "Active", updated_at: now(),
+        updated_by: "somchai.p", is_deleted: 0 },
+      { software_id: "SW-0004", software_name: "Veeam Backup & Replication",
+        publisher: "Veeam", category: "Backup", version: "12.1", license_count: 1,
+        status: "Active", updated_at: now(), updated_by: "somchai.p", is_deleted: 0 },
+      { software_id: "SW-0006", software_name: "Trend Micro Apex One",
+        publisher: "Trend Micro", category: "Security", version: "2019",
+        license_count: 1, status: "Active", updated_at: now(),
+        updated_by: "kanya.s", is_deleted: 0 },
+    ],
+    locations: [
+      { location_id: "LOC-006", level: "Rack", name: "Rack A-01", rack_units: 42,
+        path: "HQ Bangkok › Factory 1 › Floor 2 › Server Room A › Rack A-01",
+        occupancy: "4 device(s) / 42U", updated_at: now(), updated_by: "seed", is_deleted: 0 },
+      { location_id: "LOC-007", level: "Rack", name: "Rack A-02", rack_units: 42,
+        path: "HQ Bangkok › Factory 1 › Floor 2 › Server Room A › Rack A-02",
+        occupancy: "3 device(s) / 42U", updated_at: now(), updated_by: "seed", is_deleted: 0 },
+      { location_id: "LOC-001", level: "Site", name: "HQ Bangkok",
+        path: "HQ Bangkok", occupancy: "—", updated_at: now(), updated_by: "seed", is_deleted: 0 },
+    ],
+    ad_memberships: [],
+  };
+
+  const ENT = {
+    hardware: {
+      key: "hardware", label: "Server hardware", plural: "Server hardware",
+      idField: "hardware_id", route: "/server/hardware", discriminator: "asset_type",
+      titleField: "serial_number", noAdd: false,
+      desc: "เครื่องเซิร์ฟเวอร์และ storage ที่มีเลข serial ตำแหน่งใน rack และวันหมดประกัน",
+      fields: [
+        F("asset_type", "Asset type", "select", "Identity", { required: true, options: ["Server", "Storage"] }),
+        F("storage_name", "Storage name", "text", "Identity", { onlyFor: "Storage" }),
+        F("storage_array_type", "Storage array type", "select", "Identity", { onlyFor: "Storage", options: ["SAN", "NAS", "DAS", "Other"] }),
+        F("capacity_gb", "Total capacity (GB)", "int", "Identity", { onlyFor: "Storage" }),
+        F("manufacturer", "Manufacturer", "select", "Identity", { required: true, options: ["Dell", "HPE", "Lenovo", "Nutanix", "Other"] }),
+        F("model", "Model", "text", "Identity", { placeholder: "e.g. PowerEdge R740" }),
+        F("serial_number", "Serial number", "text", "Identity", { required: true }),
+        F("status", "Status", "select", "Identity", { required: true, options: ["In Stock", "In Use", "Maintenance", "Decommissioned"] }),
+        F("port_no", "Switch port", "text", "Network", { onlyFor: "Server", placeholder: "e.g. Gi1/0/1" }),
+        F("port_name", "Switch name", "text", "Network", { onlyFor: "Server" }),
+        F("location_id", "Rack", "ref", "Location", { ref: "locations", help: "เลือก rack — เส้นทาง Site › Factory › Floor › Area › Rack มาให้เอง" }),
+        F("u_start", "Start U", "int", "Location", { placeholder: "e.g. 10" }),
+        F("u_height", "Height (U)", "int", "Location", { placeholder: "e.g. 2" }),
+        F("fixed_asset", "Fixed Asset No.", "text", "Warranty & asset", { required: true, placeholder: "e.g. IS001" }),
+        F("purchase_price", "Asset value (THB)", "money", "Warranty & asset"),
+        F("commission_date", "Commission date", "date", "Warranty & asset"),
+        F("warranty_start", "Warranty start", "date", "Warranty & asset"),
+        F("warranty_expiry", "Warranty expiry", "date", "Warranty & asset", { required: true }),
+        F("eol_date", "EOL / EOS date", "date", "Warranty & asset"),
+        F("owner", "Owner", "text", "Other"),
+        F("cost_center", "Cost center", "text", "Other"),
+        F("remarks", "Remarks", "textarea", "Other"),
+      ],
+      columns: [C("asset_type", "Type", "type", "84px"), C("serial_number", "Serial", "mono"),
+                C("identity", "Model / name", "text", "", "model"), C("location_id", "Location", "ref"),
+                C("warranty_expiry", "Warranty", "warranty", "170px"), C("status", "Status", "badge", "120px")],
+      chips: [K("all", "All"), K("server", "Server"), K("storage", "Storage"),
+              K("warranty90", "Warranty <90d", true), K("expired", "Expired", true),
+              K("nodata", "Missing asset data", true)],
+    },
+    servers: {
+      key: "servers", label: "Server", plural: "Server list", idField: "server_id",
+      route: "/server/list", discriminator: "hosting_type", titleField: "system_name",
+      desc: "ทุกระบบที่รันอยู่ — VM บน cluster host และเครื่อง physical",
+      fields: [
+        F("hosting_type", "Hosting type", "select", "Identity", { required: true, options: ["Virtual", "Physical"] }),
+        F("server_role", "Server role", "select", "Identity", { options: ["File Server", "Application Server", "Database Server", "Web Server", "Domain Controller", "Backup Server", "Other"] }),
+        F("system_name", "System name", "text", "Identity", { required: true }),
+        F("operating_system", "Operating system", "text", "Identity"),
+        F("ip_address", "IP address", "ip", "Network", { required: true }),
+        F("server_zone", "Server zone", "select", "Network", { required: true, options: ["Trust", "Untrust", "DMZ Server", "Management", "Guest"] }),
+        F("cpu_cores", "CPU cores", "int", "Capacity"), F("ram_gb", "RAM (GB)", "int", "Capacity"),
+        F("storage_gb", "Storage (GB)", "int", "Capacity"),
+        F("environment", "Environment", "select", "Lifecycle", { required: true, options: ["Production", "UAT", "Development", "DR"] }),
+        F("status", "Status", "select", "Lifecycle", { required: true, options: ["Active", "Maintenance", "Decommissioned", "Standby"] }),
+      ],
+      columns: [C("hosting_type", "Type", "type", "84px"), C("system_name", "System", "mono"),
+                C("ip_address", "IP address", "mono"), C("context", "Runs on"),
+                C("environment", "Env"), C("status", "Status", "badge", "120px")],
+      chips: [K("all", "All"), K("virtual", "Virtual"), K("physical", "Physical"),
+              K("fileserver", "File Server", true)],
+    },
+    licenses: {
+      key: "licenses", label: "Licence", plural: "License control", idField: "license_id",
+      route: "/software/licenses", titleField: "software_label",
+      desc: "สิทธิ์การใช้งานต่อผลิตภัณฑ์ — ซื้อเท่าไร ใช้ไปเท่าไร หมดเมื่อไร",
+      fields: [
+        F("software_id", "Software", "ref", "Licence", { required: true, ref: "software" }),
+        F("license_type", "License type", "select", "Licence", { required: true, options: ["Perpetual", "Subscription"] }),
+        F("license_model", "License model", "select", "Licence", { required: true, options: ["User", "Device", "Core", "Server", "Concurrent"] }),
+        F("status", "Status", "select", "Licence", { required: true, options: ["Active", "Expiring", "Expired", "Suspended", "Terminated"] }),
+        F("license_quantity", "License quantity", "int", "Entitlement", { required: true }),
+        F("used_quantity", "Used quantity", "int", "Entitlement", { help: "ที่เหลือคำนวณให้ — จำนวนที่ซื้อลบที่ใช้" }),
+        F("license_key", "License key", "text", "Entitlement"),
+        F("agreement_no", "Agreement No.", "text", "Agreement"),
+        F("vendor", "Vendor", "text", "Agreement", { required: true }),
+        F("expiry_date", "Expiry date", "date", "Term"),
+        F("cost", "Cost", "money", "Cost"), F("currency", "Currency", "select", "Cost", { options: ["THB", "USD", "EUR", "JPY"] }),
+      ],
+      columns: [C("license_id", "License ID", "mono", "112px"),
+                C("software_label", "Software", "text", "", "software_id"),
+                C("license_type", "Type", "type", "116px"), C("license_model", "Model", "text", "96px"),
+                C("seats", "Used / bought", "seats", "162px"), C("expiry_date", "Expiry", "expiry", "172px"),
+                C("status", "Status", "badge", "110px")],
+      chips: [K("all", "All"), K("subscription", "Subscription"), K("perpetual", "Perpetual"),
+              K("expiring90", "Expiring <90d", true), K("expired", "Expired", true),
+              K("overused", "Over-allocated", true)],
+    },
+    server_permissions: {
+      key: "server_permissions", label: "Server permission", plural: "Server Permission",
+      idField: "permission_id", route: "/permission/server", titleField: "folder_name",
+      desc: "shared folder บน File Server และ AD group ที่ถือสิทธิ์ read/write หรือ read-only",
+      fields: [
+        F("server_id", "File Server", "ref", "Folder", { required: true, ref: "servers" }),
+        F("folder_name", "Folder name", "text", "Folder", { required: true }),
+        F("folder_path", "Path", "text", "Folder"), F("level", "Level", "text", "Folder"),
+        F("department", "Department", "text", "Folder"),
+        F("rw_group", "AD group — Read/Write", "text", "Access"),
+        F("ro_group", "AD group — Read only", "text", "Access"),
+        F("quota_gb", "Quota (GB)", "int", "Access"),
+        F("owner", "Folder owner", "text", "Other"),
+      ],
+      columns: [C("folder_name", "Folder / path", "folder", "", "folder_name"),
+                C("server_id", "Server", "ref", "190px"), C("level", "Level", "text", "110px"),
+                C("access_groups", "AD groups (RW / RO)", "groups", "", "rw_group"),
+                C("department", "Department", "text", "150px"), C("quota_gb", "Quota", "gb", "100px")],
+      chips: [K("all", "All"), K("rw", "Has Read/Write"), K("roonly", "Read-only only"),
+              K("nogroup", "No AD group", true), K("noquota", "No quota", true)],
+    },
+    ad_users: {
+      key: "ad_users", label: "AD user", plural: "AD Users", idField: "ad_user_id",
+      route: "/permission/ad-users", titleField: "display_name", noAdd: true,
+      desc: "บัญชีและ group membership ที่ import มาจาก Active Directory",
+      fields: [
+        F("user_logon", "User logon", "text", "Account", { required: true }),
+        F("display_name", "Display name", "text", "Account"),
+        F("status", "Status", "select", "Account", { options: ["Enabled", "Disabled"] }),
+        F("job_title", "Job title", "text", "Organisation"),
+        F("department", "Department", "text", "Organisation"),
+        F("email", "Email", "text", "Organisation"),
+      ],
+      columns: [C("user_logon", "User", "mono", "170px"), C("display_name", "Display name"),
+                C("department", "Department / title", "dept"), C("group_count", "Groups", "text", "90px"),
+                C("email", "Email"), C("status", "Status", "badge", "110px")],
+      chips: [K("all", "All"), K("enabled", "Enabled"), K("disabled", "Disabled", true),
+              K("nogroup", "No AD group", true)],
+    },
+    clusters: {
+      key: "clusters", label: "Cluster", plural: "Clusters", idField: "cluster_id",
+      route: "/server/clusters", titleField: "cluster_name",
+      desc: "cluster ของ hypervisor — แต่ละ host ผูกกับ hardware จึงสืบทอดข้อมูลประกัน",
+      fields: [
+        F("cluster_name", "Cluster name", "text", "Identity", { required: true }),
+        F("hypervisor_platform", "Hypervisor", "select", "Identity", { required: true, options: ["Vmware", "Hyper-V", "Nutanix", "N/A"] }),
+        F("infrastructure_type", "Architecture", "select", "Identity", { required: true, options: ["3-Tier (SAN-based)", "HCI - Nutanix", "HCI - Azure Stack HCI", "Other"] }),
+        F("management_console", "Management console IP", "ip", "Identity"),
+        F("criticality", "Criticality", "select", "Lifecycle", { options: ["Tier 1 (High)", "Tier 2 (Medium)", "Tier 3 (Low)"] }),
+        F("environment", "Environment", "select", "Lifecycle", { required: true, options: ["Production", "UAT", "Development", "DR"] }),
+        F("status", "Status", "select", "Lifecycle", { required: true, options: ["Active", "Maintenance", "Decommissioned", "Standby"] }),
+      ],
+      columns: [C("cluster_name", "Cluster", "mono"), C("hypervisor_platform", "Hypervisor"),
+                C("infrastructure_type", "Architecture"), C("node_count", "Hosts", "text", "80px"),
+                C("criticality", "Criticality"), C("status", "Status", "badge", "120px")],
+      chips: [K("all", "All")],
+    },
+    cluster_nodes: {
+      key: "cluster_nodes", label: "Host / Node", plural: "Hosts / Nodes",
+      idField: "node_id", route: "/server/clusters/nodes", parent: "clusters",
+      parentKey: "cluster_id", hiddenInNav: true, titleField: "host_name", desc: "",
+      fields: [F("cluster_id", "Cluster", "ref", "Identity", { required: true, ref: "clusters" }),
+               F("host_name", "Host name", "text", "Identity", { required: true }),
+               F("hardware_id", "Hardware", "ref", "Identity", { required: true, ref: "hardware" }),
+               F("ip_host", "IP host", "ip", "Network"), F("ip_management", "IP management", "ip", "Network")],
+      columns: [C("host_name", "Host", "mono"), C("hardware_id", "Hardware", "ref"),
+                C("ip_host", "IP host", "mono"), C("ip_management", "IP mgmt", "mono")],
+      chips: [K("all", "All")],
+    },
+    network_devices: {
+      key: "network_devices", label: "Network hardware", plural: "Network hardware",
+      idField: "device_id", route: "/network/hardware", discriminator: "category",
+      titleField: "device_name",
+      desc: "switch, firewall และอุปกรณ์ที่มี management IP — ใช้โมเดล location และประกันเดียวกับ server",
+      fields: [
+        F("category", "Category", "select", "Identity", { required: true, options: ["Network Device", "Network Security Device", "VPN / Remote Access", "Network Management"] }),
+        F("subcategory", "Sub-category", "select", "Identity", { required: true, options: ["Core Switch", "Access Switch", "Router", "NGFW", "Firewall", "Wireless Controller"] }),
+        F("device_name", "Device name", "text", "Identity", { required: true }),
+        F("brand", "Brand", "select", "Identity", { required: true, options: ["Cisco", "HPE", "Huawei", "Fortinet", "Other"] }),
+        F("model", "Model", "text", "Identity"),
+        F("serial_number", "Serial number", "text", "Identity", { required: true }),
+        F("status", "Status", "select", "Identity", { required: true, options: ["Use", "Standby", "Decommissioned"] }),
+        F("ip_management", "IP management", "ip", "Network", { required: true }),
+        F("mac_address", "MAC address", "mac", "Network", { required: true }),
+        F("location_id", "Rack", "ref", "Location", { ref: "locations" }),
+        F("fixed_asset", "Fixed Asset No.", "text", "Warranty & asset", { required: true }),
+        F("warranty_expiry", "Warranty expiry", "date", "Warranty & asset", { required: true }),
+      ],
+      columns: [C("subcategory", "Type", "type", "110px"), C("device_name", "Name", "mono"),
+                C("ip_management", "IP mgmt", "mono"), C("location_id", "Location", "ref"),
+                C("warranty_expiry", "Warranty", "warranty", "170px"), C("status", "Status", "badge", "110px")],
+      chips: [K("all", "All"), K("switch", "Switches"), K("security", "Security"),
+              K("warranty90", "Warranty <90d", true), K("expired", "Expired", true)],
+    },
+    vlans: {
+      key: "vlans", label: "VLAN / subnet", plural: "VLANs", idField: "vlan_pk",
+      route: "/network/vlans", titleField: "vlan_name",
+      desc: "ทะเบียน VLAN พร้อม subnet — gateway, DHCP pool และช่วง static",
+      fields: [F("vlan_number", "VLAN ID", "int", "Identity", { required: true }),
+               F("vlan_name", "VLAN name", "text", "Identity", { required: true }),
+               F("purpose", "Purpose", "text", "Identity"),
+               F("network_address", "Network address", "ip", "Subnet", { required: true }),
+               F("subnet_mask", "Subnet mask", "ip", "Subnet", { required: true }),
+               F("gateway", "Gateway", "ip", "Routing"),
+               F("firewall_zone", "Firewall zone", "select", "Routing", { options: ["Trust", "Untrust", "DMZ Server", "Management", "Guest"] }),
+               F("dhcp_enabled", "DHCP", "select", "DHCP", { required: true, options: ["Yes", "No"] })],
+      columns: [C("vlan_number", "VLAN", "mono", "80px"), C("vlan_name", "Name", "mono"),
+                C("purpose", "Purpose"), C("subnet", "Network", "mono"),
+                C("gateway", "Gateway", "mono"), C("firewall_zone", "Zone")],
+      chips: [K("all", "All"), K("dhcp", "DHCP on")],
+    },
+    software: {
+      key: "software", label: "Software", plural: "Software catalogue",
+      idField: "software_id", route: "/software/catalogue", titleField: "software_name",
+      desc: "สิ่งที่ติดตั้งและจ่ายเงินไป — หนึ่งแถวต่อผลิตภัณฑ์ พร้อม licence ที่ผูกอยู่",
+      fields: [F("software_name", "Software name", "text", "Identity", { required: true }),
+               F("publisher", "Publisher", "text", "Identity", { required: true }),
+               F("category", "Category", "select", "Identity", { required: true, options: ["Operating System", "Database", "Virtualization", "Backup", "Security", "Other"] }),
+               F("version", "Version", "text", "Identity"),
+               F("status", "Status", "select", "Identity", { required: true, options: ["Active", "Evaluation", "Retired"] }),
+               F("eos_date", "End of support", "date", "Other"),
+               F("owner", "Owner", "text", "Other")],
+      columns: [C("software_name", "Software", "mono"), C("publisher", "Publisher"),
+                C("category", "Category"), C("version", "Version", "text", "110px"),
+                C("license_count", "Licences", "text", "90px"), C("status", "Status", "badge", "110px")],
+      chips: [K("all", "All"), K("active", "Active"), K("retired", "Retired")],
+    },
+    locations: {
+      key: "locations", label: "Location", plural: "Locations & racks",
+      idField: "location_id", route: "/reference/locations", discriminator: "level",
+      titleField: "name",
+      desc: "Site › Factory › Floor › Area › Rack — คำศัพท์ชุดเดียวสำหรับทุกฟอร์ม",
+      fields: [F("level", "Level", "select", "Identity", { required: true, options: ["Site", "Factory", "Floor", "Area", "Rack"] }),
+               F("name", "Name", "text", "Identity", { required: true }),
+               F("parent_id", "Parent", "ref", "Identity", { ref: "locations" }),
+               F("rack_units", "Rack height (U)", "int", "Identity", { onlyFor: "Rack" })],
+      columns: [C("level", "Level", "type", "90px"), C("path", "Path", "mono"),
+                C("occupancy", "Occupancy", "text", "140px")],
+      chips: [K("all", "All"), K("rack", "Rack"), K("site", "Site")],
+    },
+    ad_memberships: {
+      key: "ad_memberships", label: "AD group membership", plural: "AD group membership",
+      idField: "membership_id", route: "/permission/ad-groups", hiddenInNav: true,
+      titleField: "group_name", desc: "", fields: [], columns: [], chips: [K("all", "All")],
+    },
+  };
+
+  const NAV = [
+    ["Overview", [["Dashboard", "/", "dashboard"]]],
+    ["Server", [["Server hardware", "/server/hardware", "hardware"],
+                ["Clusters", "/server/clusters", "clusters"],
+                ["Server list", "/server/list", "servers"]]],
+    ["Network", [["Network hardware", "/network/hardware", "network_devices"],
+                 ["VLANs", "/network/vlans", "vlans"]]],
+    ["Software", [["Software catalogue", "/software/catalogue", "software"],
+                  ["License control", "/software/licenses", "licenses"]]],
+    ["Permission Control", [["Permission dashboard", "/permission", "permission"],
+                            ["Access check", "/permission/access-check", "permaccess"],
+                            ["AD Users", "/permission/ad-users", "ad_users"],
+                            ["Server Permission", "/permission/server", "server_permissions"]]],
+    ["Governance", [["Warranty & assets", "/governance/warranty", "warranty"],
+                    ["Change history", "/governance/history", "history"],
+                    ["Recycle bin", "/governance/recycle-bin", "recycle"]]],
+    ["Reference", [["Locations & racks", "/reference/locations", "locations"]]],
+    ["Administration", [["Users", "/admin/users", "users"]]],
+  ];
+
+  let USER = null;
+  const J = (body) => new Response(JSON.stringify(body),
+    { status: 200, headers: { "content-type": "application/json" } });
+
+  const chipFilter = (key, chip, rows) => {
+    const dd = (v) => v ? Math.round((new Date(v) - new Date(new Date().toDateString())) / 86400000) : null;
+    const m = {
+      server: r => r.asset_type === "Server", storage: r => r.asset_type === "Storage",
+      warranty90: r => dd(r.warranty_expiry) !== null && dd(r.warranty_expiry) <= 90,
+      expired: r => key === "licenses" ? (r.expiry_date && dd(r.expiry_date) < 0)
+                                        : (r.warranty_expiry && dd(r.warranty_expiry) < 0),
+      nodata: r => !r.fixed_asset || !r.warranty_expiry,
+      virtual: r => r.hosting_type === "Virtual", physical: r => r.hosting_type === "Physical",
+      fileserver: r => r.server_role === "File Server",
+      subscription: r => r.license_type === "Subscription",
+      perpetual: r => r.license_type === "Perpetual",
+      expiring90: r => r.expiry_date && dd(r.expiry_date) >= 0 && dd(r.expiry_date) <= 90,
+      overused: r => (r.used_quantity || 0) > (r.license_quantity || 0),
+      enabled: r => r.status !== "Disabled", disabled: r => r.status === "Disabled",
+      nogroup: r => key === "ad_users" ? !r.group_count : (!r.rw_group && !r.ro_group),
+      noquota: r => !r.quota_gb, rw: r => !!r.rw_group,
+      roonly: r => !r.rw_group && !!r.ro_group,
+      switch: r => (r.subcategory || "").includes("Switch"),
+      security: r => r.category === "Network Security Device",
+      dhcp: r => r.dhcp_enabled === "Yes", active: r => r.status === "Active",
+      retired: r => r.status === "Retired", rack: r => r.level === "Rack",
+      site: r => r.level === "Site",
+    };
+    return m[chip] ? rows.filter(m[chip]) : rows;
+  };
+
+  window.fetch = async function (url, opts = {}) {
+    const u = new URL(url, location.origin);
+    const p = u.pathname, qs = u.searchParams;
+    const method = (opts.method || "GET").toUpperCase();
+
+    if (p === "/api/me") return J({ user: USER });
+    if (p === "/api/login") {
+      USER = { user_id: "USR-001", username: "admin", role: "admin",
+               display_name: "Administrator" };
+      return J({ user: USER });
+    }
+    if (p === "/api/logout") { USER = null; return J({ ok: true }); }
+    if (p === "/api/meta") return J({ entities: ENT, nav: NAV, lookups: {} });
+    if (p === "/api/counts") return J({ counts: {
+      hardware: 10, clusters: 2, servers: 10, network_devices: 5, vlans: 5,
+      software: 6, licenses: 6, ad_users: 8, server_permissions: 11, locations: 11,
+      licenses_attn: 4, warranty_attn: 5 } });
+
+    if (p === "/api/search") {
+      const q = (qs.get("q") || "").toLowerCase();
+      const groups = [];
+      for (const [key, ent] of Object.entries(ENT)) {
+        const rows = (DATA[key] || []).filter(r =>
+          JSON.stringify(r).toLowerCase().includes(q)).slice(0, 5);
+        if (rows.length) groups.push({ key, label: ent.plural, route: ent.route,
+          rows: rows.map(r => ({ id: r[ent.idField],
+            title: r[ent.titleField] || r[ent.idField],
+            subtitle: r.model || r.ip_address || r.department || r.vendor || "" })) });
+      }
+      return J({ groups });
+    }
+
+    let m = p.match(/^\/api\/e\/([a-z_]+)$/);
+    if (m && method === "GET") {
+      const key = m[1], ent = ENT[key];
+      let rows = [...(DATA[key] || [])];
+      const q = (qs.get("q") || "").toLowerCase();
+      if (q) rows = rows.filter(r => JSON.stringify(r).toLowerCase().includes(q));
+      rows = chipFilter(key, qs.get("chip") || "all", rows);
+      for (const [k, v] of qs.entries())
+        if (k.startsWith("f_") && v) rows = rows.filter(r => String(r[k.slice(2)]) === v);
+      const sort = qs.get("sort"), dir = qs.get("dir") === "desc" ? -1 : 1;
+      if (sort) rows.sort((a, b) => dir * String(a[sort] ?? "").localeCompare(String(b[sort] ?? ""), "en", { numeric: true }));
+      const counts = {};
+      (ent.chips || []).forEach(c => {
+        if (c.counts) counts[c.key] = chipFilter(key, c.key, DATA[key] || []).length;
+      });
+      return J({ rows, total: rows.length, counts, page: 1,
+                 perPage: parseInt(qs.get("per_page") || "25", 10) });
+    }
+
+    m = p.match(/^\/api\/e\/([a-z_]+)\/options\/([a-z_]+)$/);
+    if (m) {
+      const rows = DATA[m[1]] || [];
+      const col = m[2];
+      return J({ values: [...new Set(rows.map(r => r[col]).filter(v => v || v === 0))].sort() });
+    }
+
+    m = p.match(/^\/api\/refs\/([a-z_]+)$/);
+    if (m) {
+      const ent = ENT[m[1]];
+      return J({ options: (DATA[m[1]] || []).map(r => ({
+        id: r[ent.idField], label: r[ent.titleField] || r.path || r[ent.idField] })) });
+    }
+
+    m = p.match(/^\/api\/e\/([a-z_]+)\/([A-Z0-9-]+)$/);
+    if (m && method === "GET") {
+      const key = m[1], ent = ENT[key];
+      const row = (DATA[key] || []).find(r => r[ent.idField] === m[2]);
+      if (!row) return J({ error: "not found" });
+      const refs = {};
+      (ent.fields || []).filter(f => f.type === "ref").forEach(f => {
+        if (!row[f.name]) return;
+        const t = ENT[f.ref];
+        const rr = (DATA[f.ref] || []).find(x => x[t.idField] === row[f.name]);
+        refs[f.name] = rr ? { id: row[f.name], label: rr[t.titleField] || rr.path || row[f.name], route: t.route } : null;
+      });
+      const children = [];
+      if (key === "clusters") children.push({ key: "cluster_nodes", label: "Hosts / Nodes",
+        fk: "cluster_id", columns: ENT.cluster_nodes.columns,
+        rows: DATA.cluster_nodes.filter(n => n.cluster_id === m[2]) });
+      return J({ row, refs, children, title: row[ent.titleField] || m[2],
+        history: [
+          { version_no: 3, action: "update", changed_at: now(), changed_by: "somchai.p",
+            changed_keys: JSON.stringify(["status", "warranty_expiry"]) },
+          { version_no: 2, action: "update", changed_at: "2026-07-14 09:12",
+            changed_by: "nutthapong", changed_keys: JSON.stringify(["location_id", "u_start"]) },
+          { version_no: 1, action: "create", changed_at: "2026-03-02 16:40",
+            changed_by: "seed", changed_keys: JSON.stringify([]) },
+        ] });
+    }
+
+    if (p === "/api/dashboard") return J({
+      counts: { hardware: 10, network_devices: 5, servers: 10, clusters: 2, vlans: 5,
+                software: 6, licenses: 6, ad_users: 8, server_permissions: 11 },
+      warranty: [
+        { key: "hardware", label: "Server hardware", expired: 2, soon: 3, missing: 1, value: 6115000 },
+        { key: "network_devices", label: "Network hardware", expired: 2, soon: 1, missing: 0, value: 4140000 },
+      ],
+      licenses: { expiring: 2, expired: 1, overused: 1, spend: 20260000 },
+      soonest: [
+        { id: "NET-003", name: "FW-EDGE-01", detail: "FortiGate 600F", expiry: d(-15), entity: "network_devices" },
+        { id: "HW-010", name: "SYN4021X001", detail: "Synology RS4021xs+", expiry: d(-30), entity: "hardware" },
+        { id: "HW-006", name: "LNV88A0031", detail: "ThinkSystem SR650", expiry: d(-45), entity: "hardware" },
+        { id: "HW-004", name: "SGH301X4A1", detail: "ProLiant DL380 Gen10", expiry: d(61), entity: "hardware" },
+        { id: "NET-002", name: "SW-ACC-F2-01", detail: "Aruba 6300M", expiry: d(75), entity: "network_devices" },
+      ],
+      recent: [
+        { ts: now(), username: "somchai.p", action: "update", entity: "hardware", summary: "changed status, warranty_expiry" },
+        { ts: "2026-09-09 16:20", username: "admin", action: "import", entity: "ad_users", summary: "AD_AllGroups.csv: +12 new, 96 updated" },
+        { ts: "2026-09-09 11:02", username: "kanya.s", action: "create", entity: "licenses", summary: "Licence created" },
+      ],
+    });
+
+    if (p === "/api/permission") return J({
+      summary: { users: 8, disabled: 1, memberships: 22, ad_groups: 14, no_group: 0,
+                 folders: 11, file_servers: 4, folders_no_group: 1,
+                 orphan_groups: ["Mold Shop_Read Only", "QA Common_Read Only"] },
+      departments: [
+        { department: "Production Control", folders: 2, quota: 700, no_group: 0 },
+        { department: "Engineering", folders: 3, quota: 2800, no_group: 1 },
+        { department: "IT Infrastructure", folders: 2, quota: 4400, no_group: 0 },
+        { department: "Purchasing", folders: 1, quota: 120, no_group: 0 },
+        { department: "Finance", folders: 1, quota: 300, no_group: 0 },
+      ],
+      topServers: [{ server_name: "FS-HQ-02", folders: 4 }, { server_name: "FS-ENG-01", folders: 3 },
+                   { server_name: "FS-PROD-01", folders: 3 }, { server_name: "FS-DR-01", folders: 1 }],
+      recent: [
+        { ts: "2026-09-09 16:20", username: "admin", action: "import", entity: "ad_users", summary: "AD_AllGroups.csv: +12 new" },
+        { ts: "2026-09-08 10:04", username: "somchai.p", action: "update", entity: "server_permissions", summary: "changed rw_group" },
+      ],
+    });
+
+    if (p === "/api/permission/access") {
+      const mode = qs.get("mode") === "folder" ? "folder" : "user";
+      const q = (qs.get("q") || "").trim();
+      const samples = { users: ["somchai.p", "sudket.i", "kanya.s", "thanit.r", "wanida.k", "viewer.qa"],
+                        folders: ["Production Control", "PU Secret", "Finance", "Engineering", "All Staff"] };
+      if (!q) return J({ mode, q, samples, result: null });
+      if (mode === "user") return J({ mode, q, samples, result: {
+        logon: q,
+        user: { display_name: "Sudket Innuput", department: "Production Control",
+                job_title: "Staff", status: "Enabled" },
+        groups: ["Production Control_Modify", "PC Common_Modify", "PU Secret_Read Only", "All Staff_Read Only"],
+        folders: [
+          { permission_id: "PRM-00001", folder_name: "Production Control", folder_path: "\\\\FS-PROD-01\\Share\\ProductionControl", server_name: "FS-PROD-01", access: "Read/Write", via: "Production Control_Modify", quota_gb: 500 },
+          { permission_id: "PRM-00002", folder_name: "PC Common", folder_path: "\\\\FS-PROD-01\\Share\\PC_Common", server_name: "FS-PROD-01", access: "Read/Write", via: "PC Common_Modify", quota_gb: 200 },
+          { permission_id: "PRM-00004", folder_name: "PU Secret", folder_path: "\\\\FS-HQ-02\\Secret\\Purchasing", server_name: "FS-HQ-02", access: "Read only", via: "PU Secret_Read Only", quota_gb: 120 },
+          { permission_id: "PRM-00006", folder_name: "All Staff", folder_path: "\\\\FS-HQ-02\\Share\\AllStaff", server_name: "FS-HQ-02", access: "Read only", via: "All Staff_Read Only", quota_gb: null },
+        ] } });
+      return J({ mode, q, samples, result: { query: q, folders: [{
+        folder_name: "PU Secret", server_name: "FS-HQ-02",
+        folder_path: "\\\\FS-HQ-02\\Secret\\Purchasing",
+        rw_group: "PU Secret_Modify", ro_group: "PU Secret_Read Only",
+        people: [
+          { logon: "kanya.s", display_name: "Kanya Suwan", department: "Purchasing", access: "Read/Write", via: "PU Secret_Modify", status: "Enabled" },
+          { logon: "sudket.i", display_name: "Sudket Innuput", department: "Production Control", access: "Read only", via: "PU Secret_Read Only", status: "Enabled" },
+        ] }] } });
+    }
+
+    if (p === "/api/governance/warranty") return J({ rows: [
+      { entity: "network_devices", id: "NET-003", name: "FW-EDGE-01", model: "FortiGate 600F", fixed_asset: "IS0341", price: 950000, warranty_expiry: d(-15), eol_date: d(900), status: "Use" },
+      { entity: "hardware", id: "HW-010", name: "SYN4021X001", model: "Synology RS4021xs+", fixed_asset: "", price: 420000, warranty_expiry: d(-30), eol_date: d(400), status: "In Use" },
+      { entity: "hardware", id: "HW-006", name: "LNV88A0031", model: "ThinkSystem SR650", fixed_asset: "IS0141", price: 350000, warranty_expiry: d(-45), eol_date: d(685), status: "Maintenance" },
+      { entity: "hardware", id: "HW-004", name: "SGH301X4A1", model: "ProLiant DL380 Gen10", fixed_asset: "IS0121", price: 395000, warranty_expiry: d(61), eol_date: d(791), status: "In Use" },
+      { entity: "network_devices", id: "NET-002", name: "SW-ACC-F2-01", model: "Aruba 6300M", fixed_asset: "IS0321", price: 260000, warranty_expiry: d(75), eol_date: d(1100), status: "Use" },
+      { entity: "hardware", id: "HW-001", name: "CN7412001", model: "PowerEdge R750", fixed_asset: "IS0101", price: 480000, warranty_expiry: d(420), eol_date: d(1150), status: "In Use" },
+    ] });
+
+    if (p === "/api/governance/history") return J({ rows: [
+      { changed_at: now(), changed_by: "somchai.p", action: "update", entity: "hardware", record_id: "HW-001", changed_keys: JSON.stringify(["status", "warranty_expiry"]) },
+      { changed_at: "2026-09-09 16:20", changed_by: "admin", action: "create", entity: "ad_users", record_id: "AD-00008", changed_keys: JSON.stringify(["user_logon", "display_name", "department"]) },
+      { changed_at: "2026-09-08 10:04", changed_by: "somchai.p", action: "update", entity: "server_permissions", record_id: "PRM-00004", changed_keys: JSON.stringify(["rw_group"]) },
+      { changed_at: "2026-09-05 14:31", changed_by: "kanya.s", action: "delete", entity: "licenses", record_id: "LIC-00003", changed_keys: JSON.stringify(["is_deleted"]) },
+    ] });
+
+    if (p === "/api/governance/recycle-bin") return J({ rows: [
+      { entity: "licenses", entityLabel: "Licence", id: "LIC-00003", title: "Microsoft SQL Server · Microsoft", deleted_at: "2026-09-05 14:31", deleted_by: "kanya.s" },
+      { entity: "vlans", entityLabel: "VLAN / subnet", id: "VLA-005", title: "VL90-GUEST", deleted_at: "2026-08-22 09:15", deleted_by: "nutthapong" },
+    ] });
+
+    if (p === "/api/admin/users") return J({ rows: [
+      { user_id: "USR-001", username: "admin", display_name: "Administrator", email: "it@company.co.th", role: "admin", status: "Active", last_login: now() },
+      { user_id: "USR-002", username: "viewer", display_name: "Read-only Viewer", email: "viewer@company.co.th", role: "viewer", status: "Active", last_login: "2026-09-08 08:40" },
+      { user_id: "USR-003", username: "nutthapong", display_name: "Nutthapong Sri", email: "nutthapong@company.co.th", role: "admin", status: "Active", last_login: "2026-09-09 17:55" },
+    ] });
+
+    if (p.startsWith("/api/")) return J({ ok: true, demo: true });
+    return new Response("", { status: 404 });
+  };
+})();
+</script>
+<script src="app.js"></script>
+</body>
+</html>

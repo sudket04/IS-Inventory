@@ -1,0 +1,21 @@
+{
+  "name": "it-inventory",
+  "version": "1.0.0",
+  "description": "IT Infrastructure Inventory — HTML/CSS/JS front end, Node.js API, SQL Server database",
+  "private": true,
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "init-db": "node -e \"require('./db').initDb().then(()=>process.exit(0))\"",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mssql": "^11.0.1",
+    "multer": "^2.0.2"
+  },
+  "engines": { "node": ">=18" }
+}
