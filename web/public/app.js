@@ -426,9 +426,15 @@ async function renderList(ent) {
     <div class="chips">${chips}</div>
     ${active.length ? `<div class="filter-bar">
       <span class="filter-bar-label">กรองอยู่</span>
-      ${active.map(([k, v]) => `<span class="filter-pill"><b>${esc(
-        ent.columns.find(c => "f_" + c.name === k)?.label || k.slice(2))}</b> ${esc(v)}
-        <a href="${withQuery(ent.route, { [k]: "" })}" title="ลบตัวกรอง">✕</a></span>`).join("")}
+      ${active.map(([k, v]) => {
+        const label = ent.columns.find(c => "f_" + c.name === k)?.label || k.slice(2);
+        const vals = v.split(state.meta.filterSep);
+        const shown = vals.length > 2
+          ? `${esc(vals.slice(0, 2).join(", "))} +${vals.length - 2}`
+          : esc(vals.join(", "));
+        return `<span class="filter-pill"><b>${esc(label)}</b> ${shown}
+          <a href="${withQuery(ent.route, { [k]: "" })}" title="ลบตัวกรอง">✕</a></span>`;
+      }).join("")}
       <a class="filter-clear" href="${withQuery(ent.route,
         Object.fromEntries(active.map(([k]) => [k, ""])))}">ล้างทั้งหมด</a></div>` : ""}
     <div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
@@ -462,11 +468,16 @@ async function renderList(ent) {
     btn.addEventListener("click", (e) => { e.stopPropagation(); openFilter(ent, btn); }));
 }
 
+/** Excel-style column filter: type to narrow the list, tick any number of
+ * values, "เลือกทั้งหมด/ล้างการเลือก" act on what's currently visible. */
 async function openFilter(ent, btn) {
   document.querySelector(".filter-pop")?.remove();
   const col = btn.dataset.col;
+  const sep = state.meta.filterSep;
   const { values } = await api(`/api/e/${ent.key}/options/${col}`);
-  const cur = parseQuery()["f_" + col] || "";
+  const curRaw = parseQuery()["f_" + col] || "";
+  const cur = new Set(curRaw ? curRaw.split(sep) : []);
+  const label = ent.columns.find(c => c.name === col)?.label || col;
   const rect = btn.getBoundingClientRect();
   const pop = document.createElement("div");
   pop.className = "filter-pop";
@@ -474,27 +485,65 @@ async function openFilter(ent, btn) {
     window.innerWidth - 372)) + "px";
   pop.style.top = (rect.bottom + 6) + "px";
   pop.innerHTML = `
-    <div class="filter-head">กรอง ${esc(ent.columns.find(c => c.name === col)?.label || col)}</div>
+    <div class="filter-head">กรอง ${esc(label)}</div>
     <input class="filter-search" placeholder="พิมพ์เพื่อค้นหา…">
-    <div class="filter-list">${values.length ? values.map(v =>
-      `<label class="filter-opt"><input type="radio" name="fv" value="${esc(v)}"${
-        String(v) === cur ? " checked" : ""}><span class="filter-opt-label">${esc(v)}</span></label>`
-      ).join("") : `<div class="filter-empty">ไม่มีค่าให้เลือก</div>`}</div>
+    <div class="filter-tools">
+      <button type="button" data-act="all">เลือกทั้งหมด</button>
+      <button type="button" data-act="none">ล้างการเลือก</button>
+      <span class="filter-shown"></span>
+    </div>
+    <div class="filter-list">${values.length ? values.map(({ value, count }) => {
+      const checked = !curRaw || cur.has(String(value));
+      return `<label class="filter-opt"><input type="checkbox" class="fv" value="${esc(value)}"${
+        checked ? " checked" : ""}><span class="filter-opt-label">${esc(value)}</span>
+        <span class="filter-opt-n">${num(count)}</span></label>`;
+    }).join("") : `<div class="filter-empty">ไม่มีค่าให้เลือก</div>`}</div>
     <div class="filter-actions">
-      <button class="btn small" data-act="clear">ล้าง</button>
+      <button class="btn small" data-act="clear">ล้างตัวกรอง</button>
       <button class="btn small primary" data-act="apply">ใช้ตัวกรอง</button></div>`;
   document.body.appendChild(pop);
+
   const search = pop.querySelector(".filter-search");
-  search.focus();
+  const shown = pop.querySelector(".filter-shown");
+  const applyBtn = pop.querySelector('[data-act="apply"]');
+  const rows = () => Array.from(pop.querySelectorAll(".filter-opt"));
+  const boxes = () => Array.from(pop.querySelectorAll(".fv"));
+  const visibleRows = () => rows().filter(r => r.style.display !== "none");
+
+  const syncState = () => {
+    const total = boxes().length;
+    applyBtn.disabled = total > 0 && boxes().every(b => !b.checked);
+    const visCount = visibleRows().length;
+    shown.textContent = total
+      ? (visCount === total ? `${total} ค่า` : `แสดง ${visCount} จาก ${total} ค่า`) : "";
+  };
+
   search.addEventListener("input", () => {
     const needle = search.value.toLowerCase();
-    pop.querySelectorAll(".filter-opt").forEach(o =>
-      o.style.display = o.textContent.toLowerCase().includes(needle) ? "" : "none");
+    rows().forEach(r => {
+      r.style.display = r.textContent.toLowerCase().includes(needle) ? "" : "none";
+    });
+    syncState();
   });
-  pop.querySelector('[data-act="apply"]').addEventListener("click", () => {
-    const picked = pop.querySelector('input[name="fv"]:checked')?.value || "";
+  pop.querySelector('[data-act="all"]').addEventListener("click", () => {
+    visibleRows().forEach(r => { r.querySelector(".fv").checked = true; });
+    syncState();
+  });
+  pop.querySelector('[data-act="none"]').addEventListener("click", () => {
+    visibleRows().forEach(r => { r.querySelector(".fv").checked = false; });
+    syncState();
+  });
+  boxes().forEach(b => b.addEventListener("change", syncState));
+  syncState();
+  search.focus();
+
+  applyBtn.addEventListener("click", () => {
+    if (applyBtn.disabled) return;
+    const all = boxes();
+    const picked = all.filter(b => b.checked).map(b => b.value);
     pop.remove();
-    go(withQuery(ent.route, { ["f_" + col]: picked, page: "" }));
+    const value = picked.length === all.length ? "" : picked.join(sep);
+    go(withQuery(ent.route, { ["f_" + col]: value, page: "" }));
   });
   pop.querySelector('[data-act="clear"]').addEventListener("click", () => {
     pop.remove();

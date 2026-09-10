@@ -74,6 +74,11 @@ async function scalar(text, params = []) {
 const now = () => new Date().toISOString().slice(0, 19).replace("T", " ");
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** Joins several picked values into one f_<col> query value (Excel-style
+ * column filter -- a column can match any of several checked values). Uses
+ * the ASCII unit separator so it never collides with real field data. */
+const FILTER_SEP = String.fromCharCode(31);
+
 // --------------------------------------------------------------------------
 // Schema
 // --------------------------------------------------------------------------
@@ -383,8 +388,15 @@ async function listRecords(ent, opts = {}) {
     const field = ent.fields.find(f => f.name === col);
     const target = field ? col : (ent.columns.find(c => c.name === col)?.filterOn || col);
     if (!ent.fields.some(f => f.name === target)) continue;
-    where.push(`[${target}] = ${hole()}`);
-    params.push(val);
+    const picked = String(val).split(FILTER_SEP).filter(v => v !== "");
+    if (!picked.length) continue;
+    if (picked.length === 1) {
+      where.push(`[${target}] = ${hole()}`);
+      params.push(picked[0]);
+    } else {
+      const holes = picked.map(v => { const h = hole(); params.push(v); return h; });
+      where.push(`[${target}] IN (${holes.join(",")})`);
+    }
   }
   const clause = "WHERE " + where.join(" AND ");
   const total = await scalar(`SELECT COUNT(*) FROM ${ent.table} ${clause}`, params);
@@ -409,16 +421,20 @@ async function listRecords(ent, opts = {}) {
   return { rows, total, counts, page, perPage };
 }
 
-/** Distinct values for a column, for the per-column filter dropdown. */
+/** Distinct values + row counts for a column, for the Excel-style
+ * checkbox filter dropdown on that column's header. */
 async function distinctValues(ent, column) {
   const field = ent.fields.find(f => f.name === column);
   const target = field ? column : (ent.columns.find(c => c.name === column)?.filterOn);
   if (!target || !ent.fields.some(f => f.name === target)) return [];
   const rows = await query(
-    `SELECT DISTINCT [${target}] AS v FROM ${ent.table}` +
+    `SELECT [${target}] AS v, COUNT(*) AS n FROM ${ent.table}` +
     ` WHERE is_deleted = 0 AND [${target}] IS NOT NULL AND [${target}] <> ''` +
-    ` ORDER BY [${target}]`);
-  return rows.map(r => (r.v instanceof Date ? r.v.toISOString().slice(0, 10) : r.v));
+    ` GROUP BY [${target}] ORDER BY [${target}]`);
+  return rows.map(r => ({
+    value: r.v instanceof Date ? r.v.toISOString().slice(0, 10) : r.v,
+    count: r.n,
+  }));
 }
 
 /** Options for a ref field: [{id, label}] */
@@ -760,7 +776,7 @@ async function permissionDashboard() {
 }
 
 module.exports = {
-  sql, pool, query, execute, scalar, now, today,
+  sql, pool, query, execute, scalar, now, today, FILTER_SEP,
   initDb, entityDdl, SYSTEM_TABLES,
   hashPassword, verifyPassword, findUser, nextUserId,
   nextId, audit, auditTrail, writeHistory, historyFor, changeHistory,

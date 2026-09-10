@@ -128,6 +128,7 @@ app.get("/api/meta", loginRequired, (req, res) => {
       chips: (e.chips || []).map(c => ({ key: c.key, label: c.label, counts: c.counts })),
     }])),
     nav: NAV, lookups: LOOKUPS, warrantyEntities: WARRANTY_ENTITIES,
+    filterSep: db.FILTER_SEP,
   });
 });
 
