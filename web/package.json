@@ -8,7 +8,8 @@
   "scripts": {
     "start": "node server.js",
     "init-db": "node -e \"require('./db').initDb().then(()=>process.exit(0))\"",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "load-locations": "node load-locations.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.6",

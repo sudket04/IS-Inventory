@@ -27,7 +27,7 @@ const LOOKUPS = {
   StorageType: ["SSD", "HDD", "SAN", "NAS"],
   NetworkZone: ["Trust", "Untrust", "DMZ", "DMZ Internet", "DMZ Server",
                 "Management", "Guest"],
-  LocationLevel: ["Site", "Factory", "Floor", "Area", "Rack"],
+  LocationLevel: ["Site", "Factory", "Floor", "Area"],
   DhcpEnabled: ["Yes", "No"],
   GatewayDevice: ["Core Switch", "Firewall", "Router", "Other"],
   DeviceStatus: ["Use", "Standby", "Decommissioned"],
@@ -80,7 +80,7 @@ const SQL_TYPES = {
 function F(name, label, type = "text", group = "Details", extra = {}) {
   return {
     name, label, type, group,
-    required: false, options: null, ref: null, refFilter: null,
+    required: false, options: null, ref: null, refWhere: null,
     onlyFor: null, placeholder: "", help: "", unique: false,
     sqlType: SQL_TYPES[type] || "NVARCHAR(200)",
     ...extra,
@@ -98,9 +98,9 @@ function K(key, label, where = "", params = [], counts = false) {
 }
 
 const locationFields = (required = false) => [
-  F("location_id", "Rack", "ref", "Location", {
-    required, ref: "locations", refFilter: "level = 'Rack'",
-    help: "Pick the rack — Site › Factory › Floor › Area › Rack comes with it",
+  F("location_id", "Area", "ref", "Location", {
+    required, ref: "locations", refWhere: { level: "Area" },
+    help: "Pick the area — Site › Factory › Floor comes with it",
   }),
   F("u_start", "Start U", "int", "Location", { placeholder: "e.g. 10" }),
   F("u_height", "Height (U)", "int", "Location", { placeholder: "e.g. 2" }),
@@ -231,7 +231,7 @@ const CLUSTER_NODES = {
     F("cluster_id", "Cluster", "ref", "Identity", { required: true, ref: "clusters" }),
     F("host_name", "Host name", "text", "Identity", { required: true, unique: true }),
     F("hardware_id", "Hardware", "ref", "Identity", {
-      required: true, ref: "hardware", refFilter: "asset_type = 'Server'", unique: true,
+      required: true, ref: "hardware", refWhere: { asset_type: "Server" }, unique: true,
       help: "One physical box can only be one host",
     }),
     F("ip_host", "IP host", "ip", "Network", { unique: true }),
@@ -264,7 +264,7 @@ const SERVERS = {
       { required: true, onlyFor: "Virtual", ref: "cluster_nodes" }),
     F("hardware_id", "Hardware", "ref", "Identity", {
       required: true, onlyFor: "Physical", ref: "hardware",
-      refFilter: "asset_type = 'Server'", unique: true,
+      refWhere: { asset_type: "Server" }, unique: true,
     }),
     F("system_group", "System group", "text", "Identity"),
     F("system_name", "System name", "text", "Identity", { required: true, unique: true }),
@@ -399,11 +399,11 @@ const VLANS = {
 };
 
 const LOCATIONS = {
-  key: "locations", table: "dbo.locations", label: "Locations & racks",
-  plural: "Locations & racks", idField: "location_id", idPrefix: "LOC", idWidth: 3,
+  key: "locations", table: "dbo.locations", label: "Locations & areas",
+  plural: "Locations & areas", idField: "location_id", idPrefix: "LOC", idWidth: 3,
   route: "/reference/locations", navGroup: "Reference", navOrder: 1,
   discriminator: "level", titleField: "name",
-  desc: "Site › Factory › Floor › Area › Rack — one vocabulary for every form, so “what is in Rack 01” has an answer",
+  desc: "Site › Factory › Floor › Area — one vocabulary for every form, so “what is in Area X” has an answer",
   fields: [
     F("level", "Level", "select", "Identity",
       { required: true, options: LOOKUPS.LocationLevel }),
@@ -413,7 +413,7 @@ const LOCATIONS = {
       help: "Site has no parent; everything else sits under the level above it",
     }),
     F("rack_units", "Rack height (U)", "int", "Identity",
-      { onlyFor: "Rack", placeholder: "e.g. 42" }),
+      { onlyFor: "Area", placeholder: "e.g. 42", help: "Fill in only when this area is a rack cabinet" }),
     F("remarks", "Remarks", "textarea", "Other"),
   ],
   columns: [
@@ -580,7 +580,7 @@ const SERVER_PERMISSIONS = {
   desc: "Shared folders on File Servers and the AD groups that hold read/write or read-only access — servers come from the Server list",
   fields: [
     F("server_id", "File Server", "ref", "Folder", {
-      required: true, ref: "servers", refFilter: "server_role = 'File Server'",
+      required: true, ref: "servers", refWhere: { server_role: "File Server" },
       help: "Only servers marked Server role = File Server in the Server list",
     }),
     F("folder_name", "Folder name", "text", "Folder",

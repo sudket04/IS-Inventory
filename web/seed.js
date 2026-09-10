@@ -45,14 +45,10 @@ async function seed() {
     { level: "Floor", name: "DR Floor 1", parent_id: loc["DR Site Chonburi"] },
   ], "name"));
   Object.assign(loc, await add("locations", [
-    { level: "Area", name: "Server Room A", parent_id: loc["Floor 2"] },
-    { level: "Area", name: "DR Server Room", parent_id: loc["DR Floor 1"] },
-  ], "name"));
-  Object.assign(loc, await add("locations", [
-    { level: "Rack", name: "Rack A-01", parent_id: loc["Server Room A"], rack_units: 42 },
-    { level: "Rack", name: "Rack A-02", parent_id: loc["Server Room A"], rack_units: 42 },
-    { level: "Rack", name: "Rack A-03", parent_id: loc["Server Room A"], rack_units: 42 },
-    { level: "Rack", name: "Rack DR-01", parent_id: loc["DR Server Room"], rack_units: 42 },
+    { level: "Area", name: "Rack A-01", parent_id: loc["Floor 2"], rack_units: 42 },
+    { level: "Area", name: "Rack A-02", parent_id: loc["Floor 2"], rack_units: 42 },
+    { level: "Area", name: "Rack A-03", parent_id: loc["Floor 2"], rack_units: 42 },
+    { level: "Area", name: "Rack DR-01", parent_id: loc["DR Floor 1"], rack_units: 42 },
   ], "name"));
 
   console.log("[seed] server hardware");

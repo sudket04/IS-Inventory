@@ -437,15 +437,26 @@ async function distinctValues(ent, column) {
   }));
 }
 
-/** Options for a ref field: [{id, label}] */
-async function refOptions(entKey, extraFilter = "") {
+/** Options for a ref field: [{id, label}]. `whereEq` is a plain equality
+ * filter ({column: value}) — column names are checked against the entity's
+ * own fields first, so this never takes raw SQL from the caller. */
+async function refOptions(entKey, whereEq = {}) {
   const ent = ENTITIES[entKey];
   if (!ent) return [];
+  const allowedCols = new Set(ent.fields.map(f => f.name));
+  const where = ["is_deleted = 0"], params = [];
+  for (const [col, val] of Object.entries(whereEq)) {
+    if (!allowedCols.has(col) || val === undefined || val === null || val === "") continue;
+    where.push(`[${col}] = @p${params.length}`);
+    params.push(val);
+  }
   const rows = await query(
-    `SELECT * FROM ${ent.table} WHERE is_deleted = 0` +
-    (extraFilter ? ` AND (${extraFilter})` : "") + ` ORDER BY ${ent.idField}`);
+    `SELECT * FROM ${ent.table} WHERE ${where.join(" AND ")} ORDER BY ${ent.idField}`, params);
   if (entKey === "locations") {
-    const byId = Object.fromEntries(rows.map(r => [r.location_id, r]));
+    // path-walking needs every ancestor, not just the (possibly filtered) rows
+    const all = params.length
+      ? await query("SELECT * FROM dbo.locations WHERE is_deleted = 0") : rows;
+    const byId = Object.fromEntries(all.map(r => [r.location_id, r]));
     const path = (r) => {
       const out = []; let cur = r, guard = 0;
       while (cur && guard++ < 8) { out.unshift(cur.name); cur = byId[cur.parent_id]; }
@@ -502,7 +513,7 @@ async function decorate(ent, rows) {
       const parts = []; let cur = r, guard = 0;
       while (cur && guard++ < 8) { parts.unshift(cur.name); cur = byId[cur.parent_id]; }
       r.path = parts.join(" › ");
-      r.occupancy = r.level === "Rack"
+      r.occupancy = r.level === "Area"
         ? `${used[r.location_id] || 0} device(s)${r.rack_units ? " / " + r.rack_units + "U" : ""}`
         : "—";
     });

@@ -28,9 +28,10 @@ set MSSQL_DATABASE=IS_Inventory
 set MSSQL_USER=isadmin
 set MSSQL_PASSWORD=ChangeMe#2026
 
-npm run init-db     # สร้างตารางทั้งหมด + บัญชี admin แรก
-npm run seed        # (ทางเลือก) ใส่ข้อมูลตัวอย่างทั้งระบบ
-npm start           # http://127.0.0.1:8000
+npm run init-db          # สร้างตารางทั้งหมด + บัญชี admin แรก
+npm run load-locations   # (ทางเลือก) โหลดผัง Site/Factory/Floor จริงเข้า Locations & areas
+npm run seed             # (ทางเลือก) ใส่ข้อมูลตัวอย่างทั้งระบบ
+npm start                # http://127.0.0.1:8000
 ```
 
 เข้าใช้งานครั้งแรก `admin / admin123` — **เปลี่ยนรหัสทันที** ที่ Administration › Users
@@ -120,6 +121,7 @@ web/
   db.js               ชั้นฐานข้อมูล — DDL, CRUD, validation, history, audit, permission
   server.js           Express — JSON API ที่ generate จาก entities.js + auth/role
   seed.js             ข้อมูลตัวอย่างทั้งระบบ
+  load-locations.js   โหลดผัง Site/Factory/Floor จริงเข้า Locations & areas (แก้ไขผังได้ในไฟล์)
   export-schema.js    generate schema.sql ไปรันใน SSMS
   public/
     index.html        โครงหน้าเว็บ (โหลด app.css + app.js)
@@ -136,7 +138,7 @@ F("power_watt", "Power (W)", "int", "Physical", { placeholder: "e.g. 750" })
 ```
 
 ชนิดฟิลด์: `text` `textarea` `select` `ref` `ip` `mac` `date` `int` `money` `bool`
-ตัวเลือกอื่น: `required` `unique` `options` `ref` `refFilter` `onlyFor`
+ตัวเลือกอื่น: `required` `unique` `options` `ref` `refWhere` `onlyFor`
 (ซ่อน/แสดงตามชนิดของ record เช่น Virtual vs Physical) `placeholder` `help`
 
 ---
@@ -151,7 +153,7 @@ F("power_watt", "Power (W)", "int", "Physical", { placeholder: "e.g. 750" })
 | Software | Software catalogue · License control |
 | Permission Control | Permission dashboard · Access check · AD Users · Server Permission |
 | Governance | Warranty & assets · Change history · Recycle bin |
-| Reference | Locations & racks |
+| Reference | Locations & areas |
 | Administration | Users (admin เท่านั้น) |
 
 หน้า import AD/folder อยู่ที่ `#/permission/import` — **ไม่มีเมนูของตัวเอง**

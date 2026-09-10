@@ -121,7 +121,7 @@ app.get("/api/meta", loginRequired, (req, res) => {
       noAdd: !!e.noAdd,
       fields: e.fields.map(f => ({
         name: f.name, label: f.label, type: f.type, group: f.group,
-        required: f.required, options: f.options, ref: f.ref,
+        required: f.required, options: f.options, ref: f.ref, refWhere: f.refWhere,
         onlyFor: f.onlyFor, placeholder: f.placeholder, help: f.help,
       })),
       columns: e.columns,
@@ -164,7 +164,10 @@ app.get("/api/e/:key/options/:column", loginRequired, wrap(async (req, res) => {
 }));
 
 app.get("/api/refs/:key", loginRequired, wrap(async (req, res) => {
-  res.json({ options: await db.refOptions(req.params.key, req.query.filter || "") });
+  // Each query param is an equality filter (e.g. ?asset_type=Server) —
+  // db.refOptions() only applies ones that name a real column on the
+  // target entity, and always as a parameterized value, never raw SQL.
+  res.json({ options: await db.refOptions(req.params.key, req.query) });
 }));
 
 app.get("/api/e/:key/:id", loginRequired, wrap(async (req, res) => {

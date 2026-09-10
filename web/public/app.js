@@ -697,6 +697,96 @@ async function renderDetail(ent, id) {
 // --------------------------------------------------------------------------
 // Entity form
 // --------------------------------------------------------------------------
+
+/** Markup for the Locations "Parent" field: a hidden input carries the real
+ * parent_id value, shown as a Site → Factory → Floor cascade instead of one
+ * flat dropdown of every location. wireLocationParentPicker() fills it in. */
+function locationParentPickerHtml(row) {
+  return `
+    <input type="hidden" id="f_parent_id" name="parent_id" value="${esc(row.parent_id || "")}">
+    <div class="parent-picker">
+      ${["Site", "Factory", "Floor"].map(lvl => `
+        <div class="parent-picker-row" data-row="${lvl}">
+          <label>${lvl}</label>
+          <select data-pick="${lvl}"><option value="">— เลือก —</option></select>
+        </div>`).join("")}
+    </div>`;
+}
+
+/** Cascades the Site/Factory/Floor selects above from `locTree` (every
+ * locations row) and keeps the hidden parent_id input in sync. */
+function wireLocationParentPicker(form, row, locTree) {
+  const byId = Object.fromEntries(locTree.map(r => [r.location_id, r]));
+  const childrenOf = (parentId, level) => locTree
+    .filter(r => r.level === level && (r.parent_id || "") === (parentId || ""))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const levelSel = form.elements["level"];
+  const hidden = form.elements["parent_id"];
+  const picker = form.querySelector(".parent-picker");
+  const rowEl = { Site: picker.querySelector('[data-row="Site"]'),
+                  Factory: picker.querySelector('[data-row="Factory"]'),
+                  Floor: picker.querySelector('[data-row="Floor"]') };
+  const sel = { Site: picker.querySelector('[data-pick="Site"]'),
+                Factory: picker.querySelector('[data-pick="Factory"]'),
+                Floor: picker.querySelector('[data-pick="Floor"]') };
+
+  const fillSelect = (s, options, selected) => {
+    s.innerHTML = `<option value="">— เลือก —</option>` + options.map(o =>
+      `<option value="${esc(o.location_id)}"${o.location_id === selected ? " selected" : ""}
+        >${esc(o.name)}</option>`).join("");
+  };
+
+  const updateHidden = () => {
+    const lvl = levelSel?.value || "";
+    hidden.value = lvl === "Factory" ? sel.Site.value
+      : lvl === "Floor" ? sel.Factory.value
+      : lvl === "Area" ? sel.Floor.value : "";
+  };
+
+  // Shows/hides the three rows for the current level and recomputes the
+  // hidden value. Never touches the selects' contents, so switching the
+  // level back and forth doesn't lose a selection already made.
+  const sync = () => {
+    const lvl = levelSel?.value || "";
+    const need = { Site: ["Factory", "Floor", "Area"].includes(lvl),
+                   Factory: ["Floor", "Area"].includes(lvl),
+                   Floor: lvl === "Area" };
+    picker.style.display = need.Site ? "" : "none";
+    Object.entries(need).forEach(([k, show]) => { rowEl[k].style.display = show ? "" : "none"; });
+    updateHidden();
+  };
+
+  sel.Site.addEventListener("change", () => {
+    fillSelect(sel.Factory, childrenOf(sel.Site.value, "Factory"), "");
+    fillSelect(sel.Floor, [], "");
+    updateHidden();
+  });
+  sel.Factory.addEventListener("change", () => {
+    fillSelect(sel.Floor, childrenOf(sel.Factory.value, "Floor"), "");
+    updateHidden();
+  });
+  sel.Floor.addEventListener("change", updateHidden);
+  levelSel?.addEventListener("change", sync);
+
+  let preset = null;
+  if (row.parent_id) {
+    preset = {};
+    let cur = byId[row.parent_id];
+    while (cur) {
+      if (cur.level === "Floor") preset.floor = cur.location_id;
+      if (cur.level === "Factory") preset.factory = cur.location_id;
+      if (cur.level === "Site") preset.site = cur.location_id;
+      cur = byId[cur.parent_id];
+    }
+  }
+
+  fillSelect(sel.Site, childrenOf(null, "Site"), preset?.site || "");
+  fillSelect(sel.Factory, childrenOf(sel.Site.value, "Factory"), preset?.factory || "");
+  fillSelect(sel.Floor, childrenOf(sel.Factory.value, "Floor"), preset?.floor || "");
+  sync();
+}
+
 async function renderForm(ent, id = null) {
   const mode = id ? "edit" : "new";
   shell(loading(), { heading: mode === "new" ? `New ${ent.label}` : `Edit ${id}` });
@@ -707,11 +797,18 @@ async function renderForm(ent, id = null) {
     if (ent.fields.some(f => f.name === k) && !row[k]) row[k] = v;
   });
 
+  // Locations' own "Parent" field gets a Site→Factory→Floor cascading
+  // picker instead of one flat dropdown of every location — see below.
+  const isLocationParent = (f) => ent.key === "locations" && f.name === "parent_id";
+
   const refCache = {};
-  for (const f of ent.fields.filter(f => f.type === "ref")) {
-    const { options } = await api(`/api/refs/${f.ref}`);
+  for (const f of ent.fields.filter(f => f.type === "ref" && !isLocationParent(f))) {
+    const qs = f.refWhere ? "?" + new URLSearchParams(f.refWhere) : "";
+    const { options } = await api(`/api/refs/${f.ref}${qs}`);
     refCache[f.name] = options;
   }
+  const locTree = ent.key === "locations"
+    ? (await api(`/api/e/locations?per_page=200`)).rows : null;
 
   const groups = [];
   ent.fields.forEach(f => {
@@ -723,6 +820,7 @@ async function renderForm(ent, id = null) {
   const control = (f) => {
     const v = row[f.name] ?? "";
     const common = `id="f_${f.name}" name="${f.name}"${f.required ? " required" : ""}`;
+    if (isLocationParent(f)) return locationParentPickerHtml(row);
     if (f.type === "textarea")
       return `<textarea ${common} placeholder="${esc(f.placeholder)}">${esc(v)}</textarea>`;
     if (f.type === "select")
@@ -793,6 +891,7 @@ async function renderForm(ent, id = null) {
   if (ent.discriminator)
     form.elements[ent.discriminator]?.addEventListener("change", applyDisc);
   applyDisc();
+  if (ent.key === "locations") wireLocationParentPicker(form, row, locTree);
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();

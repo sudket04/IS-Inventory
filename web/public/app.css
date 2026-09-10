@@ -207,6 +207,8 @@ tr.deleted td{opacity:.6;font-style:italic}
 .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,111,94,.12)}
 .field textarea{min-height:70px;resize:vertical}
 .field .hint{font-size:12px;color:var(--muted)}
+.parent-picker{display:flex;flex-direction:column;gap:8px}
+.parent-picker-row label{display:block;font-size:11px;color:var(--muted);margin-bottom:3px}
 fieldset{border:none;padding:0;margin:0 0 26px}
 .form-actions{display:flex;gap:10px;justify-content:flex-end;padding-top:6px;border-top:1px solid var(--border);margin-top:6px;padding-top:16px}
 .alert{border-radius:8px;padding:11px 14px;font-size:13.5px;margin-bottom:16px}
