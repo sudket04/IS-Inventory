@@ -38,7 +38,19 @@ npm start           # http://127.0.0.1:8000
 
 ## 2. ตั้งค่า SQL Server
 
-สร้าง database เปล่าไว้ก่อน (ตารางโปรแกรมสร้างให้เอง):
+วิธีที่ง่ายที่สุด — ให้ `export-schema.js` generate สคริปต์ทั้งหมดให้
+(สร้าง database + login + ตารางทั้ง 16 ตาราง ในไฟล์เดียว รันซ้ำได้อย่างปลอดภัย):
+
+```bash
+copy .env.example .env
+# แก้ MSSQL_DATABASE / MSSQL_USER / MSSQL_PASSWORD ใน .env ตามต้องการ แล้ว
+node export-schema.js
+```
+
+จะได้ `schema.sql` — เอาไปรันทั้งไฟล์ใน SSMS ด้วยบัญชีที่มีสิทธิ์ `sysadmin`
+(หรือขั้นต่ำคือ `dbcreator` + `securityadmin`) ครั้งเดียวจบ
+
+หรือจะสร้างเองด้วยมือก็ได้ (ปรับชื่อ database/login ตามต้องการ):
 
 ```sql
 CREATE DATABASE ITInventory;
@@ -52,6 +64,8 @@ ALTER ROLE db_datawriter ADD MEMBER inventory_app;
 ALTER ROLE db_ddladmin   ADD MEMBER inventory_app;  -- ถอดออกได้หลังสร้าง schema
 GO
 ```
+
+(กรณีนี้ตารางยังต้องสร้างเอง — ดูย่อหน้าท้ายหัวข้อนี้)
 
 เปิด TCP/IP ใน SQL Server Configuration Manager และเปิด port 1433 ใน firewall
 
@@ -70,8 +84,9 @@ GO
 | `PORT` | 8000 | พอร์ตของเว็บ |
 | `INVENTORY_HTTPS` | — | `1` เมื่ออยู่หลัง HTTPS reverse proxy |
 
-ถ้า DBA ไม่ให้แอปสร้างตารางเอง: `node export-schema.js` แล้วนำ `schema.sql`
-ไปรันใน SSMS จากนั้น `npm run init-db` อีกครั้งเพื่อสร้างบัญชี admin
+ถ้าใช้ `schema.sql` สร้างตารางไปแล้ว (หรือ DBA ไม่ให้แอปสร้างตารางเอง /
+ไม่ได้ให้สิทธิ์ `db_ddladmin`) ให้รัน `npm run init-db` อีกครั้งหลังจากนั้น
+เพื่อสร้างบัญชี admin แรก (ข้ามตารางที่มีอยู่แล้วโดยอัตโนมัติ)
 
 ## 3. ใช้งานจริง
 
