@@ -195,8 +195,6 @@ function shell(bodyHtml, { crumb = "", heading = "", sub = "", actions = "" } = 
   });
   $("#navtoggle").addEventListener("click", () =>
     document.body.classList.toggle("nav-open"));
-  root().querySelectorAll(".nav-item").forEach(a =>
-    a.addEventListener("click", () => document.body.classList.remove("nav-open")));
   wireGlobalSearch();
 }
 

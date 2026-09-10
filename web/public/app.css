@@ -31,8 +31,9 @@ h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:pretty}
 .brand-mark{background:var(--accent);color:#fff;font-family:var(--mono);font-size:12px;padding:5px 7px;border-radius:6px;letter-spacing:.5px}
 .brand-title{color:#fff;font-weight:600;font-size:15px}
 .brand-sub{font-size:11px;color:var(--sidebar-dim)}
-.nav-section{display:flex;flex-direction:column;gap:2px;margin-bottom:14px}
-.nav-title{font-size:13.5px;font-weight:700;letter-spacing:.02em;color:#F2F5FA;padding:10px 10px 6px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:4px}
+.nav-section{display:flex;flex-direction:column;gap:2px;margin-bottom:22px}
+.nav-section:last-of-type{margin-bottom:0}
+.nav-title{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--sidebar-dim);padding:0 10px 8px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:6px}
 .nav-item{display:flex;align-items:center;gap:8px;color:var(--sidebar-text);padding:7px 10px 7px 16px;border-radius:8px;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nav-item:hover{background:rgba(255,255,255,.07);text-decoration:none;color:#fff}
 .nav-item.on{background:var(--accent);color:#fff;font-weight:500}
@@ -219,17 +220,6 @@ fieldset{border:none;padding:0;margin:0 0 26px}
 .login-card .sub{color:var(--muted);font-size:12.5px}
 .login-card .btn{justify-content:center}
 
-@media (max-width:920px){
-  .app{flex-direction:column}
-  .sidebar{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap;gap:6px;align-items:center;padding:12px}
-  .nav-section{flex-direction:row;flex-wrap:wrap;margin:0}
-  .nav-title{display:none}
-  .nav-item{padding-left:10px}
-  .who{margin:0 0 0 auto;padding:0;border:none}
-  .main{padding:0 16px 24px}
-  .two-col{grid-template-columns:1fr}
-  .form-grid{grid-template-columns:1fr}
-}
 @media print{
   .sidebar,.topbar .actions,.chips,.tfoot .right{display:none}
   .main{padding:0}
@@ -344,4 +334,6 @@ fieldset{scroll-margin-top:130px}
   .main{padding:0 14px 24px}
   .hero{grid-template-columns:1fr 1fr}
   .topbar h1{font-size:22px}
+  .two-col{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
 }
