@@ -11,7 +11,7 @@
   powershell -ExecutionPolicy Bypass -File deploy\install-service.ps1
 #>
 param(
-  [string]$ServiceName = "ITInventory",
+  [string]$ServiceName = "IS_Inventory",
   [int]$Port = 8000
 )
 

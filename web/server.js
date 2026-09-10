@@ -538,7 +538,7 @@ if (require.main === module) {
     .then(() => {
       app.listen(PORT, "0.0.0.0", () => {
         console.log(`[db] SQL Server: ${process.env.MSSQL_SERVER || "localhost"}` +
-                    ` / ${process.env.MSSQL_DATABASE || "ITInventory"}`);
+                    ` / ${process.env.MSSQL_DATABASE || "IS_Inventory"}`);
         console.log(`IT Inventory running on http://127.0.0.1:${PORT}` +
                     "  (sign in: admin / admin123)");
         console.log("Empty database? load demo data with:  npm run seed");

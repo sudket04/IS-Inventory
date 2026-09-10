@@ -16,7 +16,7 @@ const { ENTITIES, ENTITY_LIST } = require("./entities");
 const CONFIG = {
   server: process.env.MSSQL_SERVER || "localhost",
   port: parseInt(process.env.MSSQL_PORT || "1433", 10),
-  database: process.env.MSSQL_DATABASE || "ITInventory",
+  database: process.env.MSSQL_DATABASE || "IS_Inventory",
   user: process.env.MSSQL_USER || undefined,
   password: process.env.MSSQL_PASSWORD || undefined,
   options: {

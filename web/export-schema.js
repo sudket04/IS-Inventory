@@ -12,8 +12,8 @@ const fs = require("fs");
 const db = require("./db");
 const { ENTITY_LIST } = require("./entities");
 
-const dbName = process.env.MSSQL_DATABASE || "ITInventory";
-const dbUser = process.env.MSSQL_USER || "inventory_app";
+const dbName = process.env.MSSQL_DATABASE || "IS_Inventory";
+const dbUser = process.env.MSSQL_USER || "isadmin";
 const dbPass = process.env.MSSQL_PASSWORD || "ChangeMe#2026";
 const trusted = process.env.MSSQL_TRUSTED === "1";
 

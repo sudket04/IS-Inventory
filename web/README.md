@@ -24,8 +24,8 @@ copy .env.example .env
 
 # วิธีที่ 2: ตั้งเป็น environment variable ของ session ปัจจุบัน
 set MSSQL_SERVER=sqlsrv.company.local
-set MSSQL_DATABASE=ITInventory
-set MSSQL_USER=inventory_app
+set MSSQL_DATABASE=IS_Inventory
+set MSSQL_USER=isadmin
 set MSSQL_PASSWORD=ChangeMe#2026
 
 npm run init-db     # สร้างตารางทั้งหมด + บัญชี admin แรก
@@ -53,15 +53,15 @@ node export-schema.js
 หรือจะสร้างเองด้วยมือก็ได้ (ปรับชื่อ database/login ตามต้องการ):
 
 ```sql
-CREATE DATABASE ITInventory;
+CREATE DATABASE IS_Inventory;
 GO
-USE ITInventory;
+USE IS_Inventory;
 GO
-CREATE LOGIN inventory_app WITH PASSWORD = 'ChangeMe#2026';
-CREATE USER  inventory_app FOR LOGIN inventory_app;
-ALTER ROLE db_datareader ADD MEMBER inventory_app;
-ALTER ROLE db_datawriter ADD MEMBER inventory_app;
-ALTER ROLE db_ddladmin   ADD MEMBER inventory_app;  -- ถอดออกได้หลังสร้าง schema
+CREATE LOGIN isadmin WITH PASSWORD = 'ChangeMe#2026';
+CREATE USER  isadmin FOR LOGIN isadmin;
+ALTER ROLE db_datareader ADD MEMBER isadmin;
+ALTER ROLE db_datawriter ADD MEMBER isadmin;
+ALTER ROLE db_ddladmin   ADD MEMBER isadmin;  -- ถอดออกได้หลังสร้าง schema
 GO
 ```
 
@@ -75,7 +75,7 @@ GO
 |---|---|---|
 | `MSSQL_SERVER` | localhost | ชื่อ/IP ของ SQL Server |
 | `MSSQL_PORT` | 1433 | |
-| `MSSQL_DATABASE` | ITInventory | |
+| `MSSQL_DATABASE` | IS_Inventory | |
 | `MSSQL_USER` / `MSSQL_PASSWORD` | — | SQL Authentication |
 | `MSSQL_TRUSTED` | — | `1` = Windows Authentication (NTLM) |
 | `MSSQL_DOMAIN` | — | โดเมนสำหรับ NTLM |
