@@ -272,8 +272,6 @@
   .badge.type-Update{background:#EAF0F8;border-color:#C6D8ED;color:#2A5A8A;}
   .badge.type-Delete{background:#FBEAE9;border-color:#EBC9C6;color:var(--danger);}
   .badge.type-Restore{background:#F3EAFA;border-color:#DAC6ED;color:#5A2A8A;}
-  .perm-matrix td, .perm-matrix th{text-align:center;}
-  .perm-matrix td:first-child, .perm-matrix th:first-child{text-align:left;}
 </style>
 </head>
 <body>
@@ -1857,14 +1855,24 @@ function renderDashboardView() {
 }
 
 function renderPermissionDashboardView() {
-  const roles = ["Admin", "User", "Viewer"];
-  const counts = roles.map(r => state.data.users.filter(u => u.role === r && u.status === "Active").length);
-  const capRows = [
-    ["View Server / Network / Software / Reference data", [true, true, true]],
-    ["Add / edit / delete that data", [true, true, false]],
-    ["View Governance tools (Change history / Recycle bin)", [true, true, false]],
-    ["View Permission Control (AD Users / Server Permission)", [true, false, false]],
-    ["Manage Users & Database Setup", [true, false, false]],
+  const adUsers = state.data.ad_users;
+  const disabledUsers = adUsers.filter(u => u.status === "Disabled").length;
+  const noGroupUsers = adUsers.filter(u => !state.data.ad_memberships.some(m => m.ad_user_id === u.ad_user_id)).length;
+  const allGroupNames = new Set([
+    ...state.data.ad_memberships.map(m => m.group_name),
+    ...state.data.server_permissions.flatMap(p => [p.rw_group, p.ro_group]).filter(Boolean),
+  ]);
+  const fileServerIds = new Set(state.data.server_permissions.map(p => p.server_id));
+  const foldersNoGroup = state.data.server_permissions.filter(p => !p.rw_group && !p.ro_group).length;
+  const summaryTiles = [
+    ["Users", adUsers.length, false],
+    ["Disabled", disabledUsers, disabledUsers > 0],
+    ["Memberships", state.data.ad_memberships.length, false],
+    ["AD Groups", allGroupNames.size, false],
+    ["No group", noGroupUsers, noGroupUsers > 0],
+    ["Folders", state.data.server_permissions.length, false],
+    ["File Servers", fileServerIds.size, false],
+    ["Folders w/o group", foldersNoGroup, foldersNoGroup > 0],
   ];
 
   const deptMap = {};
@@ -1893,20 +1901,16 @@ function renderPermissionDashboardView() {
   const orphanGroups = [...new Set(
     state.data.server_permissions.flatMap(p => [p.rw_group, p.ro_group]).filter(g => g && !knownGroups.has(g))
   )];
+  const recentActivity = state.data.audit_log
+    .filter(l => l.table_key === "server_permissions" || l.table_key === "ad_users")
+    .slice(0, 6);
 
   return `
     <section class="view-block">
-      <p class="section-title">Active accounts by role</p>
+      <p class="section-title">Permission Control at a glance</p>
       <div class="stat-grid">
-        ${roles.map((r, i) => `<div class="stat-card"><div class="stat-value">${counts[i]}</div><div class="stat-label">${escapeHtml(r)}</div></div>`).join("")}
+        ${summaryTiles.map(([label, value, warn]) => `<div class="stat-card${warn ? " warn" : ""}"><div class="stat-value">${value}</div><div class="stat-label">${escapeHtml(label)}</div></div>`).join("")}
       </div>
-    </section>
-    <section class="card" style="padding:16px 18px;">
-      <p class="section-title">Role capability matrix</p>
-      <div class="table-scroll"><table class="perm-matrix">
-        <thead><tr><th><div class="th-inner">Capability</div></th>${roles.map(r => `<th><div class="th-inner">${escapeHtml(r)}</div></th>`).join("")}</tr></thead>
-        <tbody>${capRows.map(([label, flags]) => `<tr><td>${escapeHtml(label)}</td>${flags.map(f => `<td>${f ? "✓" : "–"}</td>`).join("")}</tr>`).join("")}</tbody>
-      </table></div>
     </section>
     <section class="card" style="padding:16px 18px;">
       <p class="section-title">Folders &amp; quota by department</p>
@@ -1930,39 +1934,20 @@ function renderPermissionDashboardView() {
       ${orphanGroups.length
         ? `<div class="stat-grid">${orphanGroups.map(g => `<div class="stat-card warn"><div class="stat-value" style="font-size:14px;">${escapeHtml(g)}</div><div class="stat-label">0 members</div></div>`).join("")}</div>`
         : `<p class="empty-state">No orphan AD groups — every group referenced by a folder has at least one member.</p>`}
+    </section>
+    <section class="view-block">
+      <p class="section-title">Recent permission activity</p>
+      <div class="activity-list">
+        ${recentActivity.length ? recentActivity.map(r => `<div class="activity-row">
+            <span><span class="badge type-${escapeHtml(r.action)}">${escapeHtml(r.action)}</span> ${escapeHtml(r.display || r.record_id)} <span class="activity-meta">(${escapeHtml((TABLES[r.table_key] || {}).label || r.table_key)})</span></span>
+            <span class="activity-meta">${escapeHtml(r.username)} · ${new Date(r.changed_at).toLocaleString()}</span>
+          </div>`).join("") : `<p class="muted">No permission changes recorded yet.</p>`}
+      </div>
     </section>`;
 }
 
 function renderAccessCheckView() {
-  const roles = ["Admin", "User", "Viewer"];
-  const tableKeys = Object.keys(TABLES);
-  if (!state.accessCheckSelection) state.accessCheckSelection = { role: "Viewer", table: tableKeys[0] };
-  const sel = state.accessCheckSelection;
-  const viewable = tableViewableAs(sel.table, sel.role);
-  const writable = viewable && tableWritableAs(sel.table, sel.role);
-  const result = [
-    ["Can view", viewable],
-    ["Can add", writable],
-    ["Can edit", writable],
-    ["Can delete", writable],
-  ];
-  return `
-    <section class="view-block">
-      <p class="section-title">Check what a role can do</p>
-      <div class="access-check-controls">
-        <label>Role
-          <select id="accessCheckRole">${roles.map(r => `<option value="${r}" ${sel.role === r ? "selected" : ""}>${escapeHtml(r)}</option>`).join("")}</select>
-        </label>
-        <label>Module
-          <select id="accessCheckTable">${tableKeys.map(k => `<option value="${k}" ${sel.table === k ? "selected" : ""}>${escapeHtml(TABLES[k].label)}</option>`).join("")}</select>
-        </label>
-      </div>
-      <div class="access-check-result">
-        ${result.map(([label, ok]) => `<div class="stat-card${ok ? "" : " danger"}"><div class="stat-value">${ok ? "Yes" : "No"}</div><div class="stat-label">${escapeHtml(label)}</div></div>`).join("")}
-      </div>
-      <p class="muted" style="margin-top:14px;">Reflects the same rules the app enforces at login — not a simulation.</p>
-    </section>
-    ${renderAccessLookupSection()}`;
+  return renderAccessLookupSection();
 }
 
 /* Which folders an AD user reaches (via ad_memberships + server_permissions)
@@ -2030,7 +2015,7 @@ function renderAccessLookupSection() {
 
   return `
     <section class="view-block">
-      <p class="section-title">Folder access lookup</p>
+      <p class="section-title">Access check</p>
       <div class="access-check-controls">
         <label>Look up by
           <select id="accessLookupMode">
@@ -2120,8 +2105,8 @@ function renderRecycleBinView() {
 
 const CUSTOM_VIEWS = {
   dashboard: { label: "Dashboard", desc: "Live summary of the infrastructure inventory", render: renderDashboardView },
-  permission_dashboard: { label: "Permission dashboard", desc: "Role capability matrix and active account counts", render: renderPermissionDashboardView },
-  access_check: { label: "Access check", desc: "Check what a given role can do, module by module", render: renderAccessCheckView },
+  permission_dashboard: { label: "Permission dashboard", desc: "AD users, groups and folder coverage at a glance", render: renderPermissionDashboardView },
+  access_check: { label: "Access check", desc: "Look up which folders an AD user can reach, or who can reach a given folder", render: renderAccessCheckView },
   warranty_assets: { label: "Warranty & assets", desc: "Hardware warranty coverage at a glance", render: renderWarrantyAssetsView },
   change_history: { label: "Change history", desc: "Audit trail of create / update / delete / restore actions", render: renderChangeHistoryView },
   recycle_bin: { label: "Recycle bin", desc: "Deleted records — restore them or purge them permanently", render: renderRecycleBinView },
@@ -3254,8 +3239,6 @@ document.getElementById("nav").addEventListener("click", (e) => {
 });
 document.getElementById("customView").addEventListener("change", (e) => {
   if (state.activeTable !== "access_check") return;
-  if (e.target.id === "accessCheckRole") state.accessCheckSelection.role = e.target.value;
-  if (e.target.id === "accessCheckTable") state.accessCheckSelection.table = e.target.value;
   if (e.target.id === "accessLookupMode") { state.accessLookup.mode = e.target.value; state.accessLookup.query = ""; }
   renderCustomView("access_check");
 });
