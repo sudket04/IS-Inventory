@@ -171,6 +171,8 @@
   .node-field input, .node-field select{border:1px solid rgba(0,0,0,0.23);border-radius:4px;padding:10.5px 14px;width:100%;font-size:14px;color:rgba(0,0,0,0.87);background:#fff;transition:border-color .15s ease;}
   .node-field input:hover, .node-field select:hover{border-color:rgba(0,0,0,0.6);}
   .node-field input:focus, .node-field select:focus{outline:none;border-color:var(--accent);border-width:2px;padding:9.5px 13px;}
+  .node-hw-info-line{font-size:12px;color:rgba(0,0,0,0.55);margin-top:5px;}
+  .node-hw-info-line.empty{color:rgba(0,0,0,0.35);font-style:italic;}
   .node-add{margin-top:2px;}
   .panel-actions{display:flex;justify-content:flex-end;gap:4px;padding:8px 24px 20px;flex-shrink:0;}
 
@@ -515,6 +517,7 @@ const LOOKUPS = {
   Manufacturer: ["Dell", "HPE", "Lenovo", "Nutanix", "Other"],
   Criticality: ["Tier 1 (High)", "Tier 2 (Medium)", "Tier 3 (Low)"],
   StorageType: ["SSD", "HDD", "SAN", "NAS"],
+  StorageUnit: ["GB", "TB"],
   Site: ["1st Site", "2nd Site"],
   // Shared network-zone vocabulary — used by Server List (server_zone),
   // VLAN (firewall_zone), and Network Inventory (network_zone) so the same
@@ -770,6 +773,9 @@ const TABLES = {
       { key: "asset_type", label: "Type", render: r => typeBadge(r.asset_type) },
       { key: "identity", label: "Details", render: r => (r.asset_type === "Storage" ? (r.storage_name || "-") : `${r.manufacturer || "-"} ${r.model || ""}`.trim()) },
       { key: "serial_number", label: "Serial number", mono: true },
+      { key: "specs", label: "Specs", render: r => (r.asset_type === "Server" && (r.cpu || r.memory_gb || r.storage_capacity))
+        ? escapeHtml([r.cpu, r.memory_gb ? `${r.memory_gb}GB RAM` : "", r.storage_capacity ? `${r.storage_capacity}${r.storage_unit || "GB"}` : ""].filter(Boolean).join(" · "))
+        : "-" },
       { key: "site", label: "Site" },
       { key: "rack_number", label: "Rack" },
       { key: "status", label: "Status", render: r => statusBadge(r.status) },
@@ -786,6 +792,14 @@ const TABLES = {
       { key: "manufacturer", label: "Manufacturer", type: "select", options: LOOKUPS.Manufacturer, required: true, group: "System Info" },
       { key: "model", label: "Model", type: "text", group: "System Info" },
       { key: "serial_number", label: "Serial number", type: "text", required: true, group: "System Info" },
+
+      // Server-only specifications
+      { key: "cpu", label: "CPU", type: "text", onlyFor: "Server", placeholder: "e.g. 2x Intel Xeon Silver 4314", group: "Specifications" },
+      { key: "memory_gb", label: "Memory (GB)", type: "number", onlyFor: "Server", placeholder: "e.g. 256", group: "Specifications" },
+      { key: "storage_capacity", label: "Storage capacity", type: "number", onlyFor: "Server", placeholder: "e.g. 4", group: "Specifications" },
+      { key: "storage_unit", label: "Storage unit", type: "select", options: LOOKUPS.StorageUnit, onlyFor: "Server", group: "Specifications" },
+      { key: "storage_drive_type", label: "Storage drive type", type: "select", options: LOOKUPS.StorageType, onlyFor: "Server", group: "Specifications" },
+
       // Server-only network (switch port)
       { key: "port_no", label: "Switch port", type: "text", onlyFor: "Server", placeholder: "e.g. Gi1/0/1", group: "Network" },
       { key: "port_name", label: "Switch name", type: "text", onlyFor: "Server", placeholder: "e.g. SW-Core-01", group: "Network" },
@@ -989,7 +1003,7 @@ const TABLES = {
       { key: "stack_role", label: "Stack Role" },
       { key: "location", label: "Location", render: r => locationFullPathFor(r.location_id) },
       { key: "rack_number", label: "Rack" },
-      { key: "eol_date", label: "EOL Date" },
+      { key: "eol_date", label: "EOL Date", render: r => formatDateDMY(r.eol_date) },
     ],
     fields: [
       { key: "status", label: "Status", type: "select", options: LOOKUPS.DeviceStatus, required: true, group: "Identity" },
@@ -1079,7 +1093,7 @@ const TABLES = {
       { key: "license_type", label: "Type" },
       { key: "license_model", label: "Model" },
       { key: "seats", label: "Seats", render: r => `${r.seats_used ?? 0} / ${r.seats_total ?? 0}` },
-      { key: "expiry_date", label: "Expiry", mono: true },
+      { key: "expiry_date", label: "Expiry", mono: true, render: r => formatDateDMY(r.expiry_date) },
       { key: "status", label: "Status", render: r => statusBadge(licenseStatus(r)) },
     ],
     fields: [
@@ -1241,6 +1255,67 @@ function availableHardwareForNode(currentHardwareId) {
   return state.data.hardware.filter(h => h.asset_type === "Server" && !assignedElsewhere.has(h.hardware_id));
 }
 
+/* Builds the <option>s for one Host row's hardware picker: everything not
+   already saved elsewhere (availableHardwareForNode), minus whatever is
+   picked in this row's *sibling* rows in the same open form right now
+   (excludeIds) — so two new, not-yet-saved Hosts can't claim the same box. */
+function nodeHardwareOptionsHtml(currentHardwareId, excludeIds) {
+  const available = availableHardwareForNode(currentHardwareId)
+    .filter(h => h.hardware_id === currentHardwareId || !excludeIds.has(h.hardware_id));
+  return `<option value="">-- Select hardware --</option>` + available.map(h =>
+    `<option value="${escapeHtml(h.hardware_id)}" ${h.hardware_id === currentHardwareId ? "selected" : ""}>${escapeHtml(h.serial_number)} — ${escapeHtml(hardwareLabelFor(h.hardware_id))}</option>`
+  ).join("");
+}
+function nodeHwInfoHtml(hardwareId) {
+  const hw = state.data.hardware.find(h => h.hardware_id === hardwareId);
+  if (!hw) return `<span class="node-hw-info-line empty">No hardware selected yet.</span>`;
+  return `<span class="node-hw-info-line">${escapeHtml(hw.manufacturer || "-")} ${escapeHtml(hw.model || "")} · S/N ${escapeHtml(hw.serial_number || "-")}</span>`;
+}
+function nodeRowMarkup(node, idx, excludeIds) {
+  const rowId = node.node_id || genNodeId();
+  return `
+    <div class="node-row" data-node-id="${escapeHtml(node.node_id || rowId)}">
+      <div class="node-row-header">
+        <span class="node-row-title">Host ${idx + 1}</span>
+        <button type="button" class="icon-btn node-remove" aria-label="Remove this Host">Remove</button>
+      </div>
+      <div class="node-field-grid">
+        <label class="node-field">
+          <span class="field-label">Server Hardware</span>
+          <select class="node-input node-hw-select" data-node-key="hardware_id">
+            ${nodeHardwareOptionsHtml(node.hardware_id || "", excludeIds)}
+          </select>
+          <div class="node-hw-info-wrap">${nodeHwInfoHtml(node.hardware_id)}</div>
+        </label>
+        <label class="node-field">
+          <span class="field-label">Host name</span>
+          <input type="text" class="node-input" data-node-key="host_name" value="${escapeHtml(node.host_name || `Host-${String(idx + 1).padStart(2, "0")}`)}">
+        </label>
+        <label class="node-field">
+          <span class="field-label">IP Host</span>
+          <input type="text" class="node-input" data-node-key="ip_host" data-ip-field="1" value="${escapeHtml(node.ip_host || "")}" placeholder="e.g. 192.168.10.1">
+        </label>
+        <label class="node-field">
+          <span class="field-label">IP Management (iDRAC/iLO)</span>
+          <input type="text" class="node-input" data-node-key="ip_management" data-ip-field="1" value="${escapeHtml(node.ip_management || "")}" placeholder="e.g. 192.168.1.10">
+        </label>
+      </div>
+    </div>`;
+}
+/* Re-derives every row's option list + info line from what's actually
+   selected in the DOM right now — called after any add/remove/change so a
+   Host picked in one row disappears from every other row's dropdown. */
+function refreshNodeHardwareOptions(listEl) {
+  const selects = Array.from(listEl.querySelectorAll('.node-row [data-node-key="hardware_id"]'));
+  selects.forEach((sel, i) => {
+    const currentVal = sel.value;
+    const excludeIds = new Set(selects.filter((_, j) => j !== i).map(s => s.value).filter(Boolean));
+    sel.innerHTML = nodeHardwareOptionsHtml(currentVal, excludeIds);
+    const infoWrap = sel.closest(".node-field").querySelector(".node-hw-info-wrap");
+    if (infoWrap) infoWrap.innerHTML = nodeHwInfoHtml(currentVal);
+  });
+}
+
 /* A given Hardware record can only be assigned to ONE Host/Node or ONE
    Physical entry in Server List at a time — it's the same physical box. */
 function checkHardwareAssignment(tableKey, values, excludeId) {
@@ -1266,11 +1341,7 @@ function validateNodes(nodes, excludeClusterId) {
   nodes.forEach((n, i) => {
     const label = `Host ${i + 1}`;
     if (!n.hardware_id) {
-      if (n.hardware_id_raw) {
-        errors.push(`${label}: Serial number "${n.hardware_id_raw}" was not found among available Hardware`);
-      } else {
-        errors.push(`${label}: please select a Hardware (S/N)`);
-      }
+      errors.push(`${label}: please select a Server Hardware`);
       return;
     }
     if (!n.host_name) errors.push(`${label}: please enter a Host name`);
@@ -1426,6 +1497,7 @@ function seedData() {
   state.data.hardware = [
     {
       hardware_id: "HW-001", asset_type: "Server", manufacturer: "Dell", model: "PowerEdge R740", serial_number: "SN123456",
+      cpu: "2x Intel Xeon Gold 6248R", memory_gb: 256, storage_capacity: 4, storage_unit: "TB", storage_drive_type: "SSD",
       site: "1st Site", location: "Server Room", rack_number: "R-12",
       u_position: "U10-U12", port_no: "", port_name: "",
       commission_date: "2023-01-15", warranty_expiry: "2026-01-15", status: "In Use",
@@ -1433,6 +1505,7 @@ function seedData() {
     },
     {
       hardware_id: "HW-002", asset_type: "Server", manufacturer: "HPE", model: "ProLiant DL380", serial_number: "SN654321",
+      cpu: "2x Intel Xeon Silver 4314", memory_gb: 128, storage_capacity: 960, storage_unit: "GB", storage_drive_type: "SSD",
       site: "1st Site", location: "Server Room", rack_number: "R-05",
       u_position: "U3", port_no: "Gi1/0/1", port_name: "SW-Core-01",
       commission_date: "2022-06-01", warranty_expiry: "2025-06-01", status: "In Use",
@@ -1675,6 +1748,26 @@ function roleBadge(value) {
   if (!value) return "-";
   return `<span class="badge role-${value}">${escapeHtml(value)}</span>`;
 }
+/* Every date is displayed dd/mm/yyyy across the app. formatDateDMY parses a
+   pure "yyyy-mm-dd" date string directly (no Date object) so it can't shift
+   by a day in timezones behind UTC. formatDateTimeDMY is for real timestamps
+   (audit log, recycle bin) where converting to local time is correct. */
+function formatDateDMY(dateStr) {
+  if (!dateStr) return "-";
+  const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "-";
+}
+function formatDateTimeDMY(isoStr) {
+  if (!isoStr) return "-";
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return "-";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm}/${d.getFullYear()} ${hh}:${mi}`;
+}
+
 /* Warranty/license status is always computed from the date, never stored —
    so it can't go stale relative to today's date. */
 function warrantyStatus(dateStr) {
@@ -1848,7 +1941,7 @@ function renderDashboardView() {
       <div class="activity-list">
         ${recent.length ? recent.map(r => `<div class="activity-row">
             <span><span class="badge type-${escapeHtml(r.action)}">${escapeHtml(r.action)}</span> ${escapeHtml(r.display || r.record_id)} <span class="activity-meta">(${escapeHtml((TABLES[r.table_key] || {}).label || r.table_key)})</span></span>
-            <span class="activity-meta">${escapeHtml(r.username)} · ${new Date(r.changed_at).toLocaleString()}</span>
+            <span class="activity-meta">${escapeHtml(r.username)} · ${formatDateTimeDMY(r.changed_at)}</span>
           </div>`).join("") : `<p class="muted">No activity recorded yet.</p>`}
       </div>
     </section>`;
@@ -1940,7 +2033,7 @@ function renderPermissionDashboardView() {
       <div class="activity-list">
         ${recentActivity.length ? recentActivity.map(r => `<div class="activity-row">
             <span><span class="badge type-${escapeHtml(r.action)}">${escapeHtml(r.action)}</span> ${escapeHtml(r.display || r.record_id)} <span class="activity-meta">(${escapeHtml((TABLES[r.table_key] || {}).label || r.table_key)})</span></span>
-            <span class="activity-meta">${escapeHtml(r.username)} · ${new Date(r.changed_at).toLocaleString()}</span>
+            <span class="activity-meta">${escapeHtml(r.username)} · ${formatDateTimeDMY(r.changed_at)}</span>
           </div>`).join("") : `<p class="muted">No permission changes recorded yet.</p>`}
       </div>
     </section>`;
@@ -2060,7 +2153,7 @@ function renderWarrantyAssetsView() {
     { key: "_identity", label: "Asset", render: r => escapeHtml(r._identity) },
     { key: "serial_number", label: "Serial number", mono: true },
     { key: "_location", label: "Location", render: r => escapeHtml(r._location) },
-    { key: "warranty_expiry", label: "Warranty expiry", mono: true },
+    { key: "warranty_expiry", label: "Warranty expiry", mono: true, render: r => formatDateDMY(r.warranty_expiry) },
     { key: "_status", label: "Status", render: r => statusBadge(r._status) },
   ];
   return `
@@ -2076,7 +2169,7 @@ function renderWarrantyAssetsView() {
 
 function renderChangeHistoryView() {
   const cols = [
-    { key: "changed_at", label: "When", mono: true, render: r => escapeHtml(new Date(r.changed_at).toLocaleString()) },
+    { key: "changed_at", label: "When", mono: true, render: r => escapeHtml(formatDateTimeDMY(r.changed_at)) },
     { key: "table_key", label: "Module", render: r => escapeHtml((TABLES[r.table_key] || {}).label || r.table_key) },
     { key: "display", label: "Record" },
     { key: "action", label: "Action", render: r => `<span class="badge type-${escapeHtml(r.action)}">${escapeHtml(r.action)}</span>` },
@@ -2089,7 +2182,7 @@ function renderRecycleBinView() {
   const cols = [
     { key: "table_key", label: "Module", render: r => escapeHtml((TABLES[r.table_key] || {}).label || r.table_key) },
     { key: "display", label: "Record", render: r => escapeHtml(recordDisplayName(r.table_key, r.record)) },
-    { key: "deleted_at", label: "Deleted", mono: true, render: r => escapeHtml(new Date(r.deleted_at).toLocaleString()) },
+    { key: "deleted_at", label: "Deleted", mono: true, render: r => escapeHtml(formatDateTimeDMY(r.deleted_at)) },
     { key: "deleted_by", label: "Deleted by" },
   ];
   const writable = canWrite();
@@ -2520,47 +2613,12 @@ function fieldBlock(field, value) {
     `;
   } else if (field.type === "nodeList") {
     const nodes = Array.isArray(value) ? value : [];
-    const hwOptions = state.data.hardware.filter(h => h.asset_type === "Server");
-    const nodeRowHtml = (node, idx) => {
-      const rowId = node.node_id || `new-${idx}`;
-      const listId = `hwlist_${escapeHtml(rowId)}`;
-      const currentHw = state.data.hardware.find(h => h.hardware_id === node.hardware_id);
-      const currentSerial = currentHw ? currentHw.serial_number : "";
-      const available = availableHardwareForNode(node.hardware_id);
-      return `
-      <div class="node-row" data-node-id="${escapeHtml(node.node_id || "")}">
-        <div class="node-row-header">
-          <span class="node-row-title">Host ${idx + 1}</span>
-          <button type="button" class="icon-btn node-remove" aria-label="Remove this Host">Remove</button>
-        </div>
-        <div class="node-field-grid">
-          <label class="node-field">
-            <span class="field-label">Hardware (S/N)</span>
-            <input type="text" class="node-input" data-node-key="hardware_id" list="${listId}" value="${escapeHtml(currentSerial)}" placeholder="Type or pick a S/N" autocomplete="off">
-            <datalist id="${listId}">
-              ${available.map(h => `<option value="${escapeHtml(h.serial_number)}">${escapeHtml(hardwareLabelFor(h.hardware_id))}</option>`).join("")}
-            </datalist>
-          </label>
-          <label class="node-field">
-            <span class="field-label">Host name</span>
-            <input type="text" class="node-input" data-node-key="host_name" value="${escapeHtml(node.host_name || "")}">
-          </label>
-          <label class="node-field">
-            <span class="field-label">IP Host</span>
-            <input type="text" class="node-input" data-node-key="ip_host" data-ip-field="1" value="${escapeHtml(node.ip_host || "")}" placeholder="e.g. 192.168.10.1">
-          </label>
-          <label class="node-field">
-            <span class="field-label">IP Management (iDRAC/iLO)</span>
-            <input type="text" class="node-input" data-node-key="ip_management" data-ip-field="1" value="${escapeHtml(node.ip_management || "")}" placeholder="e.g. 192.168.1.10">
-          </label>
-
-        </div>
-      </div>
-    `;
-    };
     control = `
       <div class="node-list" id="${id}_list">
-        ${nodes.map((n, i) => nodeRowHtml(n, i)).join("")}
+        ${nodes.map((n, i) => {
+          const excludeIds = new Set(nodes.filter((_, j) => j !== i).map(x => x.hardware_id).filter(Boolean));
+          return nodeRowMarkup(n, i, excludeIds);
+        }).join("")}
       </div>
       <button type="button" class="ghost-btn node-add" data-key="${field.key}">+ Add Host</button>
     `;
@@ -2672,20 +2730,15 @@ function getNodeListValues(key) {
   return Array.from(list.querySelectorAll(".node-row"))
     .map(row => {
       const get = k => (row.querySelector(`[data-node-key="${k}"]`)?.value || "").trim();
-      const typedSerial = get("hardware_id");
-      const matchedHw = typedSerial
-        ? state.data.hardware.find(h => h.asset_type === "Server" && h.serial_number.toLowerCase() === typedSerial.toLowerCase())
-        : null;
       return {
         node_id: row.dataset.nodeId || genNodeId(),
-        hardware_id: matchedHw ? matchedHw.hardware_id : "",
-        hardware_id_raw: typedSerial, // transient — used for error messages, stripped before saving
+        hardware_id: get("hardware_id"),
         host_name: get("host_name"),
         ip_host: get("ip_host"),
         ip_management: get("ip_management"),
       };
     })
-    .filter(n => n.hardware_id || n.hardware_id_raw || n.host_name || n.ip_host || n.ip_management);
+    .filter(n => n.hardware_id || n.host_name || n.ip_host || n.ip_management);
 }
 
 function getLiveValue(key) {
@@ -2962,7 +3015,7 @@ function openHistoryPanel(tableKey, id) {
           <div class="history-entry-head">
             <span class="history-version">v${i + 1}</span>
             <span class="badge type-${escapeHtml(e.action)}">${escapeHtml(e.action)}</span>
-            <span class="history-when">${escapeHtml(new Date(e.changed_at).toLocaleString())}</span>
+            <span class="history-when">${escapeHtml(formatDateTimeDMY(e.changed_at))}</span>
           </div>
           <div class="history-entry-by">by ${escapeHtml(e.username || "system")}</div>
         </div>
@@ -3063,9 +3116,6 @@ async function saveForm() {
     errorBox.innerHTML = conflicts.map(escapeHtml).join("<br>");
     errorBox.hidden = false;
     return;
-  }
-  if (tableKey === "clusters" && Array.isArray(values.nodes)) {
-    values.nodes = values.nodes.map(({ hardware_id_raw, ...rest }) => rest);
   }
   if (tableKey === "locations") {
     values.parent_id = values.parent_site || values.parent_factory || values.parent_floor || values.parent_area || null;
@@ -3182,41 +3232,12 @@ document.getElementById("panelBody").addEventListener("click", (e) => {
     const list = document.getElementById(`f_${nodeAddBtn.dataset.key}_list`);
     if (!list) return;
     const idx = list.querySelectorAll(".node-row").length;
-    const available = availableHardwareForNode(null);
-    const newNodeId = genNodeId();
-    const listId = `hwlist_${newNodeId}`;
+    const alreadyPicked = new Set(Array.from(list.querySelectorAll('[data-node-key="hardware_id"]')).map(s => s.value).filter(Boolean));
     const row = document.createElement("div");
-    row.className = "node-row";
-    row.dataset.nodeId = newNodeId;
-    row.innerHTML = `
-      <div class="node-row-header">
-        <span class="node-row-title">Host ${idx + 1}</span>
-        <button type="button" class="icon-btn node-remove" aria-label="Remove this Host">Remove</button>
-      </div>
-      <div class="node-field-grid">
-        <label class="node-field">
-          <span class="field-label">Hardware (S/N)</span>
-          <input type="text" class="node-input" data-node-key="hardware_id" list="${listId}" value="" placeholder="Type or pick a S/N" autocomplete="off">
-          <datalist id="${listId}">
-            ${available.map(h => `<option value="${escapeHtml(h.serial_number)}">${escapeHtml(hardwareLabelFor(h.hardware_id))}</option>`).join("")}
-          </datalist>
-        </label>
-        <label class="node-field">
-          <span class="field-label">Host name</span>
-          <input type="text" class="node-input" data-node-key="host_name" value="Host-${String(idx + 1).padStart(2, "0")}">
-        </label>
-        <label class="node-field">
-          <span class="field-label">IP Host</span>
-          <input type="text" class="node-input" data-node-key="ip_host" data-ip-field="1" value="" placeholder="e.g. 192.168.10.1">
-        </label>
-        <label class="node-field">
-          <span class="field-label">IP Management (iDRAC/iLO)</span>
-          <input type="text" class="node-input" data-node-key="ip_management" data-ip-field="1" value="" placeholder="e.g. 192.168.1.10">
-        </label>
-      </div>
-    `;
-    list.appendChild(row);
-    row.querySelectorAll('[data-ip-field="1"]').forEach(filterIpKeystroke);
+    row.innerHTML = nodeRowMarkup({}, idx, alreadyPicked);
+    const newRow = row.firstElementChild;
+    list.appendChild(newRow);
+    newRow.querySelectorAll('[data-ip-field="1"]').forEach(filterIpKeystroke);
     return;
   }
 
@@ -3230,8 +3251,15 @@ document.getElementById("panelBody").addEventListener("click", (e) => {
       Array.from(list.querySelectorAll(".node-row")).forEach((r, i) => {
         r.querySelector(".node-row-title").textContent = `Host ${i + 1}`;
       });
+      refreshNodeHardwareOptions(list);
     }
   }
+});
+document.getElementById("panelBody").addEventListener("change", (e) => {
+  const hwSelect = e.target.closest(".node-hw-select");
+  if (!hwSelect) return;
+  const list = hwSelect.closest(".node-list");
+  if (list) refreshNodeHardwareOptions(list);
 });
 document.getElementById("nav").addEventListener("click", (e) => {
   const btn = e.target.closest(".nav-item");

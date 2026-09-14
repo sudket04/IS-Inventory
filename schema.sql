@@ -157,6 +157,13 @@ CREATE TABLE dbo.hardware (
     manufacturer      NVARCHAR(60)  NULL,
     model             NVARCHAR(120) NULL,
     serial_number     NVARCHAR(120) NOT NULL,
+    -- Server-only specifications
+    cpu               NVARCHAR(150) NULL,
+    memory_gb         INT           NULL,
+    storage_capacity  DECIMAL(10,2) NULL,
+    storage_unit      VARCHAR(2)    NULL
+                      CONSTRAINT CK_hardware_storage_unit CHECK (storage_unit IS NULL OR storage_unit IN ('GB','TB')),
+    storage_drive_type VARCHAR(10)  NULL,                      -- SSD/HDD/SAN/NAS
     -- Server-only switch port
     port_no           NVARCHAR(60)  NULL,
     port_name         NVARCHAR(60)  NULL,
