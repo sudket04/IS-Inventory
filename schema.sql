@@ -69,16 +69,18 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.server_roles r WHERE r.role_name = v.name);
 GO
 
 /* ---------------------------------------------------------------------------
-   Location Master — Site > Factory > Floor (self-referencing hierarchy)
+   Location Master — Site > Factory > Floor > Area > Rack (self-referencing
+   hierarchy). rack_units only applies to level = 'Rack'.
    --------------------------------------------------------------------------- */
 IF OBJECT_ID('dbo.locations', 'U') IS NULL
 CREATE TABLE dbo.locations (
     location_id VARCHAR(20)   NOT NULL PRIMARY KEY,            -- e.g. LOC-001
     level       VARCHAR(10)   NOT NULL
-                CONSTRAINT CK_locations_level CHECK (level IN ('Site','Factory','Floor')),
+                CONSTRAINT CK_locations_level CHECK (level IN ('Site','Factory','Floor','Area','Rack')),
     name        NVARCHAR(120) NOT NULL,
     parent_id   VARCHAR(20)   NULL
                 CONSTRAINT FK_locations_parent REFERENCES dbo.locations(location_id),
+    rack_units  INT           NULL,                            -- rack height (U), level = 'Rack' only
     remarks     NVARCHAR(400) NULL,
     created_at  DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
     updated_at  DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -338,6 +340,7 @@ CREATE TABLE dbo.software (
                 CONSTRAINT CK_software_install CHECK (install_type IN ('On-Premise','Cloud','SaaS')),
     status      VARCHAR(20)   NOT NULL
                 CONSTRAINT CK_software_status CHECK (status IN ('Active','Deprecated','EOL')),
+    eos_date    DATE          NULL,                            -- end of support
     owner       NVARCHAR(120) NULL,
     remarks     NVARCHAR(400) NULL,
     created_at  DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -347,8 +350,9 @@ CREATE TABLE dbo.software (
 GO
 
 /* ---------------------------------------------------------------------------
-   License control — status (Active/Expiring Soon/Expired) is computed by the
-   app from expiry_date, not stored, so it can never go stale.
+   License control — status holds the manually-set states (Active/Suspended/
+   Terminated); Expiring Soon/Expired are computed by the app from
+   expiry_date on top of that, so they can never go stale.
    --------------------------------------------------------------------------- */
 IF OBJECT_ID('dbo.licenses', 'U') IS NULL
 CREATE TABLE dbo.licenses (
@@ -357,12 +361,19 @@ CREATE TABLE dbo.licenses (
                     CONSTRAINT FK_licenses_software REFERENCES dbo.software(software_id),
     license_type    VARCHAR(20)   NOT NULL
                     CONSTRAINT CK_licenses_type CHECK (license_type IN ('Perpetual','Subscription','OEM','Open Source')),
+    license_model   VARCHAR(20)   NOT NULL
+                    CONSTRAINT CK_licenses_model CHECK (license_model IN ('User','Device','Core','Server','Concurrent')),
+    status          VARCHAR(20)   NOT NULL DEFAULT 'Active'
+                    CONSTRAINT CK_licenses_status CHECK (status IN ('Active','Suspended','Terminated')),
     license_key     NVARCHAR(200) NULL,
     seats_total     INT           NOT NULL DEFAULT 0,
     seats_used      INT           NOT NULL DEFAULT 0,
     purchase_date   DATE          NULL,
     expiry_date     DATE          NOT NULL,
+    agreement_no    NVARCHAR(60)  NULL,
     cost            DECIMAL(12,2) NULL,
+    currency        VARCHAR(3)    NULL
+                    CONSTRAINT CK_licenses_currency CHECK (currency IN ('THB','USD','EUR','JPY')),
     vendor_contact  NVARCHAR(200) NULL,
     remarks         NVARCHAR(400) NULL,
     created_at      DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -371,23 +382,50 @@ CREATE TABLE dbo.licenses (
 GO
 
 /* ---------------------------------------------------------------------------
-   Server Permission — which account may access which server, and at what
-   level. Surfaced only to Admins (Permission Control section).
+   Server Permission — shared folders on a File Server and the AD group(s)
+   that hold Read/Write or Read-only access to them. Surfaced only to Admins
+   (Permission Control section).
    --------------------------------------------------------------------------- */
 IF OBJECT_ID('dbo.server_permissions', 'U') IS NULL
 CREATE TABLE dbo.server_permissions (
     permission_id VARCHAR(20)   NOT NULL PRIMARY KEY,           -- e.g. PRM-001
     server_id     VARCHAR(20)   NOT NULL
                   CONSTRAINT FK_serverperm_server REFERENCES dbo.servers(server_id),
-    user_id       VARCHAR(20)   NOT NULL
-                  CONSTRAINT FK_serverperm_user REFERENCES dbo.app_users(user_id),
-    access_level  VARCHAR(10)   NOT NULL
-                  CONSTRAINT CK_serverperm_level CHECK (access_level IN ('View','Manage','Admin')),
-    granted_at    DATE          NULL,
+    folder_name   NVARCHAR(150) NOT NULL,
+    folder_path   NVARCHAR(400) NULL,
+    level         NVARCHAR(40)  NULL,                           -- e.g. Level 1
+    department    NVARCHAR(120) NULL,
+    rw_group      NVARCHAR(150) NULL,                           -- AD group — Read/Write
+    ro_group      NVARCHAR(150) NULL,                           -- AD group — Read only
+    quota_gb      INT           NULL,
+    owner         NVARCHAR(120) NULL,
     remarks       NVARCHAR(400) NULL,
     created_at    DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
     updated_at    DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
-    CONSTRAINT UQ_serverperm_pair UNIQUE (server_id, user_id)
+    CONSTRAINT UQ_serverperm_folder UNIQUE (server_id, folder_name)
+);
+GO
+
+/* ---------------------------------------------------------------------------
+   AD Users — directory of Active Directory accounts and their group
+   membership, imported from AD rather than created by hand. Distinct from
+   dbo.app_users (this application's own login accounts).
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.ad_users', 'U') IS NULL
+CREATE TABLE dbo.ad_users (
+    ad_user_id   VARCHAR(20)   NOT NULL PRIMARY KEY,            -- e.g. AD-001
+    user_logon   NVARCHAR(60)  NOT NULL,
+    display_name NVARCHAR(150) NULL,
+    status       VARCHAR(10)   NOT NULL DEFAULT 'Enabled'
+                 CONSTRAINT CK_adusers_status CHECK (status IN ('Enabled','Disabled')),
+    job_title    NVARCHAR(120) NULL,
+    department   NVARCHAR(120) NULL,
+    email        NVARCHAR(150) NULL,
+    group_count  INT           NULL,
+    remarks      NVARCHAR(400) NULL,
+    created_at   DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    updated_at   DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT UQ_adusers_logon UNIQUE (user_logon)
 );
 GO
 
@@ -444,7 +482,7 @@ IF OBJECT_ID('dbo.app_kv', 'U') IS NULL
 CREATE TABLE dbo.app_kv (
     kv_key     VARCHAR(80)   NOT NULL PRIMARY KEY,             -- inv_hardware, inv_vlans, inv_users, inv_server_roles,
                                                                 -- inv_software, inv_licenses, inv_server_permissions,
-                                                                -- inv_audit_log, inv_recycle_bin, ...
+                                                                -- inv_ad_users, inv_audit_log, inv_recycle_bin, ...
     kv_value   NVARCHAR(MAX) NULL,
     updated_at DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME()
 );
@@ -465,8 +503,8 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_licenses_expiry')
     CREATE INDEX IX_licenses_expiry ON dbo.licenses(expiry_date);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_serverperm_server')
     CREATE INDEX IX_serverperm_server ON dbo.server_permissions(server_id);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_serverperm_user')
-    CREATE INDEX IX_serverperm_user ON dbo.server_permissions(user_id);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_adusers_department')
+    CREATE INDEX IX_adusers_department ON dbo.ad_users(department);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_auditlog_changedat')
     CREATE INDEX IX_auditlog_changedat ON dbo.audit_log(changed_at DESC);
 GO

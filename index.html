@@ -247,6 +247,9 @@
   .badge.status-Expired{background:#FBEAE9;border-color:#EBC9C6;color:var(--danger);}
   .badge.status-ExpiringSoon{background:#FDF3E4;border-color:#F0D6A6;color:#8A5A11;}
   .badge.status-OK{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
+  .badge.status-Suspended{background:#FDF3E4;border-color:#F0D6A6;color:#8A5A11;}
+  .badge.status-Terminated{background:#F2F2F0;border-color:var(--border);color:var(--text-muted);}
+  .badge.status-Enabled{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
   .badge.type-Create{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
   .badge.type-Update{background:#EAF0F8;border-color:#C6D8ED;color:#2A5A8A;}
   .badge.type-Delete{background:#FBEAE9;border-color:#EBC9C6;color:var(--danger);}
@@ -485,7 +488,7 @@ const LOOKUPS = {
   Environment: ["Production", "UAT", "Development", "DR"],
   Status: ["Active", "Maintenance", "Decommissioned", "Standby"],
   HardwareStatus: ["In Stock", "In Use", "Maintenance", "Decommissioned"],
-  LocationLevel: ["Site", "Factory", "Floor"],
+  LocationLevel: ["Site", "Factory", "Floor", "Area", "Rack"],
 
   // VLAN
   DhcpEnabled: ["Yes", "No"],
@@ -502,9 +505,12 @@ const LOOKUPS = {
   InstallType: ["On-Premise", "Cloud", "SaaS"],
   SoftwareStatus: ["Active", "Deprecated", "EOL"],
   LicenseType: ["Perpetual", "Subscription", "OEM", "Open Source"],
+  LicenseModel: ["User", "Device", "Core", "Server", "Concurrent"],
+  LicenseStoredStatus: ["Active", "Suspended", "Terminated"],
+  Currency: ["THB", "USD", "EUR", "JPY"],
 
-  // Server Permission
-  AccessLevel: ["View", "Manage", "Admin"],
+  // AD Users (Permission Control)
+  AdUserStatus: ["Enabled", "Disabled"],
 };
 
 /* Stack ID choices: ST001-ST100, generated rather than typed by hand. */
@@ -566,7 +572,7 @@ const SITE_LOCATIONS = {
 const state = {
   data: {
     clusters: [], hardware: [], servers: [], locations: [], vlans: [], network_devices: [], users: [],
-    software: [], licenses: [], server_permissions: [],
+    software: [], licenses: [], server_permissions: [], ad_users: [],
     audit_log: [], recycle_bin: [],   // not TABLES-driven — see EXTRA_STORAGE / logChange / moveToRecycleBin
   },
   session: null,       // { user_id, username, role, full_name } once signed in
@@ -607,10 +613,6 @@ function serverNameFor(serverId) {
   const s = state.data.servers.find(s => s.server_id === serverId);
   return s ? s.system_name : "-";
 }
-function usernameFor(userId) {
-  const u = state.data.users.find(u => u.user_id === userId);
-  return u ? u.username : "-";
-}
 
 /* ---------------- Location hierarchy helpers (Site > Factory > Floor > Area) ---------------- */
 function locationsByLevel(level) {
@@ -640,7 +642,7 @@ function locationFullPathFor(id) {
 function validateLocation(values, excludeId) {
   const errors = [];
   if (!values.name || !values.level) return errors; // required-field check handles the message
-  const parentId = values.parent_site || values.parent_factory || values.parent_floor || null;
+  const parentId = values.parent_site || values.parent_factory || values.parent_floor || values.parent_area || null;
   const dup = state.data.locations.some(l =>
     l.location_id !== excludeId &&
     l.level === values.level &&
@@ -874,13 +876,14 @@ const TABLES = {
   },
 
   locations: {
-    key: "locations", label: "Location Master", desc: "Site > Factory > Floor hierarchy — reference data for filling in Inventory and Network location fields",
+    key: "locations", label: "Location Master", desc: "Site > Factory > Floor > Area > Rack hierarchy — reference data for filling in Inventory and Network location fields",
     idField: "location_id", idPrefix: "LOC", storageKey: "inv_locations",
     discriminatorKey: "level",
     listColumns: [
       { key: "level", label: "Level", render: r => typeBadge(r.level) },
       { key: "name", label: "Name", mono: true },
-      { key: "parent", label: "Parent path", render: r => locationParentPath(r) || "-" },
+      { key: "parent", label: "Path", render: r => locationParentPath(r) || "-" },
+      { key: "rack_units", label: "Rack height (U)", render: r => (r.level === "Rack" ? (r.rack_units || "-") : "-") },
     ],
     fields: [
       { key: "level", label: "Level", type: "select", options: LOOKUPS.LocationLevel, required: true, group: "Type" },
@@ -890,6 +893,12 @@ const TABLES = {
         dynamicOptions: () => locationsByLevel("Site").map(l => ({ value: l.location_id, label: l.name })) },
       { key: "parent_factory", label: "Factory", type: "select", onlyFor: "Floor", required: true, group: "Hierarchy",
         dynamicOptions: () => locationsByLevel("Factory").map(l => ({ value: l.location_id, label: `${l.name} — ${locationNameFor(l.parent_id) || "?"}` })) },
+      { key: "parent_floor", label: "Floor", type: "select", onlyFor: "Area", required: true, group: "Hierarchy",
+        dynamicOptions: () => locationsByLevel("Floor").map(l => ({ value: l.location_id, label: locationParentPath(l) })) },
+      { key: "parent_area", label: "Area", type: "select", onlyFor: "Rack", required: true, group: "Hierarchy",
+        dynamicOptions: () => locationsByLevel("Area").map(l => ({ value: l.location_id, label: locationParentPath(l) })) },
+
+      { key: "rack_units", label: "Rack height (U)", type: "number", onlyFor: "Rack", placeholder: "e.g. 42", group: "Hierarchy" },
 
       { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
     ],
@@ -1010,7 +1019,7 @@ const TABLES = {
       { key: "vendor", label: "Vendor" },
       { key: "category", label: "Category" },
       { key: "version", label: "Version" },
-      { key: "install_type", label: "Install type" },
+      { key: "license_count", label: "Licences", render: r => String(state.data.licenses.filter(l => l.software_id === r.software_id).length) },
       { key: "status", label: "Status", render: r => statusBadge(r.status) },
     ],
     fields: [
@@ -1020,17 +1029,19 @@ const TABLES = {
       { key: "version", label: "Version", type: "text", placeholder: "e.g. 23.1", group: "Identity" },
       { key: "install_type", label: "Install type", type: "select", options: LOOKUPS.InstallType, required: true, group: "Identity" },
       { key: "status", label: "Status", type: "select", options: LOOKUPS.SoftwareStatus, required: true, group: "Lifecycle" },
+      { key: "eos_date", label: "End of support", type: "date", group: "Lifecycle" },
       { key: "owner", label: "Owner", type: "text", group: "Lifecycle" },
       { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
     ],
   },
 
   licenses: {
-    key: "licenses", label: "License control", desc: "Seat counts and renewal dates per software title — status is computed from the expiry date",
+    key: "licenses", label: "License control", desc: "Seat counts and renewal dates per software title — Suspended/Terminated is set manually, Expiring/Expired is computed from the expiry date",
     idField: "license_id", idPrefix: "LIC", storageKey: "inv_licenses",
     listColumns: [
       { key: "software_id", label: "Software", render: r => escapeHtml(softwareNameFor(r.software_id)) },
       { key: "license_type", label: "Type" },
+      { key: "license_model", label: "Model" },
       { key: "seats", label: "Seats", render: r => `${r.seats_used ?? 0} / ${r.seats_total ?? 0}` },
       { key: "expiry_date", label: "Expiry", mono: true },
       { key: "status", label: "Status", render: r => statusBadge(licenseStatus(r)) },
@@ -1039,33 +1050,67 @@ const TABLES = {
       { key: "software_id", label: "Software", type: "select", required: true, group: "Identity",
         dynamicOptions: () => state.data.software.map(s => ({ value: s.software_id, label: `${s.name}${s.version ? " " + s.version : ""}` })) },
       { key: "license_type", label: "License type", type: "select", options: LOOKUPS.LicenseType, required: true, group: "Identity" },
+      { key: "license_model", label: "License model", type: "select", options: LOOKUPS.LicenseModel, required: true, group: "Identity" },
       { key: "license_key", label: "License key", type: "text", group: "Identity" },
+      { key: "status", label: "Status", type: "select", options: LOOKUPS.LicenseStoredStatus, required: true, group: "Identity" },
       { key: "seats_total", label: "Seats total", type: "number", required: true, group: "Seats" },
       { key: "seats_used", label: "Seats used", type: "number", group: "Seats" },
       { key: "purchase_date", label: "Purchase date", type: "date", group: "Dates" },
       { key: "expiry_date", label: "Expiry date", type: "date", required: true, group: "Dates" },
-      { key: "cost", label: "Cost", type: "number", placeholder: "e.g. 1200", group: "Other" },
-      { key: "vendor_contact", label: "Vendor contact", type: "text", group: "Other" },
+      { key: "agreement_no", label: "Agreement No.", type: "text", group: "Agreement" },
+      { key: "vendor_contact", label: "Vendor contact", type: "text", group: "Agreement" },
+      { key: "cost", label: "Cost", type: "number", placeholder: "e.g. 1200", group: "Cost" },
+      { key: "currency", label: "Currency", type: "select", options: LOOKUPS.Currency, group: "Cost" },
       { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
     ],
   },
 
   server_permissions: {
-    key: "server_permissions", label: "Server Permission", desc: "Which accounts may access which servers, and at what level — Admin only",
+    key: "server_permissions", label: "Server Permission", desc: "Shared folders on File Servers and the AD group(s) that hold Read/Write or Read-only access — Admin only",
     idField: "permission_id", idPrefix: "PRM", storageKey: "inv_server_permissions",
     listColumns: [
+      { key: "folder_name", label: "Folder", mono: true },
       { key: "server_id", label: "Server", render: r => escapeHtml(serverNameFor(r.server_id)) },
-      { key: "user_id", label: "Account", mono: true, render: r => escapeHtml(usernameFor(r.user_id)) },
-      { key: "access_level", label: "Access level", render: r => typeBadge(r.access_level) },
-      { key: "granted_at", label: "Granted" },
+      { key: "level", label: "Level" },
+      { key: "access_groups", label: "AD groups (RW / RO)", render: r => `${escapeHtml(r.rw_group || "-")} / ${escapeHtml(r.ro_group || "-")}` },
+      { key: "department", label: "Department" },
+      { key: "quota_gb", label: "Quota (GB)" },
     ],
     fields: [
-      { key: "server_id", label: "Server", type: "select", required: true, group: "Grant",
+      { key: "server_id", label: "File Server", type: "select", required: true, group: "Folder",
         dynamicOptions: () => state.data.servers.map(s => ({ value: s.server_id, label: s.system_name })) },
-      { key: "user_id", label: "Account", type: "select", required: true, group: "Grant",
-        dynamicOptions: () => state.data.users.map(u => ({ value: u.user_id, label: `${u.username} (${u.role})` })) },
-      { key: "access_level", label: "Access level", type: "select", options: LOOKUPS.AccessLevel, required: true, group: "Grant" },
-      { key: "granted_at", label: "Granted on", type: "date", group: "Grant" },
+      { key: "folder_name", label: "Folder name", type: "text", required: true, group: "Folder" },
+      { key: "folder_path", label: "Path", type: "text", placeholder: "e.g. \\\\FS-PROD-01\\Share\\Folder", group: "Folder" },
+      { key: "level", label: "Level", type: "text", placeholder: "e.g. Level 1", group: "Folder" },
+      { key: "department", label: "Department", type: "text", group: "Folder" },
+      { key: "rw_group", label: "AD group — Read/Write", type: "text", group: "Access" },
+      { key: "ro_group", label: "AD group — Read only", type: "text", group: "Access" },
+      { key: "quota_gb", label: "Quota (GB)", type: "number", group: "Access" },
+      { key: "owner", label: "Folder owner", type: "text", group: "Other" },
+      { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
+    ],
+  },
+
+  ad_users: {
+    key: "ad_users", label: "AD Users", desc: "Directory of Active Directory accounts and their group membership — imported, not created here",
+    idField: "ad_user_id", idPrefix: "AD", storageKey: "inv_ad_users", noAdd: true,
+    listColumns: [
+      { key: "user_logon", label: "User logon", mono: true },
+      { key: "display_name", label: "Display name" },
+      { key: "department", label: "Department" },
+      { key: "job_title", label: "Job title" },
+      { key: "group_count", label: "Groups" },
+      { key: "email", label: "Email" },
+      { key: "status", label: "Status", render: r => statusBadge(r.status) },
+    ],
+    fields: [
+      { key: "user_logon", label: "User logon", type: "text", required: true, group: "Account" },
+      { key: "display_name", label: "Display name", type: "text", group: "Account" },
+      { key: "status", label: "Status", type: "select", options: LOOKUPS.AdUserStatus, required: true, group: "Account" },
+      { key: "job_title", label: "Job title", type: "text", group: "Organisation" },
+      { key: "department", label: "Department", type: "text", group: "Organisation" },
+      { key: "email", label: "Email", type: "text", group: "Organisation" },
+      { key: "group_count", label: "AD group count", type: "number", group: "Organisation" },
       { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
     ],
   },
@@ -1107,16 +1152,20 @@ const UNIQUE_RULES = {
   licenses: [
     { key: "license_key", label: "License key" },
   ],
+  ad_users: [
+    { key: "user_logon", label: "User logon" },
+  ],
 };
 
-/* server_permissions has no single-column unique rule — a server/account pair
-   must be unique together, so it's checked separately (like Location/VLAN). */
+/* server_permissions has no single-column unique rule — a folder must be
+   unique per server, so it's checked separately (like Location/VLAN). */
 function validateServerPermission(values, excludeId) {
-  if (!values.server_id || !values.user_id) return [];
+  if (!values.server_id || !values.folder_name) return [];
   const dup = state.data.server_permissions.some(p =>
-    p.permission_id !== excludeId && p.server_id === values.server_id && p.user_id === values.user_id
+    p.permission_id !== excludeId && p.server_id === values.server_id &&
+    p.folder_name.trim().toLowerCase() === values.folder_name.trim().toLowerCase()
   );
-  return dup ? [`"${usernameFor(values.user_id)}" already has a permission entry for "${serverNameFor(values.server_id)}"`] : [];
+  return dup ? [`Folder "${values.folder_name}" already has a permission entry for "${serverNameFor(values.server_id)}"`] : [];
 }
 
 /* A given Hardware record can only be assigned to ONE Server Host or ONE
@@ -1412,17 +1461,21 @@ function seedData() {
   ];
 
   state.data.software = [
-    { software_id: "SFW-001", name: "Windows Server", vendor: "Microsoft", category: "Operating System", version: "2022", install_type: "On-Premise", status: "Active", owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
-    { software_id: "SFW-002", name: "VMware vSphere", vendor: "Broadcom", category: "Utility", version: "8.0", install_type: "On-Premise", status: "Active", owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
+    { software_id: "SFW-001", name: "Windows Server", vendor: "Microsoft", category: "Operating System", version: "2022", install_type: "On-Premise", status: "Active", eos_date: "2031-10-14", owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
+    { software_id: "SFW-002", name: "VMware vSphere", vendor: "Broadcom", category: "Utility", version: "8.0", install_type: "On-Premise", status: "Active", eos_date: "", owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
   ];
 
   state.data.licenses = [
-    { license_id: "LIC-001", software_id: "SFW-001", license_type: "OEM", license_key: "XXXXX-XXXXX-XXXXX", seats_total: 20, seats_used: 12, purchase_date: "2023-01-15", expiry_date: "2027-01-15", cost: 8000, vendor_contact: "-", remarks: "-", created_at: today, updated_at: today },
-    { license_id: "LIC-002", software_id: "SFW-002", license_type: "Subscription", license_key: "-", seats_total: 8, seats_used: 8, purchase_date: "2024-06-01", expiry_date: "2025-06-01", cost: 15000, vendor_contact: "-", remarks: "-", created_at: today, updated_at: today },
+    { license_id: "LIC-001", software_id: "SFW-001", license_type: "OEM", license_model: "Core", status: "Active", license_key: "XXXXX-XXXXX-XXXXX", seats_total: 20, seats_used: 12, purchase_date: "2023-01-15", expiry_date: "2027-01-15", agreement_no: "AGR-2023-0001", cost: 8000, currency: "THB", vendor_contact: "-", remarks: "-", created_at: today, updated_at: today },
+    { license_id: "LIC-002", software_id: "SFW-002", license_type: "Subscription", license_model: "Core", status: "Active", license_key: "-", seats_total: 8, seats_used: 8, purchase_date: "2024-06-01", expiry_date: "2025-06-01", agreement_no: "AGR-2024-0002", cost: 15000, currency: "THB", vendor_contact: "-", remarks: "-", created_at: today, updated_at: today },
   ];
 
   state.data.server_permissions = [
-    { permission_id: "PRM-001", server_id: "SRV-001", user_id: "USR-001", access_level: "Admin", granted_at: today, remarks: "-", created_at: today, updated_at: today },
+    { permission_id: "PRM-001", server_id: "SRV-001", folder_name: "Production Control", folder_path: "\\\\FS-PROD-01\\Share\\ProductionControl", level: "Level 1", department: "Production Control", rw_group: "Production Control_Modify", ro_group: "", quota_gb: 500, owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
+  ];
+
+  state.data.ad_users = [
+    { ad_user_id: "AD-001", user_logon: "admin", display_name: "Administrator", department: "IT Infrastructure", job_title: "System Engineer", email: "admin@company.local", group_count: 4, status: "Enabled", remarks: "-", created_at: today, updated_at: today },
   ];
 }
 
@@ -1476,7 +1529,8 @@ function recordDisplayName(tableKey, record) {
     case "users": return record.username || "-";
     case "software": return record.name || "-";
     case "licenses": return `${softwareNameFor(record.software_id)} license`;
-    case "server_permissions": return `${serverNameFor(record.server_id)} → ${usernameFor(record.user_id)}`;
+    case "server_permissions": return `${record.folder_name || "-"} @ ${serverNameFor(record.server_id)}`;
+    case "ad_users": return record.display_name || record.user_logon || "-";
     default: {
       const cfg = TABLES[tableKey];
       return (cfg && record[cfg.idField]) || "record";
@@ -1575,11 +1629,12 @@ function warrantyStatus(dateStr) {
   return "OK";
 }
 function licenseStatus(rec) {
-  if (!rec.expiry_date) return "Active";
+  if (rec.status === "Suspended" || rec.status === "Terminated") return rec.status;
+  if (!rec.expiry_date) return rec.status || "Active";
   const days = (new Date(rec.expiry_date) - new Date()) / 86400000;
   if (days < 0) return "Expired";
   if (days <= 60) return "Expiring Soon";
-  return "Active";
+  return rec.status || "Active";
 }
 
 /* ---------------- Access control ---------------- */
@@ -1800,20 +1855,6 @@ function renderAccessCheckView() {
     </section>`;
 }
 
-function renderAdUsersView() {
-  const cols = [
-    { key: "username", label: "Username", mono: true },
-    { key: "full_name", label: "Full name" },
-    { key: "role", label: "Role", render: r => roleBadge(r.role) },
-    { key: "status", label: "Status", render: r => statusBadge(r.status) },
-    { key: "created_at", label: "Created" },
-  ];
-  return `<section class="card">
-    <p class="muted" style="padding:14px 14px 0;">Read-only directory. Manage accounts under Administration → Users.</p>
-    ${buildSimpleTable(cols, state.data.users)}
-  </section>`;
-}
-
 function renderWarrantyAssetsView() {
   const rows = state.data.hardware
     .filter(h => h.warranty_expiry)
@@ -1873,7 +1914,6 @@ const CUSTOM_VIEWS = {
   dashboard: { label: "Dashboard", desc: "Live summary of the infrastructure inventory", render: renderDashboardView },
   permission_dashboard: { label: "Permission dashboard", desc: "Role capability matrix and active account counts", render: renderPermissionDashboardView },
   access_check: { label: "Access check", desc: "Check what a given role can do, module by module", render: renderAccessCheckView },
-  ad_users: { label: "AD Users", desc: "Read-only directory of application accounts", render: renderAdUsersView },
   warranty_assets: { label: "Warranty & assets", desc: "Hardware warranty coverage at a glance", render: renderWarrantyAssetsView },
   change_history: { label: "Change history", desc: "Audit trail of create / update / delete / restore actions", render: renderChangeHistoryView },
   recycle_bin: { label: "Recycle bin", desc: "Deleted records — restore them or purge them permanently", render: renderRecycleBinView },
@@ -1894,7 +1934,7 @@ function switchTable(tableKey) {
   const view = CUSTOM_VIEWS[tableKey];
   document.getElementById("pageTitle").textContent = cfg ? cfg.label : view.label;
   document.getElementById("pageDesc").textContent = cfg ? cfg.desc : view.desc;
-  document.getElementById("addBtn").hidden = !(cfg && tableWritable(tableKey));
+  document.getElementById("addBtn").hidden = !(cfg && !cfg.noAdd && tableWritable(tableKey));
   closeForm();
   if (cfg) {
     document.getElementById("customView").hidden = true;
@@ -2792,10 +2832,11 @@ async function saveForm() {
     values.nodes = values.nodes.map(({ hardware_id_raw, ...rest }) => rest);
   }
   if (tableKey === "locations") {
-    values.parent_id = values.parent_site || values.parent_factory || values.parent_floor || null;
+    values.parent_id = values.parent_site || values.parent_factory || values.parent_floor || values.parent_area || null;
     delete values.parent_site;
     delete values.parent_factory;
     delete values.parent_floor;
+    delete values.parent_area;
   }
   if (tableKey === "network_devices") {
     // parent_site/parent_factory only drive the cascading dropdowns in the UI
