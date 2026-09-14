@@ -316,6 +316,7 @@ CREATE TABLE dbo.network_devices (
                     CONSTRAINT FK_netdev_location REFERENCES dbo.locations(location_id),
     rack_number     NVARCHAR(60)  NULL,
     commission_date DATE          NULL,
+    warranty_expiry DATE          NULL,
     eol_date        DATE          NULL,
     created_at      DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
     updated_at      DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -426,6 +427,24 @@ CREATE TABLE dbo.ad_users (
     created_at   DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
     updated_at   DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT UQ_adusers_logon UNIQUE (user_logon)
+);
+GO
+
+/* ---------------------------------------------------------------------------
+   AD group membership — which AD group(s) each AD user belongs to. Backs
+   group_count on dbo.ad_users and lets Permission dashboard / Access check
+   resolve real folder access via server_permissions.rw_group/ro_group
+   instead of a flat count.
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.ad_memberships', 'U') IS NULL
+CREATE TABLE dbo.ad_memberships (
+    membership_id VARCHAR(20)   NOT NULL PRIMARY KEY,            -- e.g. MBR-001
+    ad_user_id    VARCHAR(20)   NOT NULL
+                  CONSTRAINT FK_admember_user REFERENCES dbo.ad_users(ad_user_id),
+    group_name    NVARCHAR(150) NOT NULL,
+    created_at    DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    updated_at    DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT UQ_admember_user_group UNIQUE (ad_user_id, group_name)
 );
 GO
 

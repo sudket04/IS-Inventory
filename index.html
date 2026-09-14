@@ -103,6 +103,8 @@
   .badge.type-Factory{background:#F3EAFA;border-color:#DAC6ED;color:#5A2A8A;}
   .badge.type-Floor{background:#FBEFE7;border-color:#EBD2B9;color:#8A5A2A;}
   .badge.type-Area{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
+  .badge.type-Hardware{background:#EAF0F8;border-color:#C6D8ED;color:#2A5A8A;}
+  .badge.type-Network{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
   .badge.type-View{background:#EAF0F8;border-color:#C6D8ED;color:#2A5A8A;}
   .badge.type-Manage{background:#FDF3E4;border-color:#F0D6A6;color:#8A5A11;}
   .badge.type-Admin{background:#F3EAFA;border-color:#DAC6ED;color:#5A2A8A;}
@@ -180,6 +182,20 @@
 
   /* Access control: login, user chip, role badges */
   .topbar-actions{display:flex;align-items:center;gap:14px;}
+  .global-search{position:relative;flex:1 1 320px;max-width:420px;min-width:220px;}
+  .global-search input{width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-size:13.5px;background:#fff;}
+  .global-search-results{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:420px;overflow-y:auto;z-index:30;}
+  .gs-group-label{padding:8px 14px 4px;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;}
+  .gs-item{display:block;width:100%;text-align:left;padding:8px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--text);}
+  .gs-item:hover{background:#F2F2EE;}
+  .gs-item-sub{display:block;font-size:11.5px;color:var(--text-muted);margin-top:1px;}
+  .gs-empty{padding:14px;font-size:13px;color:var(--text-muted);}
+  .history-timeline{display:flex;flex-direction:column;gap:12px;}
+  .history-entry{border-left:2px solid var(--border);padding:2px 0 2px 14px;}
+  .history-entry-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .history-version{font-weight:600;font-size:13px;color:var(--text-muted);}
+  .history-when{font-size:12.5px;color:var(--text-muted);}
+  .history-entry-by{font-size:12.5px;color:var(--text-muted);margin-top:2px;}
   .user-chip{display:flex;align-items:center;gap:10px;}
   .user-chip-info{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25;}
   .user-chip-name{font-size:13px;font-weight:600;color:var(--text);}
@@ -241,9 +257,11 @@
   .activity-meta{color:var(--text-muted);font-size:12px;white-space:nowrap;}
   .access-check-controls{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;}
   .access-check-controls label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--text-muted);}
-  .access-check-controls select{border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:200px;}
+  .access-check-controls select,.access-check-controls input{border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:200px;box-sizing:border-box;}
   .access-check-result{display:flex;gap:22px;flex-wrap:wrap;}
   .access-check-result .stat-card{min-width:150px;}
+  .access-lookup-card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;}
+  .access-lookup-card-title{margin:0 0 2px;font-weight:600;font-size:14px;}
   .badge.status-Expired{background:#FBEAE9;border-color:#EBC9C6;color:var(--danger);}
   .badge.status-ExpiringSoon{background:#FDF3E4;border-color:#F0D6A6;color:#8A5A11;}
   .badge.status-OK{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
@@ -276,6 +294,10 @@
       <div>
         <h1 id="pageTitle">Dashboard</h1>
         <p class="muted" id="pageDesc">Live summary of the infrastructure inventory</p>
+      </div>
+      <div class="global-search" id="globalSearch">
+        <input type="text" id="globalSearchInput" placeholder="Search locations, software, licenses, permissions, AD users, users…" autocomplete="off">
+        <div class="global-search-results" id="globalSearchResults" hidden></div>
       </div>
       <div class="topbar-actions">
         <button id="addBtn" class="primary-btn">+ Add</button>
@@ -316,6 +338,21 @@
             <button type="submit" class="primary-btn">Save</button>
           </div>
         </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="historyModalBackdrop">
+      <section class="panel" id="historyPanel" style="max-width:560px;">
+        <div class="panel-head">
+          <h2 id="historyPanelTitle">History</h2>
+          <button class="icon-btn" id="closeHistoryPanelBtn" aria-label="Close history">×</button>
+        </div>
+        <div class="dialog-content">
+          <div id="historyBody"></div>
+        </div>
+        <div class="panel-actions">
+          <button type="button" class="ghost-btn" id="closeHistoryBtn2">Close</button>
+        </div>
       </section>
     </div>
   </main>
@@ -573,7 +610,7 @@ const state = {
   data: {
     clusters: [], hardware: [], servers: [], locations: [], vlans: [], network_devices: [], users: [],
     software: [], licenses: [], server_permissions: [], ad_users: [],
-    audit_log: [], recycle_bin: [],   // not TABLES-driven — see EXTRA_STORAGE / logChange / moveToRecycleBin
+    audit_log: [], recycle_bin: [], ad_memberships: [],   // not TABLES-driven — see EXTRA_STORAGE / logChange / moveToRecycleBin
   },
   session: null,       // { user_id, username, role, full_name } once signed in
   activeTable: "dashboard",
@@ -740,7 +777,7 @@ const TABLES = {
       { key: "status", label: "Status", render: r => statusBadge(r.status) },
     ],
     fields: [
-      { key: "asset_type", label: "Asset type", type: "select", options: ["Server", "Storage"], required: true, group: "Type" },
+      { key: "asset_type", label: "Asset type", type: "select", options: ["Server", "Storage"], required: true, group: "Identity" },
 
       // Storage-only identity
       { key: "storage_name", label: "Storage name", type: "text", onlyFor: "Storage", required: true, group: "System Info" },
@@ -827,7 +864,7 @@ const TABLES = {
     ],
     fields: [
       // Type selector — drives which fields below appear and get saved
-      { key: "hosting_type", label: "Hosting type", type: "select", options: LOOKUPS.HostingType, required: true, group: "Type" },
+      { key: "hosting_type", label: "Hosting type", type: "select", options: LOOKUPS.HostingType, required: true, group: "Identity" },
 
       // Virtual-only
       { key: "host_ref", label: "Host", type: "select", onlyFor: "Virtual", required: true, group: "System Info",
@@ -886,8 +923,8 @@ const TABLES = {
       { key: "rack_units", label: "Rack height (U)", render: r => (r.level === "Rack" ? (r.rack_units || "-") : "-") },
     ],
     fields: [
-      { key: "level", label: "Level", type: "select", options: LOOKUPS.LocationLevel, required: true, group: "Type" },
-      { key: "name", label: "Name", type: "text", required: true, group: "Type" },
+      { key: "level", label: "Level", type: "select", options: LOOKUPS.LocationLevel, required: true, group: "Identity" },
+      { key: "name", label: "Name", type: "text", required: true, group: "Identity" },
 
       { key: "parent_site", label: "Site", type: "select", onlyFor: "Factory", required: true, group: "Hierarchy",
         dynamicOptions: () => locationsByLevel("Site").map(l => ({ value: l.location_id, label: l.name })) },
@@ -989,6 +1026,7 @@ const TABLES = {
       { key: "rack_number", label: "Rack Number", type: "text", placeholder: "e.g. Rack 01", group: "Location" },
 
       { key: "commission_date", label: "Commission Date", type: "date", group: "Lifecycle" },
+      { key: "warranty_expiry", label: "Warranty expiry", type: "date", group: "Lifecycle" },
       { key: "eol_date", label: "EOL Date", type: "date", group: "Lifecycle" },
     ],
   },
@@ -1030,7 +1068,7 @@ const TABLES = {
       { key: "install_type", label: "Install type", type: "select", options: LOOKUPS.InstallType, required: true, group: "Identity" },
       { key: "status", label: "Status", type: "select", options: LOOKUPS.SoftwareStatus, required: true, group: "Lifecycle" },
       { key: "eos_date", label: "End of support", type: "date", group: "Lifecycle" },
-      { key: "owner", label: "Owner", type: "text", group: "Lifecycle" },
+      { key: "owner", label: "Owner", type: "text", group: "Other" },
       { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
     ],
   },
@@ -1110,11 +1148,16 @@ const TABLES = {
       { key: "job_title", label: "Job title", type: "text", group: "Organisation" },
       { key: "department", label: "Department", type: "text", group: "Organisation" },
       { key: "email", label: "Email", type: "text", group: "Organisation" },
-      { key: "group_count", label: "AD group count", type: "number", group: "Organisation" },
+      { key: "groups", label: "AD Groups", type: "multiText", placeholder: "e.g. Production Control_Modify", group: "Access" },
+      { key: "group_count", label: "AD group count (auto)", type: "derivedText", dependsLabel: "AD Groups", group: "Access" },
       { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
     ],
   },
 };
+
+/* Tables outside the standing Server/Network scope exception — these get the
+   cross-entity global search and per-record version history features. */
+const NON_SERVER_NETWORK_TABLES = ["locations", "software", "licenses", "server_permissions", "ad_users", "users"];
 
 /* ---------------- Uniqueness rules (duplicate checks) ---------------- */
 /* Each rule checks `key` for duplicates within the same table (optionally
@@ -1455,7 +1498,7 @@ function seedData() {
       brand: "Cisco", model: "C9500-16X", serial_number: "RR2", description: "-", fixed_asset: "IS004",
       mac_address: "aa:bb:cc:dd:e4", device_name: "OT1-Maincore", ip_management: "192.168.104.128",
       location_id: "LOC-003", rack_number: "Rack 01",
-      commission_date: "2022-03-01", eol_date: "2027-03-01",
+      commission_date: "2022-03-01", warranty_expiry: "2026-10-15", eol_date: "2027-03-01",
       created_at: today, updated_at: today,
     },
   ];
@@ -1472,10 +1515,24 @@ function seedData() {
 
   state.data.server_permissions = [
     { permission_id: "PRM-001", server_id: "SRV-001", folder_name: "Production Control", folder_path: "\\\\FS-PROD-01\\Share\\ProductionControl", level: "Level 1", department: "Production Control", rw_group: "Production Control_Modify", ro_group: "", quota_gb: 500, owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
+    { permission_id: "PRM-002", server_id: "SRV-001", folder_name: "PC Common", folder_path: "\\\\FS-PROD-01\\Share\\PC_Common", level: "Level 2", department: "Production Control", rw_group: "PC Common_Modify", ro_group: "All Staff_Read Only", quota_gb: 200, owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
+    { permission_id: "PRM-003", server_id: "SRV-002", folder_name: "IT Secret", folder_path: "\\\\FS-HQ-02\\Secret\\ITInfra", level: "Level 1", department: "IT Infrastructure", rw_group: "IT Secret_Modify", ro_group: "", quota_gb: 120, owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
   ];
 
   state.data.ad_users = [
-    { ad_user_id: "AD-001", user_logon: "admin", display_name: "Administrator", department: "IT Infrastructure", job_title: "System Engineer", email: "admin@company.local", group_count: 4, status: "Enabled", remarks: "-", created_at: today, updated_at: today },
+    { ad_user_id: "AD-001", user_logon: "admin", display_name: "Administrator", department: "IT Infrastructure", job_title: "System Engineer", email: "admin@company.local", group_count: 1, status: "Enabled", remarks: "-", created_at: today, updated_at: today },
+    { ad_user_id: "AD-002", user_logon: "somchai.p", display_name: "Somchai Pattana", department: "Production Control", job_title: "Staff", email: "somchai.p@company.local", group_count: 2, status: "Enabled", remarks: "-", created_at: today, updated_at: today },
+    { ad_user_id: "AD-003", user_logon: "wanida.k", display_name: "Wanida Kong", department: "Production Control", job_title: "Officer", email: "wanida.k@company.local", group_count: 1, status: "Enabled", remarks: "-", created_at: today, updated_at: today },
+  ];
+
+  // AD group membership backing Server Permission's rw_group/ro_group and the
+  // Permission dashboard / Access check features — "IT Secret_Modify" is left
+  // with zero members on purpose to demonstrate orphan-group detection.
+  state.data.ad_memberships = [
+    { membership_id: "MBR-001", ad_user_id: "AD-001", group_name: "All Staff_Read Only", created_at: today, updated_at: today },
+    { membership_id: "MBR-002", ad_user_id: "AD-002", group_name: "Production Control_Modify", created_at: today, updated_at: today },
+    { membership_id: "MBR-003", ad_user_id: "AD-002", group_name: "All Staff_Read Only", created_at: today, updated_at: today },
+    { membership_id: "MBR-004", ad_user_id: "AD-003", group_name: "PC Common_Modify", created_at: today, updated_at: today },
   ];
 }
 
@@ -1486,7 +1543,7 @@ async function persist(tableKey) {
 
 /* audit_log / recycle_bin aren't user-editable TABLES — they're maintained
    by logChange()/moveToRecycleBin() below, so they get their own storage keys. */
-const EXTRA_STORAGE = { audit_log: "inv_audit_log", recycle_bin: "inv_recycle_bin" };
+const EXTRA_STORAGE = { audit_log: "inv_audit_log", recycle_bin: "inv_recycle_bin", ad_memberships: "inv_ad_memberships" };
 async function persistExtra(key) {
   await StorageAdapter.set(EXTRA_STORAGE[key], JSON.stringify(state.data[key]));
 }
@@ -1503,6 +1560,7 @@ async function loadAll() {
     seedData();
     await seedUsers();
     for (const key of Object.keys(TABLES)) await persist(key);
+    await persistExtra("ad_memberships");
   }
   // Ensure a login account always exists (e.g. data seeded before accounts were added).
   if (!state.data.users || !state.data.users.length) {
@@ -1765,7 +1823,7 @@ function buildSimpleTable(columns, rows, opts = {}) {
 }
 
 function renderDashboardView() {
-  const warrantyRows = state.data.hardware.filter(h => h.warranty_expiry);
+  const warrantyRows = [...state.data.hardware, ...state.data.network_devices].filter(h => h.warranty_expiry);
   const soonWarranty = warrantyRows.filter(h => warrantyStatus(h.warranty_expiry) === "Expiring Soon").length;
   const expiredWarranty = warrantyRows.filter(h => warrantyStatus(h.warranty_expiry) === "Expired").length;
   const attentionLicenses = state.data.licenses.filter(l => licenseStatus(l) !== "Active").length;
@@ -1808,6 +1866,34 @@ function renderPermissionDashboardView() {
     ["View Permission Control (AD Users / Server Permission)", [true, false, false]],
     ["Manage Users & Database Setup", [true, false, false]],
   ];
+
+  const deptMap = {};
+  state.data.server_permissions.forEach(p => {
+    const dept = p.department || "(no department)";
+    if (!deptMap[dept]) deptMap[dept] = { folders: 0, quota: 0, noGroup: 0 };
+    deptMap[dept].folders += 1;
+    deptMap[dept].quota += Number(p.quota_gb) || 0;
+    if (!p.rw_group && !p.ro_group) deptMap[dept].noGroup += 1;
+  });
+  const deptRows = Object.entries(deptMap)
+    .map(([department, v]) => ({ department, folders: v.folders, quota: v.quota, noGroup: v.noGroup }))
+    .sort((a, b) => b.folders - a.folders);
+
+  const serverMap = {};
+  state.data.server_permissions.forEach(p => {
+    const name = serverNameFor(p.server_id);
+    serverMap[name] = (serverMap[name] || 0) + 1;
+  });
+  const topServerRows = Object.entries(serverMap)
+    .map(([server, folders]) => ({ server, folders }))
+    .sort((a, b) => b.folders - a.folders)
+    .slice(0, 5);
+
+  const knownGroups = new Set(state.data.ad_memberships.map(m => m.group_name));
+  const orphanGroups = [...new Set(
+    state.data.server_permissions.flatMap(p => [p.rw_group, p.ro_group]).filter(g => g && !knownGroups.has(g))
+  )];
+
   return `
     <section class="view-block">
       <p class="section-title">Active accounts by role</p>
@@ -1821,6 +1907,29 @@ function renderPermissionDashboardView() {
         <thead><tr><th><div class="th-inner">Capability</div></th>${roles.map(r => `<th><div class="th-inner">${escapeHtml(r)}</div></th>`).join("")}</tr></thead>
         <tbody>${capRows.map(([label, flags]) => `<tr><td>${escapeHtml(label)}</td>${flags.map(f => `<td>${f ? "✓" : "–"}</td>`).join("")}</tr>`).join("")}</tbody>
       </table></div>
+    </section>
+    <section class="card" style="padding:16px 18px;">
+      <p class="section-title">Folders &amp; quota by department</p>
+      ${buildSimpleTable([
+        { key: "department", label: "Department" },
+        { key: "folders", label: "Folders" },
+        { key: "quota", label: "Quota (GB)" },
+        { key: "noGroup", label: "No AD group", render: r => r.noGroup > 0 ? `<span class="badge status-Expired">${r.noGroup}</span>` : "0" },
+      ], deptRows, { emptyText: "No Server Permission folders recorded yet." })}
+    </section>
+    <section class="card" style="padding:16px 18px;">
+      <p class="section-title">Top File Servers by folder count</p>
+      ${buildSimpleTable([
+        { key: "server", label: "File Server" },
+        { key: "folders", label: "Folders" },
+      ], topServerRows, { emptyText: "No Server Permission folders recorded yet." })}
+    </section>
+    <section class="card" style="padding:16px 18px;">
+      <p class="section-title">Orphan AD groups</p>
+      <p class="muted" style="margin-top:-4px;">AD groups referenced by a Server Permission folder (Read/Write or Read-only) with no AD user assigned to them.</p>
+      ${orphanGroups.length
+        ? `<div class="stat-grid">${orphanGroups.map(g => `<div class="stat-card warn"><div class="stat-value" style="font-size:14px;">${escapeHtml(g)}</div><div class="stat-label">0 members</div></div>`).join("")}</div>`
+        : `<p class="empty-state">No orphan AD groups — every group referenced by a folder has at least one member.</p>`}
     </section>`;
 }
 
@@ -1852,21 +1961,120 @@ function renderAccessCheckView() {
         ${result.map(([label, ok]) => `<div class="stat-card${ok ? "" : " danger"}"><div class="stat-value">${ok ? "Yes" : "No"}</div><div class="stat-label">${escapeHtml(label)}</div></div>`).join("")}
       </div>
       <p class="muted" style="margin-top:14px;">Reflects the same rules the app enforces at login — not a simulation.</p>
+    </section>
+    ${renderAccessLookupSection()}`;
+}
+
+/* Which folders an AD user reaches (via ad_memberships + server_permissions)
+   or who reaches a given folder — real data, not the role-capability table above. */
+function foldersForAdUser(adUserId) {
+  const groups = new Set(state.data.ad_memberships.filter(m => m.ad_user_id === adUserId).map(m => m.group_name));
+  return state.data.server_permissions
+    .filter(p => (p.rw_group && groups.has(p.rw_group)) || (p.ro_group && groups.has(p.ro_group)))
+    .map(p => {
+      const rw = p.rw_group && groups.has(p.rw_group);
+      return { folder_name: p.folder_name, folder_path: p.folder_path, server: serverNameFor(p.server_id),
+               access: rw ? "Read/Write" : "Read only", via: rw ? p.rw_group : p.ro_group, quota_gb: p.quota_gb };
+    });
+}
+function peopleForFolder(permission) {
+  const people = [];
+  const addFrom = (groupName, access) => {
+    if (!groupName) return;
+    state.data.ad_memberships.filter(m => m.group_name === groupName).forEach(m => {
+      const u = state.data.ad_users.find(a => a.ad_user_id === m.ad_user_id);
+      if (u) people.push({ user_logon: u.user_logon, display_name: u.display_name, department: u.department, status: u.status, access, via: groupName });
+    });
+  };
+  addFrom(permission.rw_group, "Read/Write");
+  addFrom(permission.ro_group, "Read only");
+  return people;
+}
+function renderAccessLookupSection() {
+  if (!state.accessLookup) state.accessLookup = { mode: "user", query: "" };
+  const { mode, query } = state.accessLookup;
+  const q = query.trim().toLowerCase();
+  let resultHtml = `<p class="muted">Type a user logon or a folder name to look up real AD-group-based access.</p>`;
+
+  if (q.length >= 2 && mode === "user") {
+    const matches = state.data.ad_users.filter(u =>
+      (u.user_logon || "").toLowerCase().includes(q) || (u.display_name || "").toLowerCase().includes(q)).slice(0, 5);
+    resultHtml = matches.length ? matches.map(u => {
+      const folders = foldersForAdUser(u.ad_user_id);
+      return `<div class="access-lookup-card">
+        <p class="access-lookup-card-title">${escapeHtml(u.display_name || u.user_logon)} <span class="muted">(${escapeHtml(u.user_logon)})</span> ${statusBadge(u.status)}</p>
+        <p class="muted">${escapeHtml(u.department || "-")} · ${folders.length} folder(s) reachable</p>
+        ${buildSimpleTable([
+          { key: "folder_name", label: "Folder" }, { key: "server", label: "Server" },
+          { key: "access", label: "Access", render: r => statusBadge(r.access === "Read/Write" ? "Enabled" : "Disabled") },
+          { key: "via", label: "Via AD group", mono: true }, { key: "quota_gb", label: "Quota (GB)" },
+        ], folders, { emptyText: "No folders reachable via this user's AD groups." })}
+      </div>`;
+    }).join("") : `<p class="empty-state">No AD user matches "${escapeHtml(query)}".</p>`;
+  } else if (q.length >= 2 && mode === "folder") {
+    const matches = state.data.server_permissions.filter(p => (p.folder_name || "").toLowerCase().includes(q)).slice(0, 5);
+    resultHtml = matches.length ? matches.map(p => {
+      const people = peopleForFolder(p);
+      return `<div class="access-lookup-card">
+        <p class="access-lookup-card-title">${escapeHtml(p.folder_name)} <span class="muted">@ ${escapeHtml(serverNameFor(p.server_id))}</span></p>
+        <p class="muted">${escapeHtml(p.folder_path || "-")} · ${people.length} people</p>
+        ${buildSimpleTable([
+          { key: "user_logon", label: "User", mono: true }, { key: "display_name", label: "Display name" },
+          { key: "department", label: "Department" },
+          { key: "access", label: "Access", render: r => statusBadge(r.access === "Read/Write" ? "Enabled" : "Disabled") },
+          { key: "via", label: "Via AD group", mono: true },
+        ], people, { emptyText: "No AD user belongs to this folder's Read/Write or Read-only group yet." })}
+      </div>`;
+    }).join("") : `<p class="empty-state">No folder matches "${escapeHtml(query)}".</p>`;
+  }
+
+  return `
+    <section class="view-block">
+      <p class="section-title">Folder access lookup</p>
+      <div class="access-check-controls">
+        <label>Look up by
+          <select id="accessLookupMode">
+            <option value="user" ${mode === "user" ? "selected" : ""}>AD user → folders they can reach</option>
+            <option value="folder" ${mode === "folder" ? "selected" : ""}>Folder → who can reach it</option>
+          </select>
+        </label>
+        <label>${mode === "user" ? "User logon or name" : "Folder name"}
+          <input type="text" id="accessLookupQuery" value="${escapeHtml(query)}" placeholder="${mode === "user" ? "e.g. somchai.p" : "e.g. Production Control"}" autocomplete="off">
+        </label>
+      </div>
+      <div style="margin-top:12px;">${resultHtml}</div>
     </section>`;
 }
 
 function renderWarrantyAssetsView() {
-  const rows = state.data.hardware
+  const hwRows = state.data.hardware
     .filter(h => h.warranty_expiry)
-    .map(h => ({ ...h, _status: warrantyStatus(h.warranty_expiry) }))
-    .sort((a, b) => new Date(a.warranty_expiry) - new Date(b.warranty_expiry));
+    .map(h => ({
+      _category: "Hardware",
+      _identity: h.asset_type === "Storage" ? (h.storage_name || "-") : `${h.manufacturer || "-"} ${h.model || ""}`.trim(),
+      serial_number: h.serial_number,
+      _location: `${h.site || "-"}${h.rack_number ? " / " + h.rack_number : ""}`,
+      warranty_expiry: h.warranty_expiry,
+      _status: warrantyStatus(h.warranty_expiry),
+    }));
+  const netRows = state.data.network_devices
+    .filter(n => n.warranty_expiry)
+    .map(n => ({
+      _category: "Network",
+      _identity: n.device_name || "-",
+      serial_number: n.serial_number,
+      _location: `${locationFullPathFor(n.location_id) || "-"}${n.rack_number ? " / " + n.rack_number : ""}`,
+      warranty_expiry: n.warranty_expiry,
+      _status: warrantyStatus(n.warranty_expiry),
+    }));
+  const rows = [...hwRows, ...netRows].sort((a, b) => new Date(a.warranty_expiry) - new Date(b.warranty_expiry));
   const expired = rows.filter(r => r._status === "Expired").length;
   const soon = rows.filter(r => r._status === "Expiring Soon").length;
   const cols = [
-    { key: "identity", label: "Asset", render: r => escapeHtml(r.asset_type === "Storage" ? (r.storage_name || "-") : `${r.manufacturer || "-"} ${r.model || ""}`.trim()) },
+    { key: "_category", label: "Category", render: r => typeBadge(r._category) },
+    { key: "_identity", label: "Asset", render: r => escapeHtml(r._identity) },
     { key: "serial_number", label: "Serial number", mono: true },
-    { key: "site", label: "Site" },
-    { key: "rack_number", label: "Rack" },
+    { key: "_location", label: "Location", render: r => escapeHtml(r._location) },
     { key: "warranty_expiry", label: "Warranty expiry", mono: true },
     { key: "_status", label: "Status", render: r => statusBadge(r._status) },
   ];
@@ -1878,7 +2086,7 @@ function renderWarrantyAssetsView() {
         <div class="stat-card"><div class="stat-value">${rows.length}</div><div class="stat-label">Assets tracked</div></div>
       </div>
     </section>
-    <section class="card">${buildSimpleTable(cols, rows, { emptyText: "No hardware with a warranty date recorded yet." })}</section>`;
+    <section class="card">${buildSimpleTable(cols, rows, { emptyText: "No hardware or network devices with a warranty date recorded yet." })}</section>`;
 }
 
 function renderChangeHistoryView() {
@@ -2095,6 +2303,8 @@ function renderTable(tableKey) {
   const startIdx = (ui.page - 1) * pageSize;
   const pageRows = rows.slice(startIdx, startIdx + pageSize);
 
+  const showHistory = NON_SERVER_NETWORK_TABLES.includes(tableKey);
+  const showActionsCol = writable || showHistory;
   const head = `<thead><tr>${cfg.listColumns.map(c => {
     const isSorted = ui.sortKey === c.key;
     const arrow = isSorted ? (ui.sortDir === 1 ? "▲" : "▼") : "";
@@ -2105,21 +2315,22 @@ function renderTable(tableKey) {
         <button type="button" class="col-filter-btn ${hasFilter ? "active" : ""}" data-col="${c.key}" aria-label="Filter ${escapeHtml(c.label)}">▾</button>
       </div>
     </th>`;
-  }).join("")}${writable ? "<th>Actions</th>" : ""}</tr></thead>`;
+  }).join("")}${showActionsCol ? "<th>Actions</th>" : ""}</tr></thead>`;
 
   const body = pageRows.map(r => {
     const cells = cfg.listColumns.map(c => {
       const val = c.render ? c.render(r) : escapeHtml(r[c.key] || "-");
       return `<td class="${c.mono ? "mono" : ""}">${val}</td>`;
     }).join("");
-    const actionsCell = writable ? `<td><div class="row-actions">
-          <button class="icon-btn" data-action="edit" data-id="${escapeHtml(r[cfg.idField])}">Edit</button>
-          <button class="icon-btn danger" data-action="delete" data-id="${escapeHtml(r[cfg.idField])}">Remove</button>
+    const actionsCell = showActionsCol ? `<td><div class="row-actions">
+          ${writable ? `<button class="icon-btn" data-action="edit" data-id="${escapeHtml(r[cfg.idField])}">Edit</button>` : ""}
+          ${writable ? `<button class="icon-btn danger" data-action="delete" data-id="${escapeHtml(r[cfg.idField])}">Remove</button>` : ""}
+          ${showHistory ? `<button class="icon-btn" data-action="history" data-id="${escapeHtml(r[cfg.idField])}">History</button>` : ""}
         </div></td>` : "";
     return `<tr>${cells}${actionsCell}</tr>`;
   }).join("");
 
-  const foot = `<tfoot><tr><td colspan="${cfg.listColumns.length + (writable ? 1 : 0)}">
+  const foot = `<tfoot><tr><td colspan="${cfg.listColumns.length + (showActionsCol ? 1 : 0)}">
     <div class="table-pagination">
       <span class="page-info">${rows.length} record(s) — page ${ui.page} of ${totalPages}</span>
       <div class="page-controls">
@@ -2174,6 +2385,10 @@ document.getElementById("dataTable").addEventListener("click", async (e) => {
   if (!btn) return;
   const cfg = TABLES[tableKey];
   const id = btn.dataset.id;
+  if (btn.dataset.action === "history") {
+    openHistoryPanel(tableKey, id);
+    return;
+  }
   if (!tableWritable(tableKey)) return;
   if (btn.dataset.action === "edit") {
     openForm(tableKey, id);
@@ -2714,6 +2929,11 @@ function openForm(tableKey, id = null) {
     const parentKey = { Factory: "parent_site", Floor: "parent_factory" }[record.level];
     if (parentKey) record = Object.assign({}, record, { [parentKey]: record.parent_id });
   }
+  if (record && tableKey === "ad_users") {
+    record = Object.assign({}, record, {
+      groups: state.data.ad_memberships.filter(m => m.ad_user_id === record.ad_user_id).map(m => m.group_name),
+    });
+  }
   if (record && tableKey === "network_devices" && record.location_id) {
     // Walk the Floor's ancestor chain so the Site/Factory selects
     // pre-populate correctly when editing an existing device.
@@ -2736,6 +2956,37 @@ function openForm(tableKey, id = null) {
 function closeForm() {
   document.getElementById("modalBackdrop").classList.remove("open");
   state.editing = null;
+}
+
+/* ---------------- Per-record version history ----------------
+   Reuses the existing audit_log — filtered to one record and numbered in
+   chronological order (oldest = version 1). Only offered on tables outside
+   the Server/Network scope exception; see NON_SERVER_NETWORK_TABLES. */
+function openHistoryPanel(tableKey, id) {
+  const cfg = TABLES[tableKey];
+  const record = state.data[tableKey].find(r => r[cfg.idField] === id);
+  const title = record ? recordDisplayName(tableKey, record) : id;
+  document.getElementById("historyPanelTitle").textContent = `History — ${title}`;
+  const entries = state.data.audit_log
+    .filter(l => l.table_key === tableKey && l.record_id === id)
+    .slice()
+    .sort((a, b) => new Date(a.changed_at) - new Date(b.changed_at));
+  document.getElementById("historyBody").innerHTML = entries.length
+    ? `<div class="history-timeline">${entries.map((e, i) => `
+        <div class="history-entry">
+          <div class="history-entry-head">
+            <span class="history-version">v${i + 1}</span>
+            <span class="badge type-${escapeHtml(e.action)}">${escapeHtml(e.action)}</span>
+            <span class="history-when">${escapeHtml(new Date(e.changed_at).toLocaleString())}</span>
+          </div>
+          <div class="history-entry-by">by ${escapeHtml(e.username || "system")}</div>
+        </div>
+      `).join("")}</div>`
+    : `<p class="empty-state">No history recorded for this record yet.</p>`;
+  document.getElementById("historyModalBackdrop").classList.add("open");
+}
+function closeHistoryPanel() {
+  document.getElementById("historyModalBackdrop").classList.remove("open");
 }
 
 function collectFormValues(tableKey) {
@@ -2847,6 +3098,12 @@ async function saveForm() {
   if (tableKey === "vlans" && values.vlan_id) {
     values.vlan_id = Number(values.vlan_id);
   }
+  let groupNames = null;
+  if (tableKey === "ad_users") {
+    groupNames = (values.groups || []).filter(Boolean);
+    delete values.groups; // real membership rows live in ad_memberships, not on the ad_user record
+    values.group_count = groupNames.length;
+  }
   const today = new Date().toISOString().slice(0, 10);
   const arr = state.data[tableKey];
   let rec;
@@ -2859,6 +3116,18 @@ async function saveForm() {
     const newId = generateId(cfg);
     rec = Object.assign({ [cfg.idField]: newId }, values, { created_at: today, updated_at: today });
     arr.push(rec);
+  }
+
+  if (tableKey === "ad_users" && groupNames) {
+    const adUserId = rec[cfg.idField];
+    state.data.ad_memberships = state.data.ad_memberships.filter(m => m.ad_user_id !== adUserId);
+    groupNames.forEach(name => {
+      state.data.ad_memberships.push({
+        membership_id: generateId({ key: "ad_memberships", idField: "membership_id", idPrefix: "MBR" }),
+        ad_user_id: adUserId, group_name: name, created_at: today, updated_at: today,
+      });
+    });
+    await persistExtra("ad_memberships");
   }
 
   await persist(tableKey);
@@ -2987,7 +3256,16 @@ document.getElementById("customView").addEventListener("change", (e) => {
   if (state.activeTable !== "access_check") return;
   if (e.target.id === "accessCheckRole") state.accessCheckSelection.role = e.target.value;
   if (e.target.id === "accessCheckTable") state.accessCheckSelection.table = e.target.value;
+  if (e.target.id === "accessLookupMode") { state.accessLookup.mode = e.target.value; state.accessLookup.query = ""; }
   renderCustomView("access_check");
+});
+document.getElementById("customView").addEventListener("input", (e) => {
+  if (state.activeTable !== "access_check" || e.target.id !== "accessLookupQuery") return;
+  state.accessLookup.query = e.target.value;
+  renderCustomView("access_check");
+  document.getElementById("accessLookupQuery").focus();
+  const el = document.getElementById("accessLookupQuery");
+  el.setSelectionRange(el.value.length, el.value.length);
 });
 document.getElementById("customView").addEventListener("click", async (e) => {
   if (state.activeTable !== "recycle_bin") return;
@@ -3008,10 +3286,81 @@ document.getElementById("customView").addEventListener("click", async (e) => {
 document.getElementById("addBtn").addEventListener("click", () => openForm(state.activeTable, null));
 document.getElementById("closePanelBtn").addEventListener("click", closeForm);
 document.getElementById("cancelBtn").addEventListener("click", closeForm);
+document.getElementById("closeHistoryPanelBtn").addEventListener("click", closeHistoryPanel);
+document.getElementById("closeHistoryBtn2").addEventListener("click", closeHistoryPanel);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && document.getElementById("modalBackdrop").classList.contains("open")) closeForm();
+  if (e.key === "Escape" && document.getElementById("historyModalBackdrop").classList.contains("open")) closeHistoryPanel();
 });
 document.getElementById("dataForm").addEventListener("submit", (e) => { e.preventDefault(); saveForm(); });
+
+/* ---------------- Global search ----------------
+   Deliberately excludes hardware/clusters/servers/network_devices/vlans —
+   the Server and Network menus are out of scope for this feature. */
+function globalSearchSubtitle(tableKey, record) {
+  switch (tableKey) {
+    case "locations": return record.level || "";
+    case "software": return record.vendor || record.category || "";
+    case "licenses": return softwareNameFor(record.software_id);
+    case "server_permissions": return serverNameFor(record.server_id);
+    case "ad_users": return record.department || record.job_title || "";
+    case "users": return record.role || "";
+    default: return "";
+  }
+}
+function performGlobalSearch(query) {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  const role = currentRole();
+  return NON_SERVER_NETWORK_TABLES
+    .filter(key => tableViewableAs(key, role))
+    .map(key => ({
+      key, label: TABLES[key].label,
+      rows: state.data[key].filter(r => JSON.stringify(r).toLowerCase().includes(q)).slice(0, 5),
+    }))
+    .filter(g => g.rows.length);
+}
+function renderGlobalSearchResults(groups) {
+  const box = document.getElementById("globalSearchResults");
+  if (!groups.length) {
+    box.innerHTML = `<p class="gs-empty">No matches.</p>`;
+    box.hidden = false;
+    return;
+  }
+  box.innerHTML = groups.map(g => `
+    <div class="gs-group-label">${escapeHtml(g.label)}</div>
+    ${g.rows.map(r => {
+      const id = r[TABLES[g.key].idField];
+      const sub = globalSearchSubtitle(g.key, r);
+      return `<button type="button" class="gs-item" data-table="${g.key}" data-id="${escapeHtml(id)}">${escapeHtml(recordDisplayName(g.key, r))}${sub ? `<span class="gs-item-sub">${escapeHtml(sub)}</span>` : ""}</button>`;
+    }).join("")}
+  `).join("");
+  box.hidden = false;
+}
+const globalSearchInput = document.getElementById("globalSearchInput");
+globalSearchInput.addEventListener("input", () => {
+  const q = globalSearchInput.value;
+  const results = document.getElementById("globalSearchResults");
+  if (!q.trim()) { results.hidden = true; return; }
+  renderGlobalSearchResults(performGlobalSearch(q));
+});
+globalSearchInput.addEventListener("focus", () => {
+  if (globalSearchInput.value.trim()) renderGlobalSearchResults(performGlobalSearch(globalSearchInput.value));
+});
+document.getElementById("globalSearchResults").addEventListener("click", (e) => {
+  const btn = e.target.closest(".gs-item");
+  if (!btn) return;
+  const { table, id } = btn.dataset;
+  document.getElementById("globalSearchResults").hidden = true;
+  globalSearchInput.value = "";
+  switchTable(table);
+  openForm(table, id);
+});
+document.addEventListener("click", (e) => {
+  if (!document.getElementById("globalSearch").contains(e.target)) {
+    document.getElementById("globalSearchResults").hidden = true;
+  }
+});
 
 /* ---------------- Init ---------------- */
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
