@@ -325,6 +325,106 @@ CREATE TABLE dbo.network_devices (
 GO
 
 /* ---------------------------------------------------------------------------
+   Software catalogue
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.software', 'U') IS NULL
+CREATE TABLE dbo.software (
+    software_id VARCHAR(20)   NOT NULL PRIMARY KEY,             -- e.g. SFW-001
+    name        NVARCHAR(120) NOT NULL,
+    vendor      NVARCHAR(120) NULL,
+    category    NVARCHAR(60)  NOT NULL,
+    version     NVARCHAR(60)  NULL,
+    install_type VARCHAR(20)  NOT NULL
+                CONSTRAINT CK_software_install CHECK (install_type IN ('On-Premise','Cloud','SaaS')),
+    status      VARCHAR(20)   NOT NULL
+                CONSTRAINT CK_software_status CHECK (status IN ('Active','Deprecated','EOL')),
+    owner       NVARCHAR(120) NULL,
+    remarks     NVARCHAR(400) NULL,
+    created_at  DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    updated_at  DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT UQ_software_name UNIQUE (name)
+);
+GO
+
+/* ---------------------------------------------------------------------------
+   License control — status (Active/Expiring Soon/Expired) is computed by the
+   app from expiry_date, not stored, so it can never go stale.
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.licenses', 'U') IS NULL
+CREATE TABLE dbo.licenses (
+    license_id      VARCHAR(20)   NOT NULL PRIMARY KEY,         -- e.g. LIC-001
+    software_id     VARCHAR(20)   NOT NULL
+                    CONSTRAINT FK_licenses_software REFERENCES dbo.software(software_id),
+    license_type    VARCHAR(20)   NOT NULL
+                    CONSTRAINT CK_licenses_type CHECK (license_type IN ('Perpetual','Subscription','OEM','Open Source')),
+    license_key     NVARCHAR(200) NULL,
+    seats_total     INT           NOT NULL DEFAULT 0,
+    seats_used      INT           NOT NULL DEFAULT 0,
+    purchase_date   DATE          NULL,
+    expiry_date     DATE          NOT NULL,
+    cost            DECIMAL(12,2) NULL,
+    vendor_contact  NVARCHAR(200) NULL,
+    remarks         NVARCHAR(400) NULL,
+    created_at      DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    updated_at      DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+/* ---------------------------------------------------------------------------
+   Server Permission — which account may access which server, and at what
+   level. Surfaced only to Admins (Permission Control section).
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.server_permissions', 'U') IS NULL
+CREATE TABLE dbo.server_permissions (
+    permission_id VARCHAR(20)   NOT NULL PRIMARY KEY,           -- e.g. PRM-001
+    server_id     VARCHAR(20)   NOT NULL
+                  CONSTRAINT FK_serverperm_server REFERENCES dbo.servers(server_id),
+    user_id       VARCHAR(20)   NOT NULL
+                  CONSTRAINT FK_serverperm_user REFERENCES dbo.app_users(user_id),
+    access_level  VARCHAR(10)   NOT NULL
+                  CONSTRAINT CK_serverperm_level CHECK (access_level IN ('View','Manage','Admin')),
+    granted_at    DATE          NULL,
+    remarks       NVARCHAR(400) NULL,
+    created_at    DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    updated_at    DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT UQ_serverperm_pair UNIQUE (server_id, user_id)
+);
+GO
+
+/* ---------------------------------------------------------------------------
+   Change history — append-only audit trail of create/update/delete/restore
+   actions across every module above (Governance > Change history).
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.audit_log', 'U') IS NULL
+CREATE TABLE dbo.audit_log (
+    log_id     VARCHAR(40)   NOT NULL PRIMARY KEY,
+    table_key  VARCHAR(40)   NOT NULL,                          -- e.g. 'hardware', 'servers'
+    record_id  VARCHAR(20)   NULL,
+    display    NVARCHAR(200) NULL,                              -- human label, e.g. system_name
+    action     VARCHAR(10)   NOT NULL
+               CONSTRAINT CK_auditlog_action CHECK (action IN ('Create','Update','Delete','Restore')),
+    username   NVARCHAR(60)  NULL,
+    changed_at DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+/* ---------------------------------------------------------------------------
+   Recycle bin — soft-deleted records, restorable until purged. record_json
+   holds the full original row so Restore can reinsert it as-is.
+   (Governance > Recycle bin)
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.recycle_bin', 'U') IS NULL
+CREATE TABLE dbo.recycle_bin (
+    trash_id     VARCHAR(40)   NOT NULL PRIMARY KEY,
+    table_key    VARCHAR(40)   NOT NULL,
+    record_json  NVARCHAR(MAX) NOT NULL
+                 CONSTRAINT CK_recyclebin_json CHECK (ISJSON(record_json) = 1),
+    deleted_by   NVARCHAR(60)  NULL,
+    deleted_at   DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+/* ---------------------------------------------------------------------------
    Connection / setup config (mirrors setup.html /api/setup)
    --------------------------------------------------------------------------- */
 IF OBJECT_ID('dbo.app_config', 'U') IS NULL
@@ -342,7 +442,9 @@ GO
    --------------------------------------------------------------------------- */
 IF OBJECT_ID('dbo.app_kv', 'U') IS NULL
 CREATE TABLE dbo.app_kv (
-    kv_key     VARCHAR(80)   NOT NULL PRIMARY KEY,             -- inv_hardware, inv_vlans, inv_users, inv_server_roles, ...
+    kv_key     VARCHAR(80)   NOT NULL PRIMARY KEY,             -- inv_hardware, inv_vlans, inv_users, inv_server_roles,
+                                                                -- inv_software, inv_licenses, inv_server_permissions,
+                                                                -- inv_audit_log, inv_recycle_bin, ...
     kv_value   NVARCHAR(MAX) NULL,
     updated_at DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME()
 );
@@ -357,4 +459,14 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_servers_hardware')
     CREATE INDEX IX_servers_hardware ON dbo.servers(hardware_id);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_nodes_cluster')
     CREATE INDEX IX_nodes_cluster ON dbo.cluster_nodes(cluster_id);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_licenses_software')
+    CREATE INDEX IX_licenses_software ON dbo.licenses(software_id);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_licenses_expiry')
+    CREATE INDEX IX_licenses_expiry ON dbo.licenses(expiry_date);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_serverperm_server')
+    CREATE INDEX IX_serverperm_server ON dbo.server_permissions(server_id);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_serverperm_user')
+    CREATE INDEX IX_serverperm_user ON dbo.server_permissions(user_id);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_auditlog_changedat')
+    CREATE INDEX IX_auditlog_changedat ON dbo.audit_log(changed_at DESC);
 GO

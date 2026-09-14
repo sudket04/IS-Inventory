@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Server Inventory</title>
+<title>IT Inventory</title>
 <style>
   :root{
     --bg:#F6F6F2;
@@ -37,11 +37,13 @@
   .nav{display:flex;flex-direction:column;gap:4px;margin-bottom:auto;}
   .nav-section{display:flex;flex-direction:column;gap:2px;margin-bottom:10px;}
   .nav-section-title{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--sidebar-text-dim);padding:8px 12px 4px;}
-  .nav-item{text-align:left;background:transparent;border:none;color:var(--sidebar-text);padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13.5px;transition:background .15s;}
+  .nav-item{display:flex;align-items:center;gap:10px;text-align:left;background:transparent;border:none;color:var(--sidebar-text);padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13.5px;transition:background .15s;width:100%;}
   .nav-item:hover{background:rgba(255,255,255,0.06);}
   .nav-item.active{background:var(--accent);color:#fff;font-weight:500;}
-  .nav-count{float:right;font-family:var(--font-mono);font-size:11px;color:var(--sidebar-text-dim);}
-  .nav-item.active .nav-count{color:var(--accent-contrast);}
+  .nav-icon{flex-shrink:0;display:inline-flex;color:var(--sidebar-text-dim);}
+  .nav-item:hover .nav-icon{color:var(--sidebar-text);}
+  .nav-item.active .nav-icon{color:#fff;}
+  .nav-label{flex:1;overflow:hidden;text-overflow:ellipsis;}
   .ghost-btn{background:transparent;border:1px solid rgba(255,255,255,0.16);color:var(--sidebar-text);padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12.5px;text-align:left;}
   .ghost-btn:hover{border-color:rgba(255,255,255,0.35);}
 
@@ -101,6 +103,9 @@
   .badge.type-Factory{background:#F3EAFA;border-color:#DAC6ED;color:#5A2A8A;}
   .badge.type-Floor{background:#FBEFE7;border-color:#EBD2B9;color:#8A5A2A;}
   .badge.type-Area{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
+  .badge.type-View{background:#EAF0F8;border-color:#C6D8ED;color:#2A5A8A;}
+  .badge.type-Manage{background:#FDF3E4;border-color:#F0D6A6;color:#8A5A11;}
+  .badge.type-Admin{background:#F3EAFA;border-color:#DAC6ED;color:#5A2A8A;}
   .badge.status-InStock{background:#F2F2F0;border-color:var(--border);color:var(--text-muted);}
   .badge.status-InUse{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
   .row-actions{display:flex;gap:6px;}
@@ -220,6 +225,34 @@
      (author styles win over user-agent styles at equal specificity) — so toggling the `hidden`
      attribute/property from JS would silently do nothing. Force it to actually hide things. */
   [hidden]{display:none!important;}
+
+  /* New read-only / dashboard-style views (Overview, Permission Control, Governance) */
+  .view-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:18px;}
+  .section-title{font-size:13px;font-weight:600;margin:0 0 12px;color:var(--text);}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+  .stat-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+  .stat-card .stat-value{font-size:24px;font-weight:700;color:var(--text);line-height:1.2;}
+  .stat-card .stat-label{font-size:12px;color:var(--text-muted);margin-top:4px;}
+  .stat-card.warn .stat-value{color:#8A5A11;}
+  .stat-card.danger .stat-value{color:var(--danger);}
+  .activity-list{display:flex;flex-direction:column;}
+  .activity-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap;}
+  .activity-row:last-child{border-bottom:none;}
+  .activity-meta{color:var(--text-muted);font-size:12px;white-space:nowrap;}
+  .access-check-controls{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;}
+  .access-check-controls label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--text-muted);}
+  .access-check-controls select{border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:200px;}
+  .access-check-result{display:flex;gap:22px;flex-wrap:wrap;}
+  .access-check-result .stat-card{min-width:150px;}
+  .badge.status-Expired{background:#FBEAE9;border-color:#EBC9C6;color:var(--danger);}
+  .badge.status-ExpiringSoon{background:#FDF3E4;border-color:#F0D6A6;color:#8A5A11;}
+  .badge.status-OK{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
+  .badge.type-Create{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
+  .badge.type-Update{background:#EAF0F8;border-color:#C6D8ED;color:#2A5A8A;}
+  .badge.type-Delete{background:#FBEAE9;border-color:#EBC9C6;color:var(--danger);}
+  .badge.type-Restore{background:#F3EAFA;border-color:#DAC6ED;color:#5A2A8A;}
+  .perm-matrix td, .perm-matrix th{text-align:center;}
+  .perm-matrix td:first-child, .perm-matrix th:first-child{text-align:left;}
 </style>
 </head>
 <body>
@@ -228,39 +261,18 @@
     <div class="brand">
       <span class="brand-mark">SVR</span>
       <div>
-        <div class="brand-title">Server Inventory</div>
-        <div class="brand-sub">Internal IT asset tracker</div>
+        <div class="brand-title">IT Inventory</div>
+        <div class="brand-sub">Infrastructure asset register</div>
       </div>
     </div>
-    <nav class="nav" id="nav">
-      <div class="nav-section">
-        <div class="nav-section-title">Server</div>
-        <button class="nav-item active" data-table="hardware">Inventory <span class="nav-count" id="count-hardware">0</span></button>
-        <button class="nav-item" data-table="clusters">Cluster <span class="nav-count" id="count-clusters">0</span></button>
-        <button class="nav-item" data-table="servers">Server List <span class="nav-count" id="count-servers">0</span></button>
-      </div>
-      <div class="nav-section">
-        <div class="nav-section-title">Network</div>
-        <button class="nav-item" data-table="vlans">VLAN <span class="nav-count" id="count-vlans">0</span></button>
-        <button class="nav-item" data-table="network_devices">Inventory <span class="nav-count" id="count-network_devices">0</span></button>
-      </div>
-      <div class="nav-section">
-        <div class="nav-section-title">Location</div>
-        <button class="nav-item" data-table="locations">Location Master <span class="nav-count" id="count-locations">0</span></button>
-      </div>
-      <div class="nav-section" id="adminSection" hidden>
-        <div class="nav-section-title">Administration</div>
-        <button class="nav-item" data-table="users">Users <span class="nav-count" id="count-users">0</span></button>
-        <a class="nav-item nav-link" href="setup.html">Database Setup</a>
-      </div>
-    </nav>
+    <nav class="nav" id="nav"></nav>
   </aside>
 
   <main class="main">
     <header class="topbar">
       <div>
-        <h1 id="pageTitle">Hardware</h1>
-        <p class="muted" id="pageDesc">All physical assets — choose Server or Storage type when adding a record</p>
+        <h1 id="pageTitle">Dashboard</h1>
+        <p class="muted" id="pageDesc">Live summary of the infrastructure inventory</p>
       </div>
       <div class="topbar-actions">
         <button id="addBtn" class="primary-btn">+ Add</button>
@@ -275,13 +287,14 @@
     </header>
 
     <div class="workspace" id="workspace">
-      <section class="card">
+      <section class="card" id="genericCard">
         <div class="filter-bar" id="filterBar" hidden></div>
         <div class="table-scroll">
           <table id="dataTable"></table>
         </div>
         <p class="empty-state" id="emptyState" hidden>No data yet. Click "+ Add" to get started.</p>
       </section>
+      <div id="customView" hidden></div>
     </div>
 
     <div class="modal-backdrop" id="modalBackdrop">
@@ -310,8 +323,8 @@
     <div class="login-brand">
       <span class="brand-mark">SVR</span>
       <div>
-        <div class="login-brand-title">Server Inventory</div>
-        <div class="login-brand-sub">IT Infrastructure Inventory</div>
+        <div class="login-brand-title">IT Inventory</div>
+        <div class="login-brand-sub">Infrastructure asset register</div>
       </div>
     </div>
     <h1 class="login-title">Sign in</h1>
@@ -330,6 +343,80 @@
 </div>
 
 <script>
+/* ---------------- Sidebar icons + nav config ---------------- */
+function icon(inner) {
+  return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+}
+const ICONS = {
+  dashboard: icon(`<path d="M3 12h4l2 7 4-14 2 7h6"/>`),
+  serverHardware: icon(`<rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><circle cx="7" cy="7" r="0.6" fill="currentColor" stroke="none"/><circle cx="7" cy="17" r="0.6" fill="currentColor" stroke="none"/>`),
+  clusters: icon(`<path d="M12 3 21 8 12 13 3 8Z"/><path d="M3 13l9 5 9-5"/>`),
+  serverList: icon(`<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1" fill="currentColor" stroke="none"/>`),
+  networkHardware: icon(`<circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v5M12 12l-6 5M12 12l6 5"/>`),
+  vlans: icon(`<path d="M4 9h16M4 15h16M9 4 7 20M17 4l-2 16"/>`),
+  software: icon(`<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/>`),
+  license: icon(`<path d="M7 3h8l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M9 13l2 2 4-4"/>`),
+  permissionDashboard: icon(`<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6Z"/><path d="M9 12l2 2 4-4"/>`),
+  accessCheck: icon(`<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.35-4.35"/>`),
+  adUsers: icon(`<circle cx="9" cy="7" r="3.2"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M18.5 8v5M16 10.5h5"/>`),
+  serverPermission: icon(`<rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>`),
+  warranty: icon(`<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6Z"/>`),
+  history: icon(`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.5 2"/>`),
+  recycleBin: icon(`<path d="M4 7h16M9 7V4h6v3M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M10 11v6M14 11v6"/>`),
+  locations: icon(`<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/>`),
+  users: icon(`<circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c0-4.1 3.4-7 7.5-7s7.5 2.9 7.5 7"/>`),
+  databaseSetup: icon(`<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>`),
+};
+/* Sidebar structure — a section with an `id` is hidden/shown by applyPermissions() */
+const NAV_SECTIONS = [
+  { title: "Overview", items: [
+    { table: "dashboard", icon: "dashboard", label: "Dashboard" },
+  ] },
+  { title: "Server", items: [
+    { table: "hardware", icon: "serverHardware", label: "Server hardware" },
+    { table: "clusters", icon: "clusters", label: "Clusters" },
+    { table: "servers", icon: "serverList", label: "Server list" },
+  ] },
+  { title: "Network", items: [
+    { table: "network_devices", icon: "networkHardware", label: "Network hardware" },
+    { table: "vlans", icon: "vlans", label: "VLANs" },
+  ] },
+  { title: "Software", items: [
+    { table: "software", icon: "software", label: "Software catalogue" },
+    { table: "licenses", icon: "license", label: "License control" },
+  ] },
+  { title: "Permission Control", id: "permissionSection", items: [
+    { table: "permission_dashboard", icon: "permissionDashboard", label: "Permission dashboard" },
+    { table: "access_check", icon: "accessCheck", label: "Access check" },
+    { table: "ad_users", icon: "adUsers", label: "AD Users" },
+    { table: "server_permissions", icon: "serverPermission", label: "Server Permission" },
+  ] },
+  { title: "Governance", id: "governanceSection", items: [
+    { table: "warranty_assets", icon: "warranty", label: "Warranty & assets" },
+    { table: "change_history", icon: "history", label: "Change history" },
+    { table: "recycle_bin", icon: "recycleBin", label: "Recycle bin" },
+  ] },
+  { title: "Reference", items: [
+    { table: "locations", icon: "locations", label: "Locations & racks" },
+  ] },
+  { title: "Administration", id: "adminSection", items: [
+    { table: "users", icon: "users", label: "Users" },
+    { link: "setup.html", icon: "databaseSetup", label: "Database Setup" },
+  ] },
+];
+function renderNav() {
+  const nav = document.getElementById("nav");
+  nav.innerHTML = NAV_SECTIONS.map(sec => `
+    <div class="nav-section"${sec.id ? ` id="${sec.id}" hidden` : ""}>
+      <div class="nav-section-title">${escapeHtml(sec.title)}</div>
+      ${sec.items.map(item => item.link
+        ? `<a class="nav-item nav-link" href="${escapeHtml(item.link)}"><span class="nav-icon">${ICONS[item.icon]}</span><span class="nav-label">${escapeHtml(item.label)}</span></a>`
+        : `<button type="button" class="nav-item${item.table === state.activeTable ? " active" : ""}" data-table="${item.table}"><span class="nav-icon">${ICONS[item.icon]}</span><span class="nav-label">${escapeHtml(item.label)}</span></button>`
+      ).join("")}
+    </div>
+  `).join("");
+}
+
 /* ---------------- Storage adapter ---------------- */
 /* Talks to the Python backend (see app.py) for real persistence.
    Falls back to an in-memory store if the API is unreachable, so the page
@@ -409,6 +496,15 @@ const LOOKUPS = {
   StackRole: ["Member", "Active", "Standby"],
   DeviceRole: ["L2", "L3"],
   NetworkBrand: ["Cisco", "HPE", "Huawei", "Fortinet", "Other"],
+
+  // Software / License
+  SoftwareCategory: ["Operating System", "Productivity", "Security", "Database", "Development Tool", "Utility", "Other"],
+  InstallType: ["On-Premise", "Cloud", "SaaS"],
+  SoftwareStatus: ["Active", "Deprecated", "EOL"],
+  LicenseType: ["Perpetual", "Subscription", "OEM", "Open Source"],
+
+  // Server Permission
+  AccessLevel: ["View", "Manage", "Admin"],
 };
 
 /* Stack ID choices: ST001-ST100, generated rather than typed by hand. */
@@ -468,9 +564,13 @@ const SITE_LOCATIONS = {
 
 /* ---------------- App state ---------------- */
 const state = {
-  data: { clusters: [], hardware: [], servers: [], locations: [], vlans: [], network_devices: [], users: [] },
+  data: {
+    clusters: [], hardware: [], servers: [], locations: [], vlans: [], network_devices: [], users: [],
+    software: [], licenses: [], server_permissions: [],
+    audit_log: [], recycle_bin: [],   // not TABLES-driven — see EXTRA_STORAGE / logChange / moveToRecycleBin
+  },
   session: null,       // { user_id, username, role, full_name } once signed in
-  activeTable: "hardware",
+  activeTable: "dashboard",
   editing: null,        // { tableKey, id }
   serverFilter: "all",  // "all" | "Virtual" | "Physical" — view filter on Server List table
   hardwareFilter: "all", // "all" | "Server" | "Storage" — view filter on Hardware table
@@ -498,6 +598,18 @@ function hardwareLabelFor(hardwareId) {
 function costCenterFor(hardwareId) {
   const hw = state.data.hardware.find(h => h.hardware_id === hardwareId);
   return hw ? (hw.cost_center || "") : "";
+}
+function softwareNameFor(softwareId) {
+  const s = state.data.software.find(s => s.software_id === softwareId);
+  return s ? s.name : "-";
+}
+function serverNameFor(serverId) {
+  const s = state.data.servers.find(s => s.server_id === serverId);
+  return s ? s.system_name : "-";
+}
+function usernameFor(userId) {
+  const u = state.data.users.find(u => u.user_id === userId);
+  return u ? u.username : "-";
 }
 
 /* ---------------- Location hierarchy helpers (Site > Factory > Floor > Area) ---------------- */
@@ -889,6 +1001,74 @@ const TABLES = {
       { key: "status", label: "Status", type: "select", options: ["Active", "Disabled"], required: true, group: "Access" },
     ],
   },
+
+  software: {
+    key: "software", label: "Software catalogue", desc: "Titles installed or licensed across the organisation — link license records to a title here",
+    idField: "software_id", idPrefix: "SFW", storageKey: "inv_software",
+    listColumns: [
+      { key: "name", label: "Name", mono: true },
+      { key: "vendor", label: "Vendor" },
+      { key: "category", label: "Category" },
+      { key: "version", label: "Version" },
+      { key: "install_type", label: "Install type" },
+      { key: "status", label: "Status", render: r => statusBadge(r.status) },
+    ],
+    fields: [
+      { key: "name", label: "Software name", type: "text", required: true, group: "Identity" },
+      { key: "vendor", label: "Vendor", type: "text", group: "Identity" },
+      { key: "category", label: "Category", type: "select", options: LOOKUPS.SoftwareCategory, required: true, group: "Identity" },
+      { key: "version", label: "Version", type: "text", placeholder: "e.g. 23.1", group: "Identity" },
+      { key: "install_type", label: "Install type", type: "select", options: LOOKUPS.InstallType, required: true, group: "Identity" },
+      { key: "status", label: "Status", type: "select", options: LOOKUPS.SoftwareStatus, required: true, group: "Lifecycle" },
+      { key: "owner", label: "Owner", type: "text", group: "Lifecycle" },
+      { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
+    ],
+  },
+
+  licenses: {
+    key: "licenses", label: "License control", desc: "Seat counts and renewal dates per software title — status is computed from the expiry date",
+    idField: "license_id", idPrefix: "LIC", storageKey: "inv_licenses",
+    listColumns: [
+      { key: "software_id", label: "Software", render: r => escapeHtml(softwareNameFor(r.software_id)) },
+      { key: "license_type", label: "Type" },
+      { key: "seats", label: "Seats", render: r => `${r.seats_used ?? 0} / ${r.seats_total ?? 0}` },
+      { key: "expiry_date", label: "Expiry", mono: true },
+      { key: "status", label: "Status", render: r => statusBadge(licenseStatus(r)) },
+    ],
+    fields: [
+      { key: "software_id", label: "Software", type: "select", required: true, group: "Identity",
+        dynamicOptions: () => state.data.software.map(s => ({ value: s.software_id, label: `${s.name}${s.version ? " " + s.version : ""}` })) },
+      { key: "license_type", label: "License type", type: "select", options: LOOKUPS.LicenseType, required: true, group: "Identity" },
+      { key: "license_key", label: "License key", type: "text", group: "Identity" },
+      { key: "seats_total", label: "Seats total", type: "number", required: true, group: "Seats" },
+      { key: "seats_used", label: "Seats used", type: "number", group: "Seats" },
+      { key: "purchase_date", label: "Purchase date", type: "date", group: "Dates" },
+      { key: "expiry_date", label: "Expiry date", type: "date", required: true, group: "Dates" },
+      { key: "cost", label: "Cost", type: "number", placeholder: "e.g. 1200", group: "Other" },
+      { key: "vendor_contact", label: "Vendor contact", type: "text", group: "Other" },
+      { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
+    ],
+  },
+
+  server_permissions: {
+    key: "server_permissions", label: "Server Permission", desc: "Which accounts may access which servers, and at what level — Admin only",
+    idField: "permission_id", idPrefix: "PRM", storageKey: "inv_server_permissions",
+    listColumns: [
+      { key: "server_id", label: "Server", render: r => escapeHtml(serverNameFor(r.server_id)) },
+      { key: "user_id", label: "Account", mono: true, render: r => escapeHtml(usernameFor(r.user_id)) },
+      { key: "access_level", label: "Access level", render: r => typeBadge(r.access_level) },
+      { key: "granted_at", label: "Granted" },
+    ],
+    fields: [
+      { key: "server_id", label: "Server", type: "select", required: true, group: "Grant",
+        dynamicOptions: () => state.data.servers.map(s => ({ value: s.server_id, label: s.system_name })) },
+      { key: "user_id", label: "Account", type: "select", required: true, group: "Grant",
+        dynamicOptions: () => state.data.users.map(u => ({ value: u.user_id, label: `${u.username} (${u.role})` })) },
+      { key: "access_level", label: "Access level", type: "select", options: LOOKUPS.AccessLevel, required: true, group: "Grant" },
+      { key: "granted_at", label: "Granted on", type: "date", group: "Grant" },
+      { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
+    ],
+  },
 };
 
 /* ---------------- Uniqueness rules (duplicate checks) ---------------- */
@@ -921,7 +1101,23 @@ const UNIQUE_RULES = {
   users: [
     { key: "username", label: "Username" },
   ],
+  software: [
+    { key: "name", label: "Software name" },
+  ],
+  licenses: [
+    { key: "license_key", label: "License key" },
+  ],
 };
+
+/* server_permissions has no single-column unique rule — a server/account pair
+   must be unique together, so it's checked separately (like Location/VLAN). */
+function validateServerPermission(values, excludeId) {
+  if (!values.server_id || !values.user_id) return [];
+  const dup = state.data.server_permissions.some(p =>
+    p.permission_id !== excludeId && p.server_id === values.server_id && p.user_id === values.user_id
+  );
+  return dup ? [`"${usernameFor(values.user_id)}" already has a permission entry for "${serverNameFor(values.server_id)}"`] : [];
+}
 
 /* A given Hardware record can only be assigned to ONE Server Host or ONE
    Physical entry in Server List at a time — it's the same physical box. */
@@ -1214,11 +1410,32 @@ function seedData() {
       created_at: today, updated_at: today,
     },
   ];
+
+  state.data.software = [
+    { software_id: "SFW-001", name: "Windows Server", vendor: "Microsoft", category: "Operating System", version: "2022", install_type: "On-Premise", status: "Active", owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
+    { software_id: "SFW-002", name: "VMware vSphere", vendor: "Broadcom", category: "Utility", version: "8.0", install_type: "On-Premise", status: "Active", owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
+  ];
+
+  state.data.licenses = [
+    { license_id: "LIC-001", software_id: "SFW-001", license_type: "OEM", license_key: "XXXXX-XXXXX-XXXXX", seats_total: 20, seats_used: 12, purchase_date: "2023-01-15", expiry_date: "2027-01-15", cost: 8000, vendor_contact: "-", remarks: "-", created_at: today, updated_at: today },
+    { license_id: "LIC-002", software_id: "SFW-002", license_type: "Subscription", license_key: "-", seats_total: 8, seats_used: 8, purchase_date: "2024-06-01", expiry_date: "2025-06-01", cost: 15000, vendor_contact: "-", remarks: "-", created_at: today, updated_at: today },
+  ];
+
+  state.data.server_permissions = [
+    { permission_id: "PRM-001", server_id: "SRV-001", user_id: "USR-001", access_level: "Admin", granted_at: today, remarks: "-", created_at: today, updated_at: today },
+  ];
 }
 
 async function persist(tableKey) {
   const cfg = TABLES[tableKey];
   await StorageAdapter.set(cfg.storageKey, JSON.stringify(state.data[tableKey]));
+}
+
+/* audit_log / recycle_bin aren't user-editable TABLES — they're maintained
+   by logChange()/moveToRecycleBin() below, so they get their own storage keys. */
+const EXTRA_STORAGE = { audit_log: "inv_audit_log", recycle_bin: "inv_recycle_bin" };
+async function persistExtra(key) {
+  await StorageAdapter.set(EXTRA_STORAGE[key], JSON.stringify(state.data[key]));
 }
 
 async function loadAll() {
@@ -1239,6 +1456,72 @@ async function loadAll() {
     await seedUsers();
     await persist("users");
   }
+  for (const key of Object.keys(EXTRA_STORAGE)) {
+    const raw = await StorageAdapter.get(EXTRA_STORAGE[key]);
+    if (raw) { try { state.data[key] = JSON.parse(raw); } catch (e) { state.data[key] = []; } }
+  }
+}
+
+/* ---------------- Change history + Recycle bin ---------------- */
+/* A short human label for any record, used in the audit trail and the
+   recycle bin so both stay readable without dumping raw JSON at the user. */
+function recordDisplayName(tableKey, record) {
+  switch (tableKey) {
+    case "hardware": return record.asset_type === "Storage" ? (record.storage_name || record.serial_number || "-") : `${record.manufacturer || ""} ${record.model || ""}`.trim() || record.serial_number || "-";
+    case "clusters": return record.cluster_name || "-";
+    case "servers": return record.system_name || "-";
+    case "locations": return record.name || "-";
+    case "vlans": return record.vlan_name || "-";
+    case "network_devices": return record.device_name || "-";
+    case "users": return record.username || "-";
+    case "software": return record.name || "-";
+    case "licenses": return `${softwareNameFor(record.software_id)} license`;
+    case "server_permissions": return `${serverNameFor(record.server_id)} → ${usernameFor(record.user_id)}`;
+    default: {
+      const cfg = TABLES[tableKey];
+      return (cfg && record[cfg.idField]) || "record";
+    }
+  }
+}
+async function logChange(tableKey, action, record) {
+  state.data.audit_log.unshift({
+    log_id: `LOG-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    table_key: tableKey,
+    record_id: record[(TABLES[tableKey] || {}).idField] || "",
+    display: recordDisplayName(tableKey, record),
+    action,
+    username: state.session ? state.session.username : "system",
+    changed_at: new Date().toISOString(),
+  });
+  if (state.data.audit_log.length > 500) state.data.audit_log.length = 500; // cap unbounded growth
+  await persistExtra("audit_log");
+}
+async function moveToRecycleBin(tableKey, record) {
+  state.data.recycle_bin.unshift({
+    trash_id: `TRH-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    table_key: tableKey,
+    record,
+    deleted_at: new Date().toISOString(),
+    deleted_by: state.session ? state.session.username : "system",
+  });
+  await persistExtra("recycle_bin");
+}
+async function restoreFromRecycleBin(trashId) {
+  const idx = state.data.recycle_bin.findIndex(t => t.trash_id === trashId);
+  if (idx === -1) return;
+  const entry = state.data.recycle_bin[idx];
+  const cfg = TABLES[entry.table_key];
+  if (cfg && !state.data[entry.table_key].some(r => r[cfg.idField] === entry.record[cfg.idField])) {
+    state.data[entry.table_key].push(entry.record);
+    await persist(entry.table_key);
+    await logChange(entry.table_key, "Restore", entry.record);
+  }
+  state.data.recycle_bin.splice(idx, 1);
+  await persistExtra("recycle_bin");
+}
+async function purgeFromRecycleBin(trashId) {
+  state.data.recycle_bin = state.data.recycle_bin.filter(t => t.trash_id !== trashId);
+  await persistExtra("recycle_bin");
 }
 
 /* ---------------- Helpers ---------------- */
@@ -1282,6 +1565,22 @@ function roleBadge(value) {
   if (!value) return "-";
   return `<span class="badge role-${value}">${escapeHtml(value)}</span>`;
 }
+/* Warranty/license status is always computed from the date, never stored —
+   so it can't go stale relative to today's date. */
+function warrantyStatus(dateStr) {
+  if (!dateStr) return null;
+  const days = (new Date(dateStr) - new Date()) / 86400000;
+  if (days < 0) return "Expired";
+  if (days <= 90) return "Expiring Soon";
+  return "OK";
+}
+function licenseStatus(rec) {
+  if (!rec.expiry_date) return "Active";
+  const days = (new Date(rec.expiry_date) - new Date()) / 86400000;
+  if (days < 0) return "Expired";
+  if (days <= 60) return "Expiring Soon";
+  return "Active";
+}
 
 /* ---------------- Access control ---------------- */
 const SESSION_KEY = "inv::__session";
@@ -1289,6 +1588,25 @@ function currentRole() { return state.session ? state.session.role : null; }
 function canWrite() { return currentRole() === "Admin" || currentRole() === "User"; }
 function canManageUsers() { return currentRole() === "Admin"; }
 function tableWritable(tableKey) { return tableKey === "users" ? canManageUsers() : canWrite(); }
+
+/* Role-parameterised versions of the three functions above, used by the
+   Access check tool to answer "what could role X do" without needing to
+   actually sign in as that role. */
+function canWriteAs(role) { return role === "Admin" || role === "User"; }
+function canManageUsersAs(role) { return role === "Admin"; }
+function tableWritableAs(tableKey, role) { return tableKey === "users" ? canManageUsersAs(role) : canWriteAs(role); }
+/* Mirrors which nav sections are visible per role (see applyPermissions) —
+   Permission Control is Admin-only, Governance is Admin/User, everything
+   else is visible to every signed-in role including Viewer. */
+function tableViewableAs(tableKey, role) {
+  if (tableKey === "users" || tableKey === "server_permissions") return canManageUsersAs(role);
+  return true;
+}
+function sectionVisibleAs(sectionKey, role) {
+  if (sectionKey === "administration" || sectionKey === "permission_control") return canManageUsersAs(role);
+  if (sectionKey === "governance") return canWriteAs(role);
+  return true;
+}
 
 /* Passwords are never kept in plaintext, even in this client-only prototype —
    hash with SHA-256 before storing or comparing. A real backend should use a
@@ -1343,10 +1661,17 @@ function updateUserChip() {
   document.getElementById("userChipRole").textContent = state.session.role;
 }
 
+const PERMISSION_ONLY_TABLES = ["permission_dashboard", "access_check", "ad_users", "server_permissions"];
+const GOVERNANCE_ONLY_TABLES = ["warranty_assets", "change_history", "recycle_bin"];
 function applyPermissions() {
-  document.getElementById("adminSection").hidden = !canManageUsers();
+  const role = currentRole();
+  document.getElementById("adminSection").hidden = !sectionVisibleAs("administration", role);
+  document.getElementById("permissionSection").hidden = !sectionVisibleAs("permission_control", role);
+  document.getElementById("governanceSection").hidden = !sectionVisibleAs("governance", role);
   updateUserChip();
-  if (state.activeTable === "users" && !canManageUsers()) state.activeTable = "hardware";
+  if (state.activeTable === "users" && !canManageUsers()) state.activeTable = "dashboard";
+  if (PERMISSION_ONLY_TABLES.includes(state.activeTable) && !canManageUsers()) state.activeTable = "dashboard";
+  if (GOVERNANCE_ONLY_TABLES.includes(state.activeTable) && !canWrite()) state.activeTable = "dashboard";
 }
 
 function showApp() {
@@ -1370,12 +1695,194 @@ function generateId(cfg) {
   return `${cfg.idPrefix}-${String(n).padStart(3, "0")}`;
 }
 
-/* ---------------- Rendering: nav / counts ---------------- */
-function updateCounts() {
-  Object.keys(TABLES).forEach(k => {
-    const el = document.getElementById(`count-${k}`);
-    if (el) el.textContent = state.data[k].length;
-  });
+/* ---------------- Custom (non-CRUD) views ---------------- */
+/* A small table builder shared by the read-only views below — they don't
+   need the generic engine's sort/filter/pagination, just a styled table. */
+function buildSimpleTable(columns, rows, opts = {}) {
+  if (!rows.length) return `<p class="empty-state">${escapeHtml(opts.emptyText || "No records.")}</p>`;
+  const head = `<thead><tr>${columns.map(c => `<th><div class="th-inner"><span class="col-sort" style="cursor:default;">${escapeHtml(c.label)}</span></div></th>`).join("")}${opts.actionsLabel ? `<th>${escapeHtml(opts.actionsLabel)}</th>` : ""}</tr></thead>`;
+  const body = rows.map(r => {
+    const cells = columns.map(c => `<td class="${c.mono ? "mono" : ""}">${c.render ? c.render(r) : escapeHtml(r[c.key] ?? "-")}</td>`).join("");
+    const actionsCell = opts.actions ? `<td><div class="row-actions">${opts.actions(r)}</div></td>` : "";
+    return `<tr>${cells}${actionsCell}</tr>`;
+  }).join("");
+  return `<div class="table-scroll"><table>${head}<tbody>${body}</tbody></table></div>`;
+}
+
+function renderDashboardView() {
+  const warrantyRows = state.data.hardware.filter(h => h.warranty_expiry);
+  const soonWarranty = warrantyRows.filter(h => warrantyStatus(h.warranty_expiry) === "Expiring Soon").length;
+  const expiredWarranty = warrantyRows.filter(h => warrantyStatus(h.warranty_expiry) === "Expired").length;
+  const attentionLicenses = state.data.licenses.filter(l => licenseStatus(l) !== "Active").length;
+  const recent = state.data.audit_log.slice(0, 6);
+  const stats = [
+    ["Servers", state.data.servers.length, false],
+    ["Hardware assets", state.data.hardware.length, false],
+    ["Network devices", state.data.network_devices.length, false],
+    ["VLANs", state.data.vlans.length, false],
+    ["Software titles", state.data.software.length, false],
+    ["Licenses needing attention", attentionLicenses, attentionLicenses > 0],
+    ["Warranty expired / expiring", expiredWarranty + soonWarranty, (expiredWarranty + soonWarranty) > 0],
+    ["Recycle bin items", state.data.recycle_bin.length, false],
+  ];
+  return `
+    <section class="view-block">
+      <p class="section-title">Infrastructure at a glance</p>
+      <div class="stat-grid">
+        ${stats.map(([label, value, warn]) => `<div class="stat-card${warn ? " warn" : ""}"><div class="stat-value">${value}</div><div class="stat-label">${escapeHtml(label)}</div></div>`).join("")}
+      </div>
+    </section>
+    <section class="view-block">
+      <p class="section-title">Recent activity</p>
+      <div class="activity-list">
+        ${recent.length ? recent.map(r => `<div class="activity-row">
+            <span><span class="badge type-${escapeHtml(r.action)}">${escapeHtml(r.action)}</span> ${escapeHtml(r.display || r.record_id)} <span class="activity-meta">(${escapeHtml((TABLES[r.table_key] || {}).label || r.table_key)})</span></span>
+            <span class="activity-meta">${escapeHtml(r.username)} · ${new Date(r.changed_at).toLocaleString()}</span>
+          </div>`).join("") : `<p class="muted">No activity recorded yet.</p>`}
+      </div>
+    </section>`;
+}
+
+function renderPermissionDashboardView() {
+  const roles = ["Admin", "User", "Viewer"];
+  const counts = roles.map(r => state.data.users.filter(u => u.role === r && u.status === "Active").length);
+  const capRows = [
+    ["View Server / Network / Software / Reference data", [true, true, true]],
+    ["Add / edit / delete that data", [true, true, false]],
+    ["View Governance tools (Change history / Recycle bin)", [true, true, false]],
+    ["View Permission Control (AD Users / Server Permission)", [true, false, false]],
+    ["Manage Users & Database Setup", [true, false, false]],
+  ];
+  return `
+    <section class="view-block">
+      <p class="section-title">Active accounts by role</p>
+      <div class="stat-grid">
+        ${roles.map((r, i) => `<div class="stat-card"><div class="stat-value">${counts[i]}</div><div class="stat-label">${escapeHtml(r)}</div></div>`).join("")}
+      </div>
+    </section>
+    <section class="card" style="padding:16px 18px;">
+      <p class="section-title">Role capability matrix</p>
+      <div class="table-scroll"><table class="perm-matrix">
+        <thead><tr><th><div class="th-inner">Capability</div></th>${roles.map(r => `<th><div class="th-inner">${escapeHtml(r)}</div></th>`).join("")}</tr></thead>
+        <tbody>${capRows.map(([label, flags]) => `<tr><td>${escapeHtml(label)}</td>${flags.map(f => `<td>${f ? "✓" : "–"}</td>`).join("")}</tr>`).join("")}</tbody>
+      </table></div>
+    </section>`;
+}
+
+function renderAccessCheckView() {
+  const roles = ["Admin", "User", "Viewer"];
+  const tableKeys = Object.keys(TABLES);
+  if (!state.accessCheckSelection) state.accessCheckSelection = { role: "Viewer", table: tableKeys[0] };
+  const sel = state.accessCheckSelection;
+  const viewable = tableViewableAs(sel.table, sel.role);
+  const writable = viewable && tableWritableAs(sel.table, sel.role);
+  const result = [
+    ["Can view", viewable],
+    ["Can add", writable],
+    ["Can edit", writable],
+    ["Can delete", writable],
+  ];
+  return `
+    <section class="view-block">
+      <p class="section-title">Check what a role can do</p>
+      <div class="access-check-controls">
+        <label>Role
+          <select id="accessCheckRole">${roles.map(r => `<option value="${r}" ${sel.role === r ? "selected" : ""}>${escapeHtml(r)}</option>`).join("")}</select>
+        </label>
+        <label>Module
+          <select id="accessCheckTable">${tableKeys.map(k => `<option value="${k}" ${sel.table === k ? "selected" : ""}>${escapeHtml(TABLES[k].label)}</option>`).join("")}</select>
+        </label>
+      </div>
+      <div class="access-check-result">
+        ${result.map(([label, ok]) => `<div class="stat-card${ok ? "" : " danger"}"><div class="stat-value">${ok ? "Yes" : "No"}</div><div class="stat-label">${escapeHtml(label)}</div></div>`).join("")}
+      </div>
+      <p class="muted" style="margin-top:14px;">Reflects the same rules the app enforces at login — not a simulation.</p>
+    </section>`;
+}
+
+function renderAdUsersView() {
+  const cols = [
+    { key: "username", label: "Username", mono: true },
+    { key: "full_name", label: "Full name" },
+    { key: "role", label: "Role", render: r => roleBadge(r.role) },
+    { key: "status", label: "Status", render: r => statusBadge(r.status) },
+    { key: "created_at", label: "Created" },
+  ];
+  return `<section class="card">
+    <p class="muted" style="padding:14px 14px 0;">Read-only directory. Manage accounts under Administration → Users.</p>
+    ${buildSimpleTable(cols, state.data.users)}
+  </section>`;
+}
+
+function renderWarrantyAssetsView() {
+  const rows = state.data.hardware
+    .filter(h => h.warranty_expiry)
+    .map(h => ({ ...h, _status: warrantyStatus(h.warranty_expiry) }))
+    .sort((a, b) => new Date(a.warranty_expiry) - new Date(b.warranty_expiry));
+  const expired = rows.filter(r => r._status === "Expired").length;
+  const soon = rows.filter(r => r._status === "Expiring Soon").length;
+  const cols = [
+    { key: "identity", label: "Asset", render: r => escapeHtml(r.asset_type === "Storage" ? (r.storage_name || "-") : `${r.manufacturer || "-"} ${r.model || ""}`.trim()) },
+    { key: "serial_number", label: "Serial number", mono: true },
+    { key: "site", label: "Site" },
+    { key: "rack_number", label: "Rack" },
+    { key: "warranty_expiry", label: "Warranty expiry", mono: true },
+    { key: "_status", label: "Status", render: r => statusBadge(r._status) },
+  ];
+  return `
+    <section class="view-block">
+      <div class="stat-grid">
+        <div class="stat-card${expired ? " danger" : ""}"><div class="stat-value">${expired}</div><div class="stat-label">Expired</div></div>
+        <div class="stat-card${soon ? " warn" : ""}"><div class="stat-value">${soon}</div><div class="stat-label">Expiring within 90 days</div></div>
+        <div class="stat-card"><div class="stat-value">${rows.length}</div><div class="stat-label">Assets tracked</div></div>
+      </div>
+    </section>
+    <section class="card">${buildSimpleTable(cols, rows, { emptyText: "No hardware with a warranty date recorded yet." })}</section>`;
+}
+
+function renderChangeHistoryView() {
+  const cols = [
+    { key: "changed_at", label: "When", mono: true, render: r => escapeHtml(new Date(r.changed_at).toLocaleString()) },
+    { key: "table_key", label: "Module", render: r => escapeHtml((TABLES[r.table_key] || {}).label || r.table_key) },
+    { key: "display", label: "Record" },
+    { key: "action", label: "Action", render: r => `<span class="badge type-${escapeHtml(r.action)}">${escapeHtml(r.action)}</span>` },
+    { key: "username", label: "By" },
+  ];
+  return `<section class="card">${buildSimpleTable(cols, state.data.audit_log.slice(0, 200), { emptyText: "No changes recorded yet." })}</section>`;
+}
+
+function renderRecycleBinView() {
+  const cols = [
+    { key: "table_key", label: "Module", render: r => escapeHtml((TABLES[r.table_key] || {}).label || r.table_key) },
+    { key: "display", label: "Record", render: r => escapeHtml(recordDisplayName(r.table_key, r.record)) },
+    { key: "deleted_at", label: "Deleted", mono: true, render: r => escapeHtml(new Date(r.deleted_at).toLocaleString()) },
+    { key: "deleted_by", label: "Deleted by" },
+  ];
+  const writable = canWrite();
+  return `<section class="card">${buildSimpleTable(cols, state.data.recycle_bin, {
+    emptyText: "Recycle bin is empty.",
+    actionsLabel: writable ? "Actions" : null,
+    actions: writable ? (r => `
+      <button type="button" class="icon-btn" data-action="restore" data-trash="${escapeHtml(r.trash_id)}">Restore</button>
+      <button type="button" class="icon-btn danger" data-action="purge" data-trash="${escapeHtml(r.trash_id)}">Delete forever</button>
+    `) : null,
+  })}</section>`;
+}
+
+const CUSTOM_VIEWS = {
+  dashboard: { label: "Dashboard", desc: "Live summary of the infrastructure inventory", render: renderDashboardView },
+  permission_dashboard: { label: "Permission dashboard", desc: "Role capability matrix and active account counts", render: renderPermissionDashboardView },
+  access_check: { label: "Access check", desc: "Check what a given role can do, module by module", render: renderAccessCheckView },
+  ad_users: { label: "AD Users", desc: "Read-only directory of application accounts", render: renderAdUsersView },
+  warranty_assets: { label: "Warranty & assets", desc: "Hardware warranty coverage at a glance", render: renderWarrantyAssetsView },
+  change_history: { label: "Change history", desc: "Audit trail of create / update / delete / restore actions", render: renderChangeHistoryView },
+  recycle_bin: { label: "Recycle bin", desc: "Deleted records — restore them or purge them permanently", render: renderRecycleBinView },
+};
+function renderCustomView(tableKey) {
+  document.getElementById("genericCard").hidden = true;
+  const cv = document.getElementById("customView");
+  cv.hidden = false;
+  cv.innerHTML = CUSTOM_VIEWS[tableKey].render();
 }
 
 function switchTable(tableKey) {
@@ -1383,11 +1890,19 @@ function switchTable(tableKey) {
   document.querySelectorAll(".nav-item").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.table === tableKey);
   });
-  document.getElementById("pageTitle").textContent = TABLES[tableKey].label;
-  document.getElementById("pageDesc").textContent = TABLES[tableKey].desc;
-  document.getElementById("addBtn").hidden = !tableWritable(tableKey);
+  const cfg = TABLES[tableKey];
+  const view = CUSTOM_VIEWS[tableKey];
+  document.getElementById("pageTitle").textContent = cfg ? cfg.label : view.label;
+  document.getElementById("pageDesc").textContent = cfg ? cfg.desc : view.desc;
+  document.getElementById("addBtn").hidden = !(cfg && tableWritable(tableKey));
   closeForm();
-  renderTable(tableKey);
+  if (cfg) {
+    document.getElementById("customView").hidden = true;
+    document.getElementById("genericCard").hidden = false;
+    renderTable(tableKey);
+  } else {
+    renderCustomView(tableKey);
+  }
 }
 
 /* ---------------- Rendering: filter bar (type-split tables) ---------------- */
@@ -1529,7 +2044,6 @@ function renderTable(tableKey) {
   if (!rows.length) {
     table.innerHTML = "";
     emptyState.hidden = false;
-    updateCounts();
     return;
   }
   emptyState.hidden = true;
@@ -1576,11 +2090,10 @@ function renderTable(tableKey) {
   </td></tr></tfoot>`;
 
   table.innerHTML = head + `<tbody>${body}</tbody>` + foot;
-  updateCounts();
 }
 
 /* Row action delegation */
-document.getElementById("dataTable").addEventListener("click", (e) => {
+document.getElementById("dataTable").addEventListener("click", async (e) => {
   const tableKey = state.activeTable;
 
   const sortEl = e.target.closest(".col-sort");
@@ -1654,8 +2167,13 @@ document.getElementById("dataTable").addEventListener("click", (e) => {
           return;
         }
       }
+      const removed = state.data[tableKey].find(r => r[cfg.idField] === id);
       state.data[tableKey] = state.data[tableKey].filter(r => r[cfg.idField] !== id);
-      persist(tableKey);
+      await persist(tableKey);
+      if (removed) {
+        await moveToRecycleBin(tableKey, removed);
+        await logChange(tableKey, "Delete", removed);
+      }
       renderTable(tableKey);
     } else {
       btn.dataset.armed = "1";
@@ -2264,6 +2782,7 @@ async function saveForm() {
   if (tableKey === "clusters") conflicts.push(...validateNodes(values.nodes, id));
   if (tableKey === "locations") conflicts.push(...validateLocation(values, id));
   if (tableKey === "vlans") conflicts.push(...validateVlan(values));
+  if (tableKey === "server_permissions") conflicts.push(...validateServerPermission(values, id));
   if (conflicts.length) {
     errorBox.innerHTML = conflicts.map(escapeHtml).join("<br>");
     errorBox.hidden = false;
@@ -2289,18 +2808,20 @@ async function saveForm() {
   }
   const today = new Date().toISOString().slice(0, 10);
   const arr = state.data[tableKey];
+  let rec;
 
   if (id) {
-    const rec = arr.find(r => r[cfg.idField] === id);
+    rec = arr.find(r => r[cfg.idField] === id);
     Object.assign(rec, values);
     rec.updated_at = today;
   } else {
     const newId = generateId(cfg);
-    const rec = Object.assign({ [cfg.idField]: newId }, values, { created_at: today, updated_at: today });
+    rec = Object.assign({ [cfg.idField]: newId }, values, { created_at: today, updated_at: today });
     arr.push(rec);
   }
 
   await persist(tableKey);
+  await logChange(tableKey, id ? "Update" : "Create", rec);
   renderTable(tableKey);
   closeForm();
 }
@@ -2421,6 +2942,28 @@ document.getElementById("nav").addEventListener("click", (e) => {
   const btn = e.target.closest(".nav-item");
   if (btn && btn.dataset.table) switchTable(btn.dataset.table);
 });
+document.getElementById("customView").addEventListener("change", (e) => {
+  if (state.activeTable !== "access_check") return;
+  if (e.target.id === "accessCheckRole") state.accessCheckSelection.role = e.target.value;
+  if (e.target.id === "accessCheckTable") state.accessCheckSelection.table = e.target.value;
+  renderCustomView("access_check");
+});
+document.getElementById("customView").addEventListener("click", async (e) => {
+  if (state.activeTable !== "recycle_bin") return;
+  const restoreBtn = e.target.closest('[data-action="restore"]');
+  if (restoreBtn) { await restoreFromRecycleBin(restoreBtn.dataset.trash); renderCustomView("recycle_bin"); return; }
+  const purgeBtn = e.target.closest('[data-action="purge"]');
+  if (purgeBtn) {
+    if (purgeBtn.dataset.armed === "1") {
+      await purgeFromRecycleBin(purgeBtn.dataset.trash);
+      renderCustomView("recycle_bin");
+    } else {
+      purgeBtn.dataset.armed = "1";
+      purgeBtn.textContent = "Confirm purge?";
+      setTimeout(() => { if (purgeBtn.isConnected) { purgeBtn.dataset.armed = "0"; purgeBtn.textContent = "Delete forever"; } }, 3000);
+    }
+  }
+});
 document.getElementById("addBtn").addEventListener("click", () => openForm(state.activeTable, null));
 document.getElementById("closePanelBtn").addEventListener("click", closeForm);
 document.getElementById("cancelBtn").addEventListener("click", closeForm);
@@ -2451,6 +2994,7 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
 });
 
 (async function init() {
+  renderNav();
   await loadAll();
   await loadServerRoles();
   if (restoreSession()) showApp();
