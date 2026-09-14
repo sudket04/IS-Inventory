@@ -1,0 +1,2461 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Server Inventory</title>
+<style>
+  :root{
+    --bg:#F6F6F2;
+    --surface:#FFFFFF;
+    --sidebar:#152238;
+    --sidebar-text:#C7CEDA;
+    --sidebar-text-dim:#7C8BA3;
+    --accent:#2F6F5E;
+    --accent-dark:#20493D;
+    --accent-contrast:#EAF3F0;
+    --text:#1B1F23;
+    --text-muted:#666B72;
+    --border:#E1E1DC;
+    --danger:#B3261E;
+    --danger-bg:#FBEAE9;
+    --radius:10px;
+    --font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI","Leelawadee UI","Noto Sans Thai","Tahoma",sans-serif;
+    --font-mono:ui-monospace,"Cascadia Mono","Consolas","SFMono-Regular",Menlo,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:14px;line-height:1.5;}
+  button, input, select, textarea{font-family:inherit;font-size:14px;}
+  .app{display:flex;min-height:100vh;}
+
+  /* Sidebar */
+  .sidebar{width:230px;flex-shrink:0;background:var(--sidebar);color:var(--sidebar-text);display:flex;flex-direction:column;padding:22px 16px;position:sticky;top:0;height:100vh;align-self:flex-start;overflow-y:auto;}
+  .brand{display:flex;gap:10px;align-items:flex-start;margin-bottom:26px;}
+  .brand-mark{background:var(--accent);color:#fff;font-family:var(--font-mono);font-weight:500;font-size:12px;padding:5px 7px;border-radius:6px;letter-spacing:0.5px;}
+  .brand-title{font-weight:600;font-size:15px;color:#fff;}
+  .brand-sub{font-size:11px;color:var(--sidebar-text-dim);margin-top:2px;}
+  .nav{display:flex;flex-direction:column;gap:4px;margin-bottom:auto;}
+  .nav-section{display:flex;flex-direction:column;gap:2px;margin-bottom:10px;}
+  .nav-section-title{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--sidebar-text-dim);padding:8px 12px 4px;}
+  .nav-item{text-align:left;background:transparent;border:none;color:var(--sidebar-text);padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13.5px;transition:background .15s;}
+  .nav-item:hover{background:rgba(255,255,255,0.06);}
+  .nav-item.active{background:var(--accent);color:#fff;font-weight:500;}
+  .nav-count{float:right;font-family:var(--font-mono);font-size:11px;color:var(--sidebar-text-dim);}
+  .nav-item.active .nav-count{color:var(--accent-contrast);}
+  .ghost-btn{background:transparent;border:1px solid rgba(255,255,255,0.16);color:var(--sidebar-text);padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12.5px;text-align:left;}
+  .ghost-btn:hover{border-color:rgba(255,255,255,0.35);}
+
+  /* Main */
+  .main{flex:1;min-width:0;padding:0 32px 28px;display:flex;flex-direction:column;gap:18px;}
+  .topbar{position:sticky;top:0;z-index:15;background:var(--bg);padding:28px 0 18px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;}
+  .topbar h1{margin:0;font-size:20px;font-weight:600;}
+  .muted{color:var(--text-muted);font-size:12.5px;margin:4px 0 0;}
+  .primary-btn{background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:500;font-size:13.5px;}
+  .primary-btn:hover{background:var(--accent-dark);}
+
+  .workspace{display:grid;grid-template-columns:1fr;gap:20px;align-items:start;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+  .filter-bar{display:flex;gap:6px;padding:12px 14px 0;flex-wrap:wrap;}
+  .filter-chip{background:#F2F2EE;border:1px solid var(--border);color:var(--text-muted);padding:6px 12px;border-radius:99px;font-size:12.5px;cursor:pointer;}
+  .filter-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .table-scroll{overflow:auto;max-width:100%;max-height:calc(100vh - 240px);}
+  table{border-collapse:collapse;width:100%;min-width:640px;}
+  thead th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);background:#FAFAF7;padding:0;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:2;}
+  .th-inner{display:flex;align-items:center;gap:4px;padding:10px 8px 10px 14px;}
+  .col-sort{cursor:pointer;user-select:none;flex:1;}
+  .col-sort:hover{color:var(--text);}
+  .sort-indicator{font-size:10px;color:var(--accent);}
+  .col-filter-btn{background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;padding:2px 4px;border-radius:4px;flex-shrink:0;}
+  .col-filter-btn:hover{background:#EFEFEA;color:var(--text);}
+  .col-filter-btn.active{color:var(--accent);font-weight:700;}
+  tbody td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;white-space:nowrap;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FBFBF9;}
+  td.mono, .mono{font-family:var(--font-mono);font-size:12.5px;}
+  tfoot td{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:0;z-index:2;}
+  .table-pagination{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;gap:12px;flex-wrap:wrap;}
+  .page-info{font-size:12px;color:var(--text-muted);white-space:nowrap;}
+  .page-controls{display:flex;gap:6px;}
+  .page-controls .icon-btn:disabled{opacity:0.4;cursor:not-allowed;}
+  .filter-popup{position:fixed;width:220px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(15,17,20,0.16);z-index:60;display:flex;flex-direction:column;max-height:320px;}
+  .filter-popup-actions-top{display:flex;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .link-btn{background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:2px;}
+  .link-btn:hover{text-decoration:underline;}
+  .filter-popup-list{overflow:auto;padding:6px 10px;flex:1;}
+  .filter-popup-item{display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:13px;cursor:pointer;}
+  .filter-popup-item input{flex-shrink:0;}
+  .filter-popup-item span{overflow:hidden;text-overflow:ellipsis;}
+  .filter-popup-actions-bottom{display:flex;justify-content:flex-end;gap:8px;padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0;}
+  .filter-popup-actions-bottom button{width:auto;padding:6px 12px;font-size:12.5px;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11.5px;border:1px solid var(--border);}
+  .badge.status-Active{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
+  .badge.status-Maintenance{background:#FDF3E4;border-color:#F0D6A6;color:#8A5A11;}
+  .badge.status-Decommissioned{background:#F2F2F0;border-color:var(--border);color:var(--text-muted);}
+  .badge.status-Standby{background:#EAF0F8;border-color:#C6D8ED;color:#2A5A8A;}
+  .badge.type-Virtual{background:#EAF0F8;border-color:#C6D8ED;color:#2A5A8A;}
+  .badge.type-Physical{background:#FBEFE7;border-color:#EBD2B9;color:#8A5A2A;}
+  .badge.type-Server{background:#EAF0F8;border-color:#C6D8ED;color:#2A5A8A;}
+  .badge.type-Storage{background:#F3EAFA;border-color:#DAC6ED;color:#5A2A8A;}
+  .badge.type-Site{background:#EAF0F8;border-color:#C6D8ED;color:#2A5A8A;}
+  .badge.type-Factory{background:#F3EAFA;border-color:#DAC6ED;color:#5A2A8A;}
+  .badge.type-Floor{background:#FBEFE7;border-color:#EBD2B9;color:#8A5A2A;}
+  .badge.type-Area{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
+  .badge.status-InStock{background:#F2F2F0;border-color:var(--border);color:var(--text-muted);}
+  .badge.status-InUse{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
+  .row-actions{display:flex;gap:6px;}
+  .icon-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:5px 9px;cursor:pointer;font-size:12px;color:var(--text);}
+  .icon-btn:hover{background:#F2F2EE;}
+  .icon-btn.danger{color:var(--danger);border-color:#EBC9C6;}
+  .icon-btn.danger.armed{background:var(--danger-bg);}
+  .empty-state{padding:34px 20px;text-align:center;color:var(--text-muted);font-size:13px;}
+
+  /* MUI-style modal dialog */
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,0.5);
+    display:flex;align-items:center;justify-content:center;padding:20px;
+    opacity:0;pointer-events:none;transition:opacity .15s ease;z-index:40;
+  }
+  .modal-backdrop.open{opacity:1;pointer-events:auto;}
+  .panel{
+    width:600px;max-width:100%;max-height:calc(100vh - 40px);
+    background:#fff;border-radius:4px;
+    box-shadow:0 11px 15px -7px rgba(0,0,0,0.2),0 24px 38px 3px rgba(0,0,0,0.14),0 9px 46px 8px rgba(0,0,0,0.12);
+    display:flex;flex-direction:column;overflow:hidden;
+    transform:scale(0.96) translateY(8px);opacity:0;
+    transition:transform .18s cubic-bezier(.4,0,.2,1),opacity .18s ease;
+  }
+  .modal-backdrop.open .panel{transform:scale(1) translateY(0);opacity:1;}
+  .panel-head{padding:20px 24px 12px;flex-shrink:0;display:flex;justify-content:space-between;align-items:flex-start;}
+  .panel-head h2{font-size:20px;font-weight:500;margin:0;color:rgba(0,0,0,0.87);letter-spacing:0.005em;}
+  .panel-head .icon-btn{border:none;color:rgba(0,0,0,0.54);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:0;font-size:18px;flex-shrink:0;}
+  .panel-head .icon-btn:hover{background:rgba(0,0,0,0.06);}
+  #dataForm{display:flex;flex-direction:column;flex:1;min-height:0;}
+  .dialog-content{overflow-y:auto;flex:1;padding:4px 24px 8px;min-height:0;}
+  .form-error{background:var(--danger-bg);color:var(--danger);border:1px solid #EBC9C6;padding:8px 10px;border-radius:4px;font-size:12.5px;margin:0 0 12px;}
+  .form-hint{font-size:12px;color:var(--text-muted);margin:0 0 10px;}
+  fieldset{border:none;padding:0;margin:0 0 20px;}
+  legend{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--accent);padding:0 0 8px;border-bottom:1px solid rgba(0,0,0,0.08);margin-bottom:14px;width:100%;}
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 12px;}
+  .field{display:flex;flex-direction:column;gap:4px;grid-column:span 1;}
+  .field.full{grid-column:1 / -1;}
+  .field-label{font-size:12px;font-weight:500;color:rgba(0,0,0,0.6);text-transform:uppercase;letter-spacing:0.03em;}
+  .control-slot{display:block;}
+  .req{color:var(--danger);}
+  .field input, .field select, .field textarea{border:1px solid rgba(0,0,0,0.23);border-radius:4px;padding:10.5px 14px;background:#fff;color:rgba(0,0,0,0.87);width:100%;font-size:14px;transition:border-color .15s ease;}
+  .field input:hover, .field select:hover, .field textarea:hover{border-color:rgba(0,0,0,0.6);}
+  .field input:focus, .field select:focus, .field textarea:focus{outline:none;border-color:var(--accent);border-width:2px;padding:9.5px 13px;}
+  .field input[readonly]{background:rgba(0,0,0,0.04);color:rgba(0,0,0,0.5);}
+  .field textarea{resize:vertical;min-height:44px;}
+  .multi-ip-list{display:flex;flex-direction:column;gap:6px;}
+  .multi-ip-row{display:flex;gap:6px;align-items:center;}
+  .multi-ip-row input, .multi-ip-row select{flex:1;}
+  .multi-ip-remove{flex-shrink:0;padding:5px 10px;}
+  .multi-ip-add{margin-top:6px;}
+  .multi-select-add{margin-top:6px;}
+  .multi-number-add{margin-top:6px;}
+  .node-list{display:flex;flex-direction:column;gap:12px;}
+  .node-row{border:1px solid rgba(0,0,0,0.12);border-radius:6px;padding:14px 16px;background:#FAFAFA;}
+  .node-row-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .node-row-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--accent);}
+  .node-field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 12px;}
+  .node-field{display:flex;flex-direction:column;gap:4px;}
+  .node-field .field-label{font-size:12px;font-weight:500;color:rgba(0,0,0,0.6);text-transform:uppercase;letter-spacing:0.03em;}
+  .node-field input, .node-field select{border:1px solid rgba(0,0,0,0.23);border-radius:4px;padding:10.5px 14px;width:100%;font-size:14px;color:rgba(0,0,0,0.87);background:#fff;transition:border-color .15s ease;}
+  .node-field input:hover, .node-field select:hover{border-color:rgba(0,0,0,0.6);}
+  .node-field input:focus, .node-field select:focus{outline:none;border-color:var(--accent);border-width:2px;padding:9.5px 13px;}
+  .node-add{margin-top:2px;}
+  .panel-actions{display:flex;justify-content:flex-end;gap:4px;padding:8px 24px 20px;flex-shrink:0;}
+
+  /* Material buttons — scoped to the dialog only so the rest of the app keeps its existing style */
+  .panel .primary-btn{width:auto;background:var(--accent);color:#fff;border:none;border-radius:4px;padding:8px 22px;font-size:14px;font-weight:500;letter-spacing:0.02em;text-transform:uppercase;box-shadow:0 3px 1px -2px rgba(0,0,0,.2),0 2px 2px 0 rgba(0,0,0,.14),0 1px 5px 0 rgba(0,0,0,.12);transition:box-shadow .15s,background .15s;}
+  .panel .primary-btn:hover{background:var(--accent-dark);box-shadow:0 2px 4px -1px rgba(0,0,0,.2),0 4px 5px 0 rgba(0,0,0,.14),0 1px 10px 0 rgba(0,0,0,.12);}
+  .panel .ghost-btn{width:auto;background:transparent;color:var(--accent);border:none;border-radius:4px;padding:8px 16px;font-size:14px;font-weight:500;letter-spacing:0.02em;text-transform:uppercase;text-align:center;}
+  .panel .ghost-btn:hover{background:rgba(47,111,94,0.08);}
+
+  /* Access control: login, user chip, role badges */
+  .topbar-actions{display:flex;align-items:center;gap:14px;}
+  .user-chip{display:flex;align-items:center;gap:10px;}
+  .user-chip-info{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25;}
+  .user-chip-name{font-size:13px;font-weight:600;color:var(--text);}
+  .user-chip-role{font-size:11px;color:var(--text-muted);}
+  .nav-link{text-decoration:none;display:block;}
+  .badge.role-Admin{background:#F3EAFA;border-color:#DAC6ED;color:#5A2A8A;}
+  .badge.role-User{background:#EAF0F8;border-color:#C6D8ED;color:#2A5A8A;}
+  .badge.role-Viewer{background:#F2F2F0;border-color:var(--border);color:var(--text-muted);}
+  .badge.status-Disabled{background:#FBEAE9;border-color:#EBC9C6;color:var(--danger);}
+  .badge.status-Active{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
+  .ro-note{color:var(--text-muted);font-size:12px;}
+  .login-screen{position:fixed;inset:0;z-index:100;background:var(--sidebar);display:flex;align-items:center;justify-content:center;padding:20px;}
+  .login-card{width:360px;max-width:100%;background:var(--surface);border-radius:14px;padding:30px 28px;box-shadow:0 24px 60px rgba(0,0,0,0.35);display:flex;flex-direction:column;gap:14px;}
+  .login-brand{display:flex;gap:10px;align-items:center;margin-bottom:2px;}
+  .login-brand-title{font-weight:600;font-size:15px;color:var(--text);}
+  .login-brand-sub{font-size:11px;color:var(--text-muted);}
+  .login-title{font-size:20px;font-weight:600;margin:6px 0 2px;}
+  .login-field{display:flex;flex-direction:column;gap:5px;}
+  .login-field label{font-size:12.5px;color:var(--text-muted);}
+  .login-field input{border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:14px;width:100%;}
+  .login-field input:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent);}
+  .login-btn{width:100%;padding:11px 16px;margin-top:4px;}
+  .login-error{background:var(--danger-bg);color:var(--danger);border:1px solid #EBC9C6;padding:9px 11px;border-radius:8px;font-size:13px;margin:0;}
+  .login-hint{font-size:12px;color:var(--text-muted);text-align:center;margin:2px 0 0;}
+
+  @media (max-width:880px){
+    .app{flex-direction:column;}
+    .sidebar{width:100%;height:auto;flex-direction:row;align-items:center;padding:14px 16px;top:0;z-index:20;overflow-y:visible;}
+    .brand{margin-bottom:0;}
+    .nav{flex-direction:row;margin-bottom:0;margin-left:16px;flex-wrap:wrap;}
+    .nav-section{flex-direction:row;margin-bottom:0;align-items:center;gap:4px;}
+    .nav-section-title{padding:4px 6px;}
+    .topbar{top:0;}
+    .table-scroll{max-height:calc(100vh - 320px);}
+    .modal-backdrop{padding:0;}
+    .panel{width:100%;height:100%;max-height:100%;border-radius:0;}
+    .field-grid{grid-template-columns:1fr;}
+    .node-field-grid{grid-template-columns:1fr;}
+  }
+
+  /* Several elements above (.login-screen, .user-chip, .nav-section, .filter-bar, …) set an
+     explicit `display` that otherwise beats the browser's default `[hidden]{display:none}` rule
+     (author styles win over user-agent styles at equal specificity) — so toggling the `hidden`
+     attribute/property from JS would silently do nothing. Force it to actually hide things. */
+  [hidden]{display:none!important;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">SVR</span>
+      <div>
+        <div class="brand-title">Server Inventory</div>
+        <div class="brand-sub">Internal IT asset tracker</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Server</div>
+        <button class="nav-item active" data-table="hardware">Inventory <span class="nav-count" id="count-hardware">0</span></button>
+        <button class="nav-item" data-table="clusters">Cluster <span class="nav-count" id="count-clusters">0</span></button>
+        <button class="nav-item" data-table="servers">Server List <span class="nav-count" id="count-servers">0</span></button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Network</div>
+        <button class="nav-item" data-table="vlans">VLAN <span class="nav-count" id="count-vlans">0</span></button>
+        <button class="nav-item" data-table="network_devices">Inventory <span class="nav-count" id="count-network_devices">0</span></button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Location</div>
+        <button class="nav-item" data-table="locations">Location Master <span class="nav-count" id="count-locations">0</span></button>
+      </div>
+      <div class="nav-section" id="adminSection" hidden>
+        <div class="nav-section-title">Administration</div>
+        <button class="nav-item" data-table="users">Users <span class="nav-count" id="count-users">0</span></button>
+        <a class="nav-item nav-link" href="setup.html">Database Setup</a>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="pageTitle">Hardware</h1>
+        <p class="muted" id="pageDesc">All physical assets — choose Server or Storage type when adding a record</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="addBtn" class="primary-btn">+ Add</button>
+        <div class="user-chip" id="userChip" hidden>
+          <div class="user-chip-info">
+            <span class="user-chip-name" id="userChipName"></span>
+            <span class="user-chip-role" id="userChipRole"></span>
+          </div>
+          <button id="logoutBtn" class="icon-btn" type="button">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="workspace" id="workspace">
+      <section class="card">
+        <div class="filter-bar" id="filterBar" hidden></div>
+        <div class="table-scroll">
+          <table id="dataTable"></table>
+        </div>
+        <p class="empty-state" id="emptyState" hidden>No data yet. Click "+ Add" to get started.</p>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="modalBackdrop">
+      <section class="panel" id="panel">
+        <div class="panel-head">
+          <h2 id="panelTitle">Add</h2>
+          <button class="icon-btn" id="closePanelBtn" aria-label="Close form">×</button>
+        </div>
+        <form id="dataForm" novalidate>
+          <div class="dialog-content">
+            <p class="form-error" id="formError" hidden></p>
+            <div id="panelBody"></div>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="ghost-btn" id="cancelBtn">Cancel</button>
+            <button type="submit" class="primary-btn">Save</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="login-screen" id="loginScreen">
+  <form class="login-card" id="loginForm">
+    <div class="login-brand">
+      <span class="brand-mark">SVR</span>
+      <div>
+        <div class="login-brand-title">Server Inventory</div>
+        <div class="login-brand-sub">IT Infrastructure Inventory</div>
+      </div>
+    </div>
+    <h1 class="login-title">Sign in</h1>
+    <div class="login-field">
+      <label for="loginUser">Username</label>
+      <input type="text" id="loginUser" autocomplete="username" required>
+    </div>
+    <div class="login-field">
+      <label for="loginPass">Password</label>
+      <input type="password" id="loginPass" autocomplete="current-password" required>
+    </div>
+    <p class="login-error" id="loginError" hidden></p>
+    <button type="submit" class="primary-btn login-btn">Sign in</button>
+    <p class="login-hint" id="loginHint"></p>
+  </form>
+</div>
+
+<script>
+/* ---------------- Storage adapter ---------------- */
+/* Talks to the Python backend (see app.py) for real persistence.
+   Falls back to an in-memory store if the API is unreachable, so the page
+   still works standalone (data just won't survive a reload in that case). */
+const StorageAdapter = (function () {
+  const memory = {};
+  const LS_PREFIX = "inv::";
+  function lsGet(key) {
+    try { const v = localStorage.getItem(LS_PREFIX + key); return v === null ? undefined : v; }
+    catch (e) { return undefined; }
+  }
+  function lsSet(key, value) {
+    try { localStorage.setItem(LS_PREFIX + key, value); } catch (e) { /* quota / private mode */ }
+  }
+  async function get(key) {
+    try {
+      const res = await fetch("/api/data/" + encodeURIComponent(key));
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("bad status " + res.status);
+      const body = await res.json();
+      return body.value;
+    } catch (e) {
+      // No backend — fall back to the durable localStorage mirror, then memory.
+      const fromLs = lsGet(key);
+      if (fromLs !== undefined) return fromLs;
+      return Object.prototype.hasOwnProperty.call(memory, key) ? memory[key] : null;
+    }
+  }
+  async function set(key, value) {
+    memory[key] = value;   // in-memory mirror
+    lsSet(key, value);     // durable mirror so data survives a page reload without a backend
+    try {
+      const res = await fetch("/api/data/" + encodeURIComponent(key), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value }),
+      });
+      if (!res.ok) throw new Error("bad status " + res.status);
+    } catch (e) { /* already mirrored above */ }
+  }
+  return { get, set };
+})();
+
+/* ---------------- Lookup values (mirrors the Lookup sheet) ---------------- */
+const LOOKUPS = {
+  HostingType: ["Virtual", "Physical"],
+  HypervisorPlatform: ["Vmware", "Hyper-V", "Nutanix", "N/A"],
+  InfrastructureType: [
+    "3-Tier (SAN-based)",
+    "HCI - Nutanix",
+    "HCI - VMware vSAN",
+    "HCI - Dell VxRail",
+    "HCI - Cisco HyperFlex",
+    "HCI - HPE SimpliVity",
+    "HCI - Azure Stack HCI",
+    "Other",
+  ],
+  Manufacturer: ["Dell", "HPE", "Lenovo", "Nutanix", "Other"],
+  Criticality: ["Tier 1 (High)", "Tier 2 (Medium)", "Tier 3 (Low)"],
+  StorageType: ["SSD", "HDD", "SAN", "NAS"],
+  Site: ["1st Site", "2nd Site"],
+  // Shared network-zone vocabulary — used by Server List (server_zone),
+  // VLAN (firewall_zone), and Network Inventory (network_zone) so the same
+  // zone name means the same thing everywhere in the system.
+  NetworkZone: ["Trust", "Untrust", "DMZ", "DMZ Internet", "DMZ Server", "Management", "Guest"],
+  Environment: ["Production", "UAT", "Development", "DR"],
+  Status: ["Active", "Maintenance", "Decommissioned", "Standby"],
+  HardwareStatus: ["In Stock", "In Use", "Maintenance", "Decommissioned"],
+  LocationLevel: ["Site", "Factory", "Floor"],
+
+  // VLAN
+  DhcpEnabled: ["Yes", "No"],
+  GatewayDevice: ["Core Switch", "Firewall", "Router", "Other"],
+
+  // Network Device
+  DeviceStatus: ["Use", "Standby", "Decommissioned"],
+  StackRole: ["Member", "Active", "Standby"],
+  DeviceRole: ["L2", "L3"],
+  NetworkBrand: ["Cisco", "HPE", "Huawei", "Fortinet", "Other"],
+};
+
+/* Stack ID choices: ST001-ST100, generated rather than typed by hand. */
+const STACK_ID_OPTIONS = Array.from({ length: 100 }, (_, i) => `ST${String(i + 1).padStart(3, "0")}`);
+
+/* Server roles — an editable lookup. Seeded with common roles; the New/Edit
+   Server form lets an Admin/User add a new role on the fly, which is then
+   persisted (localStorage + API) and available in every later selection. */
+const DEFAULT_SERVER_ROLES = [
+  "Web Server", "Application Server", "Database Server", "File Server",
+  "Domain Controller", "DNS Server", "DHCP Server", "Mail Server",
+  "Backup Server", "Monitoring Server", "Proxy Server", "Print Server",
+];
+let SERVER_ROLES = DEFAULT_SERVER_ROLES.slice();
+async function loadServerRoles() {
+  const raw = await StorageAdapter.get("inv_server_roles");
+  if (raw) { try { const arr = JSON.parse(raw); if (Array.isArray(arr) && arr.length) SERVER_ROLES = arr; } catch (e) {} }
+}
+async function addServerRole(name) {
+  const v = String(name || "").trim();
+  if (!v) return false;
+  if (SERVER_ROLES.some(r => r.toLowerCase() === v.toLowerCase())) return v; // already present
+  SERVER_ROLES.push(v);
+  await StorageAdapter.set("inv_server_roles", JSON.stringify(SERVER_ROLES));
+  return v;
+}
+
+/* ---------------- Network Device Category -> Subcategory cascade ---------------- */
+const NETWORK_CATEGORIES = {
+  "Network Device": ["Router", "Switch", "Core Switch", "Distribution Switch", "Access Switch", "Access Point (AP)", "Wireless Controller", "SD-WAN"],
+  "Network Security Device": ["Firewall", "NGFW", "IDS", "IPS", "TippingPoint", "WAF", "NAC", "DDoS Protection"],
+  "VPN / Remote Access": ["Ivanti Connect Secure (VPN)"],
+  "Network Service / Server": ["DNS Server", "DHCP Server", "Proxy Server", "NTP Server", "RADIUS Server", "LDAP/AD"],
+  "Network Management": ["SolarWinds"],
+  "Monitoring & Logging": ["ArcSight"],
+};
+
+/* ---------------- Site -> Location -> Rack cascade ---------------- */
+/* Each site has its own set of location choices (ending with "Other" for a
+   free-typed value). Only locations with a defined rack list get a rack
+   dropdown — everything else (incl. "Other") falls back to free text.
+   Only the Hardware table uses this cascade now — Server Host and Server
+   List both reference a Hardware record instead of storing this directly. */
+const SITE_LOCATIONS = {
+  "1st Site": {
+    locations: ["Server Room", "UPS Room2", "Other"],
+    racks: {
+      "Server Room": Array.from({ length: 14 }, (_, i) => `R-${String(i + 1).padStart(2, "0")}`),
+      "UPS Room2": Array.from({ length: 3 }, (_, i) => `R-${String(i + 1).padStart(2, "0")}`),
+    },
+  },
+  "2nd Site": {
+    locations: ["Server", "Other"],
+    racks: {},
+  },
+};
+
+/* ---------------- App state ---------------- */
+const state = {
+  data: { clusters: [], hardware: [], servers: [], locations: [], vlans: [], network_devices: [], users: [] },
+  session: null,       // { user_id, username, role, full_name } once signed in
+  activeTable: "hardware",
+  editing: null,        // { tableKey, id }
+  serverFilter: "all",  // "all" | "Virtual" | "Physical" — view filter on Server List table
+  hardwareFilter: "all", // "all" | "Server" | "Storage" — view filter on Hardware table
+  networkCategoryFilter: "all", // "all" | one of NETWORK_CATEGORIES keys — view filter on Network Inventory table
+  tableUI: {},           // tableKey -> { sortKey, sortDir, filters: {colKey: Set<string>}, page, pageSize }
+};
+
+function getTableUI(tableKey) {
+  if (!state.tableUI[tableKey]) {
+    state.tableUI[tableKey] = { sortKey: null, sortDir: 1, filters: {}, page: 1, pageSize: 5 };
+  }
+  return state.tableUI[tableKey];
+}
+
+/* ---------------- Lookup helpers (cross-table display) ---------------- */
+function clusterNameFor(clusterId) {
+  const c = state.data.clusters.find(c => c.cluster_id === clusterId);
+  return c ? c.cluster_name : "";
+}
+function hardwareLabelFor(hardwareId) {
+  const hw = state.data.hardware.find(h => h.hardware_id === hardwareId);
+  if (!hw) return "-";
+  return `${hw.manufacturer || ""} ${hw.model || ""}`.trim() || hw.serial_number || hardwareId;
+}
+function costCenterFor(hardwareId) {
+  const hw = state.data.hardware.find(h => h.hardware_id === hardwareId);
+  return hw ? (hw.cost_center || "") : "";
+}
+
+/* ---------------- Location hierarchy helpers (Site > Factory > Floor > Area) ---------------- */
+function locationsByLevel(level) {
+  return state.data.locations.filter(l => l.level === level);
+}
+function locationNameFor(id) {
+  const l = state.data.locations.find(l => l.location_id === id);
+  return l ? l.name : "";
+}
+function locationParentPath(record) {
+  if (!record.parent_id) return record.name || "";
+  const chain = [record.name];
+  let current = state.data.locations.find(l => l.location_id === record.parent_id);
+  while (current) {
+    chain.unshift(current.name);
+    current = current.parent_id ? state.data.locations.find(l => l.location_id === current.parent_id) : null;
+  }
+  return chain.join(" > ");
+}
+/* Full "Site > Factory > Floor > Area" label for any location_id — used
+   wherever another table (e.g. Network Device) references a Location. */
+function locationFullPathFor(id) {
+  const l = state.data.locations.find(l => l.location_id === id);
+  if (!l) return "-";
+  return locationParentPath(l);
+}
+function validateLocation(values, excludeId) {
+  const errors = [];
+  if (!values.name || !values.level) return errors; // required-field check handles the message
+  const parentId = values.parent_site || values.parent_factory || values.parent_floor || null;
+  const dup = state.data.locations.some(l =>
+    l.location_id !== excludeId &&
+    l.level === values.level &&
+    (l.parent_id || null) === (parentId || null) &&
+    l.name.trim().toLowerCase() === values.name.trim().toLowerCase()
+  );
+  if (dup) errors.push(`A ${values.level} named "${values.name}" already exists under the same parent`);
+  return errors;
+}
+
+/* ---------------- IPv4 / subnet math helpers ---------------- */
+/* Converts "192.168.1.10" -> 3232235786 (32-bit unsigned integer), or NaN if invalid. */
+function ipToInt(ip) {
+  if (!isValidIPv4(ip)) return NaN;
+  return ip.trim().split(".").reduce((acc, octet) => (acc << 8) + Number(octet), 0) >>> 0;
+}
+function intToIp(n) {
+  return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join(".");
+}
+/* Subnet mask (255.255.255.0) -> CIDR prefix length (24), or null if not a valid contiguous mask. */
+function maskToCidr(mask) {
+  const n = ipToInt(mask);
+  if (Number.isNaN(n)) return null;
+  // count leading 1 bits; a valid mask has all 1s then all 0s
+  let ones = 0;
+  let seenZero = false;
+  for (let i = 31; i >= 0; i--) {
+    const bit = (n >>> i) & 1;
+    if (bit === 1) {
+      if (seenZero) return null; // 1 after a 0 -> not contiguous, invalid mask
+      ones++;
+    } else {
+      seenZero = true;
+    }
+  }
+  return ones;
+}
+/* Given network address + subnet mask, returns { networkInt, broadcastInt, firstUsable, lastUsable, usableLabel } or null if invalid. */
+function subnetRangeFor(networkAddress, subnetMask) {
+  const cidr = maskToCidr(subnetMask);
+  const netInt = ipToInt(networkAddress);
+  if (cidr === null || Number.isNaN(netInt)) return null;
+  const hostBits = 32 - cidr;
+  const size = hostBits >= 31 ? (hostBits === 32 ? 1 : 2) : Math.pow(2, hostBits);
+  const broadcastInt = (netInt + size - 1) >>> 0;
+  const firstUsable = hostBits <= 1 ? netInt : netInt + 1;
+  const lastUsable = hostBits <= 1 ? broadcastInt : broadcastInt - 1;
+  return {
+    networkInt: netInt,
+    broadcastInt,
+    firstUsable,
+    lastUsable,
+    usableLabel: hostBits <= 1 ? `${intToIp(netInt)}` : `${intToIp(firstUsable)}–${intToIp(lastUsable)}`,
+  };
+}
+/* Is `ip` within the usable range of the given network/mask? */
+function ipInSubnet(ip, networkAddress, subnetMask) {
+  const range = subnetRangeFor(networkAddress, subnetMask);
+  const ipInt = ipToInt(ip);
+  if (!range || Number.isNaN(ipInt)) return false;
+  return ipInt >= range.firstUsable && ipInt <= range.lastUsable;
+}
+/* Do two inclusive IP ranges [aStart,aEnd] and [bStart,bEnd] overlap? */
+function rangesOverlap(aStart, aEnd, bStart, bEnd) {
+  const a1 = ipToInt(aStart), a2 = ipToInt(aEnd), b1 = ipToInt(bStart), b2 = ipToInt(bEnd);
+  if ([a1, a2, b1, b2].some(Number.isNaN)) return false;
+  return a1 <= b2 && b1 <= a2;
+}
+const MAC_RE = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
+function isValidMac(value) {
+  return MAC_RE.test(String(value || "").trim());
+}
+function filterMacKeystroke(el) {
+  el.addEventListener("input", () => {
+    const cleaned = el.value.replace(/[^0-9A-Fa-f:-]/g, "");
+    if (cleaned !== el.value) el.value = cleaned;
+  });
+}
+
+/* ---------------- Table / field configuration ---------------- */
+/* Fields with `onlyFor: "Virtual"` or `onlyFor: "Physical"` only appear
+   (and only get saved) once the record's Hosting type matches. Fields with
+   no `onlyFor` are common to both and always shown. */
+const TABLES = {
+  hardware: {
+    key: "hardware", label: "Inventory", desc: "All physical assets — choose Server or Storage type when adding a record; the form shows only the relevant fields",
+    idField: "hardware_id", idPrefix: "HW", storageKey: "inv_hardware",
+    discriminatorKey: "asset_type",
+    listColumns: [
+      { key: "asset_type", label: "Type", render: r => typeBadge(r.asset_type) },
+      { key: "identity", label: "Details", render: r => (r.asset_type === "Storage" ? (r.storage_name || "-") : `${r.manufacturer || "-"} ${r.model || ""}`.trim()) },
+      { key: "serial_number", label: "Serial number", mono: true },
+      { key: "site", label: "Site" },
+      { key: "rack_number", label: "Rack" },
+      { key: "status", label: "Status", render: r => statusBadge(r.status) },
+    ],
+    fields: [
+      { key: "asset_type", label: "Asset type", type: "select", options: ["Server", "Storage"], required: true, group: "Type" },
+
+      // Storage-only identity
+      { key: "storage_name", label: "Storage name", type: "text", onlyFor: "Storage", required: true, group: "System Info" },
+      { key: "storage_array_type", label: "Storage Array Type", type: "select", options: ["SAN", "NAS", "DAS", "Other"], onlyFor: "Storage", required: true, group: "System Info" },
+      { key: "capacity_gb", label: "Total capacity (GB)", type: "number", onlyFor: "Storage", group: "System Info" },
+
+      // Common identity
+      { key: "manufacturer", label: "Manufacturer", type: "select", options: LOOKUPS.Manufacturer, required: true, group: "System Info" },
+      { key: "model", label: "Model", type: "text", group: "System Info" },
+      { key: "serial_number", label: "Serial number", type: "text", required: true, group: "System Info" },
+      // Server-only network (switch port)
+      { key: "port_no", label: "Switch port", type: "text", onlyFor: "Server", placeholder: "e.g. Gi1/0/1", group: "Network" },
+      { key: "port_name", label: "Switch name", type: "text", onlyFor: "Server", placeholder: "e.g. SW-Core-01", group: "Network" },
+
+      // Storage-only usage — repeatable: a storage array can serve more than one Cluster/Server
+      { key: "used_with", label: "Used With (Cluster / Server)", type: "multiSelect", onlyFor: "Storage", required: true, group: "Network",
+        dynamicOptions: () => [
+          ...state.data.clusters.map(c => ({ value: `cluster:${c.cluster_name}`, label: `[Cluster] ${c.cluster_name}` })),
+          ...state.data.servers.map(s => ({ value: `server:${s.system_name}`, label: `[Server] ${s.system_name} (${s.hosting_type})` })),
+        ] },
+
+      // Common location (Site -> Location -> Rack cascade)
+      { key: "site", label: "Site", type: "select", options: LOOKUPS.Site, required: true, group: "Location" },
+      { key: "location", label: "Location", type: "locationCascade", dynamicOptions: () => (SITE_LOCATIONS[getLiveValue("site")] || {}).locations || null, group: "Location" },
+      { key: "rack_number", label: "Rack number", type: "select", dynamicOptions: () => {
+          const rackList = (SITE_LOCATIONS[getLiveValue("site")] || {}).racks || {};
+          const list = rackList[getLiveValue("location")];
+          return list ? list.map(v => ({ value: v, label: v })) : null;
+        }, group: "Location" },
+      { key: "u_position", label: "U position", type: "text", group: "Location" },
+
+      { key: "commission_date", label: "Commission date", type: "date", group: "Lifecycle" },
+      { key: "warranty_expiry", label: "Warranty expiry", type: "date", group: "Lifecycle" },
+      { key: "status", label: "Status", type: "select", options: LOOKUPS.HardwareStatus, required: true, group: "Lifecycle" },
+
+      { key: "owner", label: "Owner", type: "text", group: "Other" },
+      { key: "cost_center", label: "Cost Center", type: "text", placeholder: "e.g. IT-CC-1001", group: "Other" },
+      { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
+    ],
+  },
+
+  clusters: {
+    key: "clusters", label: "Cluster", desc: "A group of Hosts/Nodes running hypervisor together — add each Host/Node with its Hardware (S/N) and IP details",
+    idField: "cluster_id", idPrefix: "CLU", storageKey: "inv_clusters",
+    listColumns: [
+      { key: "cluster_name", label: "Cluster name", mono: true },
+      { key: "hypervisor_platform", label: "Hypervisor" },
+      { key: "infrastructure_type", label: "Architecture" },
+      { key: "node_count", label: "Host/Node", render: r => `${(r.nodes || []).length} node(s)` },
+      { key: "criticality", label: "Criticality" },
+      { key: "status", label: "Status", render: r => statusBadge(r.status) },
+    ],
+    fields: [
+      { key: "cluster_name", label: "Cluster name", type: "text", required: true, group: "System Info" },
+      { key: "hypervisor_platform", label: "Hypervisor", type: "select", options: LOOKUPS.HypervisorPlatform, required: true, group: "System Info" },
+      { key: "infrastructure_type", label: "Infrastructure architecture", type: "select", options: LOOKUPS.InfrastructureType, required: true, group: "System Info" },
+      { key: "management_console", label: "IP Management Console (e.g. vCenter)", type: "ip", placeholder: "e.g. 192.168.1.5", group: "System Info" },
+
+      { key: "nodes", label: "Host / Node", type: "nodeList", required: true, group: "Host / Node" },
+
+      { key: "criticality", label: "Criticality", type: "select", options: LOOKUPS.Criticality, required: true, group: "Lifecycle" },
+      { key: "environment", label: "Environment", type: "select", options: LOOKUPS.Environment, required: true, group: "Lifecycle" },
+      { key: "status", label: "Status", type: "select", options: LOOKUPS.Status, required: true, group: "Lifecycle" },
+
+      { key: "owner", label: "Owner", type: "text", group: "Other" },
+      { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
+    ],
+  },
+
+
+  servers: {
+    key: "servers", label: "Server List", desc: "Overview of all servers — choose Virtual Machine or Physical Server when adding a record; the form shows only the fields relevant to that type",
+    idField: "server_id", idPrefix: "SRV", storageKey: "inv_servers",
+    discriminatorKey: "hosting_type",
+    listColumns: [
+      { key: "hosting_type", label: "Type", render: r => typeBadge(r.hosting_type) },
+      { key: "system_name", label: "System name", mono: true },
+      { key: "ip_address", label: "IP address", mono: true },
+      { key: "service_port", label: "Service port", mono: true },
+      { key: "context", label: "Cluster / Hardware", render: r => (r.hosting_type === "Virtual" ? (r.cluster_name || "-") : hardwareLabelFor(r.hardware_id)) },
+      { key: "cost_center", label: "Cost Center", render: r => (r.hosting_type === "Physical" ? (costCenterFor(r.hardware_id) || "-") : "-") },
+      { key: "environment", label: "Environment" },
+      { key: "status", label: "Status", render: r => statusBadge(r.status) },
+    ],
+    fields: [
+      // Type selector — drives which fields below appear and get saved
+      { key: "hosting_type", label: "Hosting type", type: "select", options: LOOKUPS.HostingType, required: true, group: "Type" },
+
+      // Virtual-only
+      { key: "host_ref", label: "Host", type: "select", onlyFor: "Virtual", required: true, group: "System Info",
+        dynamicOptions: () => {
+          const opts = [];
+          state.data.clusters.forEach(c => (c.nodes || []).forEach(n => {
+            opts.push({ value: `${c.cluster_id}::${n.node_id}`, label: `${n.host_name || "(no name)"} — ${c.cluster_name}` });
+          }));
+          return opts;
+        } },
+      { key: "cluster_name", label: "Cluster name (auto from Host)", type: "derivedText", onlyFor: "Virtual", dependsLabel: "Host", required: true, group: "System Info" },
+
+      // Physical-only
+      { key: "hardware_id", label: "Hardware", type: "select", onlyFor: "Physical", required: true, group: "System Info",
+        dynamicOptions: () => state.data.hardware.filter(h => h.asset_type === "Server").map(h => ({ value: h.hardware_id, label: `${hardwareLabelFor(h.hardware_id)} — ${h.serial_number || "-"}` })) },
+      { key: "hardware_cost_center", label: "Cost Center (auto from Hardware)", type: "derivedText", onlyFor: "Physical", dependsLabel: "Hardware", group: "System Info" },
+
+      // Common — system identity
+      { key: "system_group", label: "System group", type: "text", group: "System Info" },
+      { key: "system_name", label: "System name", type: "text", required: true, group: "System Info" },
+      { key: "operating_system", label: "Operating system", type: "text", group: "System Info" },
+      { key: "server_role", label: "Server Role", type: "selectAddable", group: "System Info" },
+
+      // Common — network
+      { key: "fqdn", label: "FQDN", type: "text", group: "Network" },
+      { key: "ip_address", label: "IP address", type: "ip", required: true, group: "Network" },
+      { key: "ip_management", label: "IP Address (iDRAC/iLO)", type: "ip", onlyFor: "Physical", placeholder: "e.g. 192.168.1.100", group: "Network" },
+      { key: "service_port", label: "Service port (TCP)", type: "text", placeholder: "e.g. 443, 8080", group: "Network" },
+      { key: "server_zone", label: "Server zone", type: "select", options: LOOKUPS.NetworkZone, required: true, group: "Network" },
+
+      // Common — capacity
+      { key: "cpu_cores", label: "CPU cores", type: "number", group: "Hardware" },
+      { key: "ram_gb", label: "RAM (GB)", type: "number", group: "Hardware" },
+      { key: "storage_gb", label: "Storage (GB)", type: "multiNumber", placeholder: "e.g. 500", group: "Hardware" },
+      { key: "storage_type", label: "Storage type", type: "select", options: LOOKUPS.StorageType, required: true, onlyFor: "Physical", group: "Hardware" },
+
+      // Physical-only — workload importance (not a hardware property, stays here)
+      { key: "criticality", label: "Criticality", type: "select", options: LOOKUPS.Criticality, required: true, onlyFor: "Physical", group: "Lifecycle" },
+      { key: "environment", label: "Environment", type: "select", options: LOOKUPS.Environment, required: true, group: "Lifecycle" },
+      { key: "status", label: "Status", type: "select", options: LOOKUPS.Status, required: true, group: "Lifecycle" },
+
+      // Common — other
+      { key: "owner", label: "Owner", type: "text", group: "Other" },
+      { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
+    ],
+  },
+
+  locations: {
+    key: "locations", label: "Location Master", desc: "Site > Factory > Floor hierarchy — reference data for filling in Inventory and Network location fields",
+    idField: "location_id", idPrefix: "LOC", storageKey: "inv_locations",
+    discriminatorKey: "level",
+    listColumns: [
+      { key: "level", label: "Level", render: r => typeBadge(r.level) },
+      { key: "name", label: "Name", mono: true },
+      { key: "parent", label: "Parent path", render: r => locationParentPath(r) || "-" },
+    ],
+    fields: [
+      { key: "level", label: "Level", type: "select", options: LOOKUPS.LocationLevel, required: true, group: "Type" },
+      { key: "name", label: "Name", type: "text", required: true, group: "Type" },
+
+      { key: "parent_site", label: "Site", type: "select", onlyFor: "Factory", required: true, group: "Hierarchy",
+        dynamicOptions: () => locationsByLevel("Site").map(l => ({ value: l.location_id, label: l.name })) },
+      { key: "parent_factory", label: "Factory", type: "select", onlyFor: "Floor", required: true, group: "Hierarchy",
+        dynamicOptions: () => locationsByLevel("Factory").map(l => ({ value: l.location_id, label: `${l.name} — ${locationNameFor(l.parent_id) || "?"}` })) },
+
+      { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
+    ],
+  },
+
+  vlans: {
+    key: "vlans", label: "VLAN", desc: "VLAN / subnet register — network address, gateway, DHCP and static ranges are validated against each other",
+    idField: "vlan_id_pk", idPrefix: "VLA", storageKey: "inv_vlans",
+    listColumns: [
+      { key: "vlan_id", label: "VLAN ID", mono: true },
+      { key: "vlan_name", label: "VLAN Name", mono: true },
+      { key: "purpose", label: "Purpose" },
+      { key: "network_cidr", label: "Network", render: r => `${r.network_address || "-"}${r.cidr ? " " + r.cidr : ""}` },
+      { key: "gateway", label: "Gateway", mono: true },
+      { key: "dhcp_enabled", label: "DHCP" },
+      { key: "firewall_zone", label: "Firewall Zone" },
+    ],
+    fields: [
+      { key: "vlan_id", label: "VLAN ID", type: "number", required: true, group: "Identity" },
+      { key: "vlan_name", label: "VLAN Name", type: "text", required: true, group: "Identity" },
+      { key: "purpose", label: "Purpose", type: "text", placeholder: "e.g. Server Network", group: "Identity" },
+
+      { key: "network_address", label: "Network Address", type: "ip", required: true, placeholder: "e.g. 10.10.10.0", group: "Subnet" },
+      { key: "subnet_mask", label: "Subnet Mask", type: "ip", required: true, placeholder: "e.g. 255.255.255.0", group: "Subnet" },
+      { key: "cidr", label: "CIDR (auto)", type: "derivedText", dependsLabel: "Subnet Mask", group: "Subnet" },
+      { key: "usable_ip", label: "Usable IP (auto)", type: "derivedText", dependsLabel: "Network Address / Subnet Mask", group: "Subnet" },
+
+      { key: "gateway", label: "Gateway", type: "ip", placeholder: "e.g. 10.10.10.1", group: "Routing" },
+      { key: "gateway_device", label: "Gateway Device", type: "select", options: LOOKUPS.GatewayDevice, group: "Routing" },
+      { key: "firewall_zone", label: "Firewall Zone", type: "select", options: LOOKUPS.NetworkZone, group: "Routing" },
+      { key: "routing", label: "Routing", type: "text", placeholder: "e.g. Core → Firewall", group: "Routing" },
+
+      { key: "dhcp_enabled", label: "DHCP", type: "select", options: LOOKUPS.DhcpEnabled, required: true, group: "DHCP" },
+      { key: "dhcp_server", label: "DHCP Server", type: "ip", group: "DHCP" },
+      { key: "dhcp_start", label: "DHCP Start", type: "ip", placeholder: "e.g. 10.10.10.100", group: "DHCP" },
+      { key: "dhcp_end", label: "DHCP End", type: "ip", placeholder: "e.g. 10.10.10.200", group: "DHCP" },
+
+      { key: "static_start", label: "Static IP Range — Start", type: "ip", placeholder: "e.g. 10.10.10.2", group: "Static IP Range" },
+      { key: "static_end", label: "Static IP Range — End", type: "ip", placeholder: "e.g. 10.10.10.99", group: "Static IP Range" },
+    ],
+  },
+
+  network_devices: {
+    key: "network_devices", label: "Network Inventory", desc: "Switches, firewalls, and other network hardware — Location is picked from Location Master",
+    idField: "device_id", idPrefix: "NET", storageKey: "inv_network_devices",
+    listColumns: [
+      { key: "status", label: "Status", render: r => statusBadge(r.status) },
+      { key: "category", label: "Category" },
+      { key: "subcategory", label: "Sub-category" },
+      { key: "device_name", label: "Device Name", mono: true },
+      { key: "ip_management", label: "IP Management", mono: true },
+      { key: "brand_model", label: "Brand / Model", render: r => `${r.brand || "-"} ${r.model || ""}`.trim() },
+      { key: "stack_role", label: "Stack Role" },
+      { key: "location", label: "Location", render: r => locationFullPathFor(r.location_id) },
+      { key: "rack_number", label: "Rack" },
+      { key: "eol_date", label: "EOL Date" },
+    ],
+    fields: [
+      { key: "status", label: "Status", type: "select", options: LOOKUPS.DeviceStatus, required: true, group: "Identity" },
+      { key: "category", label: "Category", type: "select", options: Object.keys(NETWORK_CATEGORIES), required: true, group: "Identity" },
+      { key: "subcategory", label: "Sub-category", type: "forcedSelect", required: true, placeholder: "Select Category first", group: "Identity",
+        dynamicOptions: () => {
+          const list = NETWORK_CATEGORIES[getLiveValue("category")];
+          return list ? list.map(v => ({ value: v, label: v })) : [];
+        } },
+      { key: "device_name", label: "Device Name", type: "text", required: true, group: "Identity" },
+      { key: "brand", label: "Brand", type: "select", options: LOOKUPS.NetworkBrand, required: true, group: "Identity" },
+      { key: "model", label: "Model", type: "text", group: "Identity" },
+      { key: "serial_number", label: "S/N", type: "text", required: true, group: "Identity" },
+      { key: "fixed_asset", label: "Fixed Asset", type: "text", placeholder: "e.g. IS001", group: "Identity" },
+      { key: "description", label: "Description", type: "text", group: "Identity" },
+
+      { key: "network_zone", label: "Network Zone", type: "select", options: LOOKUPS.NetworkZone, group: "Role & Stack" },
+      { key: "role", label: "Role", type: "select", options: LOOKUPS.DeviceRole, group: "Role & Stack" },
+      { key: "detail", label: "Detail", type: "text", placeholder: "e.g. Core Switch Wifi", group: "Role & Stack" },
+      { key: "stack_id", label: "Stack ID", type: "select", options: STACK_ID_OPTIONS, group: "Role & Stack" },
+      { key: "stack_role", label: "Stack Role", type: "select", options: LOOKUPS.StackRole, group: "Role & Stack" },
+
+      { key: "mac_address", label: "MAC Address", type: "mac", required: true, placeholder: "e.g. aa:bb:cc:dd:ee:01", group: "Network" },
+      { key: "ip_management", label: "IP Management", type: "ip", required: true, placeholder: "e.g. 192.168.104.126", group: "Network" },
+
+      { key: "parent_site", label: "Site", type: "select", required: true, group: "Location",
+        dynamicOptions: () => locationsByLevel("Site").map(l => ({ value: l.location_id, label: l.name })) },
+      { key: "parent_factory", label: "Factory", type: "select", required: true, group: "Location",
+        dynamicOptions: () => locationsByLevel("Factory").filter(l => l.parent_id === getLiveValue("parent_site")).map(l => ({ value: l.location_id, label: l.name })) },
+      { key: "location_id", label: "Floor", type: "select", required: true, group: "Location",
+        dynamicOptions: () => locationsByLevel("Floor").filter(l => l.parent_id === getLiveValue("parent_factory")).map(l => ({ value: l.location_id, label: l.name })) },
+      { key: "rack_number", label: "Rack Number", type: "text", placeholder: "e.g. Rack 01", group: "Location" },
+
+      { key: "commission_date", label: "Commission Date", type: "date", group: "Lifecycle" },
+      { key: "eol_date", label: "EOL Date", type: "date", group: "Lifecycle" },
+    ],
+  },
+
+  users: {
+    key: "users", label: "Users", desc: "Application accounts and their access role — Admin manages users; User can edit data; Viewer is read-only",
+    idField: "user_id", idPrefix: "USR", storageKey: "inv_users",
+    listColumns: [
+      { key: "full_name", label: "Name" },
+      { key: "username", label: "Username", mono: true },
+      { key: "role", label: "Role", render: r => roleBadge(r.role) },
+      { key: "status", label: "Status", render: r => statusBadge(r.status) },
+    ],
+    fields: [
+      { key: "full_name", label: "Full name", type: "text", required: true, group: "Account" },
+      { key: "username", label: "Username", type: "text", required: true, group: "Account" },
+      { key: "password", label: "Password", type: "password", placeholder: "Leave blank to keep current password", group: "Account" },
+      { key: "role", label: "Role", type: "select", options: ["Admin", "User", "Viewer"], required: true, group: "Access" },
+      { key: "status", label: "Status", type: "select", options: ["Active", "Disabled"], required: true, group: "Access" },
+    ],
+  },
+};
+
+/* ---------------- Uniqueness rules (duplicate checks) ---------------- */
+/* Each rule checks `key` for duplicates within the same table (optionally
+   restricted to records where the discriminator field matches `onlyFor`),
+   plus any `crossChecks` against other tables. */
+const UNIQUE_RULES = {
+  hardware: [
+    { key: "serial_number", label: "Serial number" },
+    { key: "storage_name", label: "Storage name", onlyFor: "Storage" },
+  ],
+  clusters: [
+    { key: "cluster_name", label: "Cluster name" },
+  ],
+  servers: [
+    { key: "system_name", label: "System name" },
+    { key: "ip_address", label: "IP address" },
+  ],
+  vlans: [
+    { key: "vlan_id", label: "VLAN ID" },
+    { key: "vlan_name", label: "VLAN Name" },
+    { key: "network_address", label: "Network Address" },
+  ],
+  network_devices: [
+    { key: "serial_number", label: "S/N" },
+    { key: "mac_address", label: "MAC Address" },
+    { key: "device_name", label: "Device Name" },
+    { key: "ip_management", label: "IP Management" },
+  ],
+  users: [
+    { key: "username", label: "Username" },
+  ],
+};
+
+/* A given Hardware record can only be assigned to ONE Server Host or ONE
+   Physical entry in Server List at a time — it's the same physical box. */
+function genNodeId() {
+  return "NODE-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+/* Finds which Cluster/Host-node (if any) currently has this hardware_id assigned. */
+function findNodeByHardware(hardwareId, excludeClusterId, excludeNodeId) {
+  for (const c of state.data.clusters) {
+    if (c.cluster_id === excludeClusterId) continue;
+    for (const n of (c.nodes || [])) {
+      if (n.node_id === excludeNodeId) continue;
+      if (n.hardware_id === hardwareId) return { cluster: c, node: n };
+    }
+  }
+  return null;
+}
+
+/* Server-type Hardware not currently assigned to any Cluster's Host/Node or
+   Server List (Physical) entry — except the one this particular row already
+   has (so editing an existing node doesn't hide its own current hardware). */
+function availableHardwareForNode(currentHardwareId) {
+  const assignedElsewhere = new Set();
+  state.data.clusters.forEach(c => (c.nodes || []).forEach(n => {
+    if (n.hardware_id && n.hardware_id !== currentHardwareId) assignedElsewhere.add(n.hardware_id);
+  }));
+  state.data.servers.forEach(s => {
+    if (s.hosting_type === "Physical" && s.hardware_id && s.hardware_id !== currentHardwareId) assignedElsewhere.add(s.hardware_id);
+  });
+  return state.data.hardware.filter(h => h.asset_type === "Server" && !assignedElsewhere.has(h.hardware_id));
+}
+
+/* A given Hardware record can only be assigned to ONE Host/Node or ONE
+   Physical entry in Server List at a time — it's the same physical box. */
+function checkHardwareAssignment(tableKey, values, excludeId) {
+  const hardwareId = values.hardware_id;
+  if (!hardwareId) return [];
+  const conflicts = [];
+
+  const nodeUse = findNodeByHardware(hardwareId);
+  if (nodeUse) conflicts.push(`This hardware is already assigned to Host "${nodeUse.node.host_name}" in Cluster "${nodeUse.cluster.cluster_name}"`);
+
+  const physUse = state.data.servers.find(s => s.hosting_type === "Physical" && s.hardware_id === hardwareId && !(tableKey === "servers" && s.server_id === excludeId));
+  if (physUse) conflicts.push(`This hardware is already assigned to Server List entry "${physUse.system_name}"`);
+
+  return conflicts;
+}
+
+/* Validates every Host/Node row inside a Cluster form: required sub-fields,
+   and duplicate/reused hardware, host name, or IP across the whole system. */
+function validateNodes(nodes, excludeClusterId) {
+  const errors = [];
+  const seenHw = new Set(), seenHost = new Set(), seenIpHost = new Set(), seenIpMgmt = new Set();
+
+  nodes.forEach((n, i) => {
+    const label = `Host ${i + 1}`;
+    if (!n.hardware_id) {
+      if (n.hardware_id_raw) {
+        errors.push(`${label}: Serial number "${n.hardware_id_raw}" was not found among available Hardware`);
+      } else {
+        errors.push(`${label}: please select a Hardware (S/N)`);
+      }
+      return;
+    }
+    if (!n.host_name) errors.push(`${label}: please enter a Host name`);
+    if (!n.ip_host) errors.push(`${label}: please enter an IP Host`);
+    if (n.ip_host && !isValidIPv4(n.ip_host)) errors.push(`${label}: IP Host must be a valid IP address (e.g. 192.168.1.10)`);
+    if (n.ip_management && !isValidIPv4(n.ip_management)) errors.push(`${label}: IP Management must be a valid IP address (e.g. 192.168.1.10)`);
+
+    const dupHw = seenHw.has(n.hardware_id) || findNodeByHardware(n.hardware_id, excludeClusterId, n.node_id) ||
+      state.data.servers.some(s => s.hosting_type === "Physical" && s.hardware_id === n.hardware_id);
+    if (dupHw) errors.push(`${label}: this hardware is already in use elsewhere in the system`);
+    seenHw.add(n.hardware_id);
+
+    if (n.host_name) {
+      const key = n.host_name.toLowerCase();
+      if (seenHost.has(key)) errors.push(`${label}: Host name "${n.host_name}" is already used`);
+      seenHost.add(key);
+    }
+    if (n.ip_host) {
+      if (seenIpHost.has(n.ip_host)) errors.push(`${label}: IP Host "${n.ip_host}" is already used`);
+      seenIpHost.add(n.ip_host);
+    }
+    if (n.ip_management) {
+      if (seenIpMgmt.has(n.ip_management)) errors.push(`${label}: IP Management "${n.ip_management}" is already used`);
+      seenIpMgmt.add(n.ip_management);
+    }
+  });
+
+  return errors;
+}
+
+function checkDuplicates(tableKey, values, excludeId) {
+  const cfg = TABLES[tableKey];
+  const rules = UNIQUE_RULES[tableKey] || [];
+  const conflicts = [];
+
+  rules.forEach(rule => {
+    const discVal = cfg.discriminatorKey ? values[cfg.discriminatorKey] : null;
+    if (rule.onlyFor && discVal !== rule.onlyFor) return; // rule doesn't apply to this record's type
+    const val = (values[rule.key] || "").trim();
+    if (!val) return; // don't flag empty optional fields
+
+    const dupSelf = state.data[tableKey].some(r => {
+      if (r[cfg.idField] === excludeId) return false;
+      if (rule.onlyFor && cfg.discriminatorKey && r[cfg.discriminatorKey] !== rule.onlyFor) return false;
+      return (r[rule.key] || "").trim().toLowerCase() === val.toLowerCase();
+    });
+
+    let dupCross = false;
+    (rule.crossChecks || []).forEach(cc => {
+      if (dupCross) return;
+      const otherCfg = TABLES[cc.table];
+      dupCross = state.data[cc.table].some(r => {
+        if (cc.onlyFor && otherCfg.discriminatorKey && r[otherCfg.discriminatorKey] !== cc.onlyFor) return false;
+        return (r[rule.key] || "").trim().toLowerCase() === val.toLowerCase();
+      });
+    });
+
+    if (dupSelf || dupCross) conflicts.push(`${rule.label} "${val}" already exists in the system`);
+  });
+
+  return conflicts;
+}
+
+/* Cross-field validation for a VLAN record: every IP field that should live
+   inside the VLAN's own subnet actually does, and the DHCP / Static ranges
+   don't overlap each other or the Gateway. */
+function validateVlan(values) {
+  const errors = [];
+  const { network_address, subnet_mask, gateway, dhcp_enabled, dhcp_server, dhcp_start, dhcp_end, static_start, static_end } = values;
+
+  if (!network_address || !subnet_mask) return errors; // required-field check already covers this
+  const range = subnetRangeFor(network_address, subnet_mask);
+  if (!range) {
+    errors.push("Subnet Mask must be a valid, contiguous mask (e.g. 255.255.255.0)");
+    return errors;
+  }
+
+  const checkInSubnet = (label, ip) => {
+    if (ip && !ipInSubnet(ip, network_address, subnet_mask)) {
+      errors.push(`${label} (${ip}) is not within the usable range of this subnet (${range.usableLabel})`);
+    }
+  };
+  checkInSubnet("Gateway", gateway);
+  checkInSubnet("DHCP Server", dhcp_server);
+  checkInSubnet("DHCP Start", dhcp_start);
+  checkInSubnet("DHCP End", dhcp_end);
+  checkInSubnet("Static IP Range Start", static_start);
+  checkInSubnet("Static IP Range End", static_end);
+
+  if (dhcp_enabled === "Yes") {
+    if (!dhcp_start || !dhcp_end) errors.push("DHCP Start and DHCP End are required when DHCP is enabled");
+    else if (ipToInt(dhcp_start) > ipToInt(dhcp_end)) errors.push("DHCP Start must come before DHCP End");
+  }
+  if (static_start && static_end && ipToInt(static_start) > ipToInt(static_end)) {
+    errors.push("Static IP Range Start must come before Static IP Range End");
+  }
+
+  if (dhcp_enabled === "Yes" && dhcp_start && dhcp_end && static_start && static_end &&
+      rangesOverlap(dhcp_start, dhcp_end, static_start, static_end)) {
+    errors.push("DHCP range and Static IP range overlap — they must not share any addresses");
+  }
+  if (gateway) {
+    if (dhcp_start && dhcp_end && ipInSubnet(gateway, network_address, subnet_mask) &&
+        ipToInt(gateway) >= ipToInt(dhcp_start) && ipToInt(gateway) <= ipToInt(dhcp_end)) {
+      errors.push("Gateway falls inside the DHCP range — exclude it from DHCP Start/End");
+    }
+    if (static_start && static_end &&
+        ipToInt(gateway) >= ipToInt(static_start) && ipToInt(gateway) <= ipToInt(static_end)) {
+      errors.push("Gateway falls inside the Static IP range — exclude it from Static Start/End");
+    }
+  }
+
+  return errors;
+}
+
+/* ---------------- Location Master seed (from Location Master.xlsx) ---------------- */
+const LOCATION_MASTER = [
+  ["1st Site","Main Office","Floor 1"],["1st Site","Main Office","Floor 2"],
+  ["1st Site","HDC","Floor 1"],["1st Site","HDC","Floor 2"],["1st Site","HDC","Floor 3"],["1st Site","HDC","Floor 4"],
+  ["1st Site","Factory 1","Floor 1"],["1st Site","Factory 1","Floor 2"],
+  ["1st Site","Factory 2","Floor 1"],["1st Site","Factory 2","Floor 2"],
+  ["1st Site","Canteen 1","Floor 1"],["1st Site","Canteen 2","Floor 1"],
+  ["1st Site","Guard House 1","Floor 1"],["1st Site","Guard House 2","Floor 1"],
+  ["1st Site","Shop Factory","Floor 1"],
+  ["1st Site","Multi Purpose","Floor 1"],["1st Site","Multi Purpose","Floor 2"],
+  ["1st Site","Anechoic 1","Floor 1"],["1st Site","Anechoic 2","Floor 1"],["1st Site","Anechoic 3","Floor 1"],
+  ["2nd Site","Canteen 1","Floor 1"],["2nd Site","Canteen 1","Floor 2"],
+  ["2nd Site","Canteen 2","Floor 1"],["2nd Site","Canteen 2","Floor 2"],
+  ["2nd Site","Shop Factory","Floor 1"],["2nd Site","Shop Forklift","Floor 1"],["2nd Site","Shop Recycle","Floor 1"],
+  ["2nd Site","Guard House 2","Floor 1"],["2nd Site","Guard House 3","Floor 1"],
+  ["2nd Site","Warehouse 3","Floor 1"],
+  ["2nd Site","Factory 3","Floor 1"],["2nd Site","Factory 3","Floor 2"],
+];
+function buildLocationSeed(today) {
+  const locs = [];
+  const siteId = {}, facId = {};
+  let n = 0;
+  const nextId = () => `LOC-${String(++n).padStart(3, "0")}`;
+  const row = (level, name, parent_id) => ({ location_id: nextId(), level, name, parent_id, remarks: "-", created_at: today, updated_at: today });
+  LOCATION_MASTER.forEach(([site, factory, floor]) => {
+    if (!siteId[site]) { const r = row("Site", site, null); siteId[site] = r.location_id; locs.push(r); }
+    const fKey = site + "||" + factory;
+    if (!facId[fKey]) { const r = row("Factory", factory, siteId[site]); facId[fKey] = r.location_id; locs.push(r); }
+    locs.push(row("Floor", floor, facId[fKey]));
+  });
+  return locs;
+}
+
+/* ---------------- Seed / example data ---------------- */
+function seedData() {
+  const today = new Date().toISOString().slice(0, 10);
+
+  state.data.hardware = [
+    {
+      hardware_id: "HW-001", asset_type: "Server", manufacturer: "Dell", model: "PowerEdge R740", serial_number: "SN123456",
+      site: "1st Site", location: "Server Room", rack_number: "R-12",
+      u_position: "U10-U12", port_no: "", port_name: "",
+      commission_date: "2023-01-15", warranty_expiry: "2026-01-15", status: "In Use",
+      owner: "IT Infrastructure", cost_center: "IT-CC-1001", remarks: "-", created_at: today, updated_at: today,
+    },
+    {
+      hardware_id: "HW-002", asset_type: "Server", manufacturer: "HPE", model: "ProLiant DL380", serial_number: "SN654321",
+      site: "1st Site", location: "Server Room", rack_number: "R-05",
+      u_position: "U3", port_no: "Gi1/0/1", port_name: "SW-Core-01",
+      commission_date: "2022-06-01", warranty_expiry: "2025-06-01", status: "In Use",
+      owner: "IT Infrastructure", cost_center: "IT-CC-1001", remarks: "-", created_at: today, updated_at: today,
+    },
+    {
+      hardware_id: "HW-003", asset_type: "Storage", storage_name: "SAN-Storage-01", storage_array_type: "SAN",
+      capacity_gb: 20480, manufacturer: "Dell", model: "PowerVault ME5", serial_number: "SANSN0001",
+      used_with: ["cluster:Datacenter"], site: "1st Site", location: "Server Room", rack_number: "R-01",
+      status: "In Use", owner: "IT Infrastructure", cost_center: "IT-CC-1002", remarks: "-", created_at: today, updated_at: today,
+    },
+  ];
+
+  state.data.clusters = [{
+    cluster_id: "CLU-001", cluster_name: "Datacenter", hypervisor_platform: "Vmware",
+    infrastructure_type: "HCI - VMware vSAN", management_console: "192.168.1.5",
+    nodes: [
+      { node_id: "NODE-001", hardware_id: "HW-001", host_name: "Host-01", ip_host: "192.168.10.1", ip_management: "192.168.1.10" },
+    ],
+    criticality: "Tier 1 (High)", environment: "Production", status: "Active",
+    owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today,
+  }];
+
+  state.data.servers = [
+    {
+      server_id: "SRV-001", hosting_type: "Virtual", host_ref: "CLU-001::NODE-001", cluster_name: "Datacenter",
+      system_group: "SharePoint", system_name: "DB Sharepoint", operating_system: "Windows Server 2022",
+      fqdn: "dbsp01.company.local", ip_address: "192.168.10.10", service_port: "443, 1433",
+      server_zone: "Trust", cpu_cores: 8, ram_gb: 32, storage_gb: [1024], storage_type: "HDD",
+      environment: "Production", status: "Active", owner: "Application Team", remarks: "-",
+      created_at: today, updated_at: today,
+    },
+    {
+      server_id: "SRV-002", hosting_type: "Physical", hardware_id: "HW-002", system_group: "File Service",
+      system_name: "File Server", operating_system: "Windows Server 2019",
+      fqdn: "fs01.company.local", ip_address: "192.168.30.5", service_port: "445, 443", server_zone: "Trust",
+      cpu_cores: 16, ram_gb: 64, storage_gb: [4096, 4096], storage_type: "SSD",
+      criticality: "Tier 1 (High)", environment: "Production", status: "Active",
+      owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today,
+    },
+  ];
+
+  state.data.locations = buildLocationSeed(today);
+
+  state.data.vlans = [
+    {
+      vlan_id_pk: "VLA-001", vlan_id: 10, vlan_name: "SERVER", purpose: "Server Network",
+      network_address: "10.10.10.0", subnet_mask: "255.255.255.0", cidr: "/24", usable_ip: "10.10.10.1–10.10.10.254",
+      gateway: "10.10.10.1", gateway_device: "Core Switch",
+      dhcp_enabled: "No", dhcp_server: "", dhcp_start: "", dhcp_end: "",
+      static_start: "10.10.10.2", static_end: "10.10.10.99",
+      firewall_zone: "Trust", routing: "Core → Firewall",
+      created_at: today, updated_at: today,
+    },
+  ];
+
+  state.data.network_devices = [
+    {
+      device_id: "NET-001", status: "Use", category: "Network Device", subcategory: "Core Switch",
+      stack_id: "ST016", stack_role: "Active", network_zone: "Trust", detail: "Core Switch Wifi", role: "L3",
+      brand: "Cisco", model: "C9500-16X", serial_number: "RR2", description: "-", fixed_asset: "IS004",
+      mac_address: "aa:bb:cc:dd:e4", device_name: "OT1-Maincore", ip_management: "192.168.104.128",
+      location_id: "LOC-003", rack_number: "Rack 01",
+      commission_date: "2022-03-01", eol_date: "2027-03-01",
+      created_at: today, updated_at: today,
+    },
+  ];
+}
+
+async function persist(tableKey) {
+  const cfg = TABLES[tableKey];
+  await StorageAdapter.set(cfg.storageKey, JSON.stringify(state.data[tableKey]));
+}
+
+async function loadAll() {
+  let anyLoaded = false;
+  for (const key of Object.keys(TABLES)) {
+    const raw = await StorageAdapter.get(TABLES[key].storageKey);
+    if (raw) {
+      try { state.data[key] = JSON.parse(raw); anyLoaded = true; } catch (e) { state.data[key] = []; }
+    }
+  }
+  if (!anyLoaded) {
+    seedData();
+    await seedUsers();
+    for (const key of Object.keys(TABLES)) await persist(key);
+  }
+  // Ensure a login account always exists (e.g. data seeded before accounts were added).
+  if (!state.data.users || !state.data.users.length) {
+    await seedUsers();
+    await persist("users");
+  }
+}
+
+/* ---------------- Helpers ---------------- */
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function getPlainText(html) {
+  return String(html ?? "").replace(/<[^>]*>/g, "").trim();
+}
+const IPV4_RE = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+function isValidIPv4(value) {
+  return IPV4_RE.test(String(value || "").trim());
+}
+function filterIpKeystroke(el) {
+  el.addEventListener("input", () => {
+    const cleaned = el.value.replace(/[^0-9.]/g, "");
+    if (cleaned !== el.value) el.value = cleaned;
+  });
+}
+function getColumnDisplayValue(col, row) {
+  return col.render ? col.render(row) : (row[col.key] || "-");
+}
+function getTypeFilteredRows(tableKey) {
+  let rows = state.data[tableKey];
+  const fcfg = FILTER_BARS[tableKey];
+  if (fcfg && state[fcfg.stateKey] !== "all") {
+    rows = rows.filter(r => r[fcfg.field] === state[fcfg.stateKey]);
+  }
+  return rows;
+}
+function statusBadge(value) {
+  if (!value) return "-";
+  const cls = `status-${value}`.replace(/\s+/g, "");
+  return `<span class="badge ${cls}">${escapeHtml(value)}</span>`;
+}
+function typeBadge(value) {
+  if (!value) return "-";
+  return `<span class="badge type-${value}">${escapeHtml(value)}</span>`;
+}
+function roleBadge(value) {
+  if (!value) return "-";
+  return `<span class="badge role-${value}">${escapeHtml(value)}</span>`;
+}
+
+/* ---------------- Access control ---------------- */
+const SESSION_KEY = "inv::__session";
+function currentRole() { return state.session ? state.session.role : null; }
+function canWrite() { return currentRole() === "Admin" || currentRole() === "User"; }
+function canManageUsers() { return currentRole() === "Admin"; }
+function tableWritable(tableKey) { return tableKey === "users" ? canManageUsers() : canWrite(); }
+
+/* Passwords are never kept in plaintext, even in this client-only prototype —
+   hash with SHA-256 before storing or comparing. A real backend should use a
+   proper salted hash (e.g. bcrypt/argon2); this is the best a static page can do. */
+async function sha256Hex(text) {
+  if (window.crypto && window.crypto.subtle && window.crypto.subtle.digest) {
+    try {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    } catch (e) { /* e.g. insecure context — fall through */ }
+  }
+  // crypto.subtle needs a secure context (HTTPS/localhost). This intranet tool may be
+  // served over plain HTTP, so fall back to a simple non-cryptographic hash rather than
+  // breaking login entirely — it's convenience-layer obfuscation either way, not real security.
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
+}
+
+async function seedUsers() {
+  const today = new Date().toISOString().slice(0, 10);
+  state.data.users = [
+    { user_id: "USR-001", full_name: "Administrator", username: "admin", password: await sha256Hex("admin123"), role: "Admin", status: "Active", created_at: today, updated_at: today },
+  ];
+}
+
+function saveSession() { try { localStorage.setItem(SESSION_KEY, JSON.stringify(state.session)); } catch (e) {} }
+function clearSession() { state.session = null; try { localStorage.removeItem(SESSION_KEY); } catch (e) {} }
+function restoreSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    const u = state.data.users.find(u => u.user_id === s.user_id && u.status === "Active");
+    if (!u) { clearSession(); return false; }
+    state.session = { user_id: u.user_id, username: u.username, role: u.role, full_name: u.full_name };
+    return true;
+  } catch (e) { return false; }
+}
+
+function updateUserChip() {
+  const chip = document.getElementById("userChip");
+  if (!state.session) { chip.hidden = true; return; }
+  chip.hidden = false;
+  document.getElementById("userChipName").textContent = state.session.full_name || state.session.username;
+  document.getElementById("userChipRole").textContent = state.session.role;
+}
+
+function applyPermissions() {
+  document.getElementById("adminSection").hidden = !canManageUsers();
+  updateUserChip();
+  if (state.activeTable === "users" && !canManageUsers()) state.activeTable = "hardware";
+}
+
+function showApp() {
+  document.getElementById("loginScreen").hidden = true;
+  applyPermissions();
+  switchTable(state.activeTable);
+}
+async function showLogin() {
+  document.getElementById("loginScreen").hidden = false;
+  const admin = state.data.users.find(u => u.username === "admin");
+  const isDefaultPassword = admin && admin.password === await sha256Hex("admin123");
+  document.getElementById("loginHint").textContent = isDefaultPassword ? "Default admin — username: admin  ·  password: admin123" : "";
+}
+function generateId(cfg) {
+  const arr = state.data[cfg.key];
+  const n = arr.reduce((max, r) => {
+    const parts = String(r[cfg.idField] || "").split("-");
+    const num = parseInt(parts[1] || "0", 10);
+    return Number.isFinite(num) ? Math.max(max, num) : max;
+  }, 0) + 1;
+  return `${cfg.idPrefix}-${String(n).padStart(3, "0")}`;
+}
+
+/* ---------------- Rendering: nav / counts ---------------- */
+function updateCounts() {
+  Object.keys(TABLES).forEach(k => {
+    const el = document.getElementById(`count-${k}`);
+    if (el) el.textContent = state.data[k].length;
+  });
+}
+
+function switchTable(tableKey) {
+  state.activeTable = tableKey;
+  document.querySelectorAll(".nav-item").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.table === tableKey);
+  });
+  document.getElementById("pageTitle").textContent = TABLES[tableKey].label;
+  document.getElementById("pageDesc").textContent = TABLES[tableKey].desc;
+  document.getElementById("addBtn").hidden = !tableWritable(tableKey);
+  closeForm();
+  renderTable(tableKey);
+}
+
+/* ---------------- Rendering: filter bar (type-split tables) ---------------- */
+const FILTER_BARS = {
+  servers: { stateKey: "serverFilter", field: "hosting_type", options: [["all", "All"], ["Virtual", "Virtual Machine"], ["Physical", "Physical Server"]] },
+  hardware: { stateKey: "hardwareFilter", field: "asset_type", options: [["all", "All"], ["Server", "Server"], ["Storage", "Storage"]] },
+  network_devices: { stateKey: "networkCategoryFilter", field: "category", options: [["all", "All"], ...Object.keys(NETWORK_CATEGORIES).map(c => [c, c])] },
+};
+
+function renderFilterBar(tableKey) {
+  const bar = document.getElementById("filterBar");
+  const fcfg = FILTER_BARS[tableKey];
+  if (!fcfg) { bar.hidden = true; bar.innerHTML = ""; return; }
+  bar.hidden = false;
+  bar.innerHTML = fcfg.options.map(([val, label]) =>
+    `<button class="filter-chip ${state[fcfg.stateKey] === val ? "active" : ""}" data-filter="${val}">${escapeHtml(label)}</button>`
+  ).join("");
+}
+document.getElementById("filterBar").addEventListener("click", (e) => {
+  const btn = e.target.closest(".filter-chip");
+  if (!btn) return;
+  const fcfg = FILTER_BARS[state.activeTable];
+  if (!fcfg) return;
+  state[fcfg.stateKey] = btn.dataset.filter;
+  getTableUI(state.activeTable).page = 1;
+  renderTable(state.activeTable);
+});
+
+/* ---------------- Column filter popup (Excel-style) ---------------- */
+let openFilterPopupEl = null;
+
+function closeFilterPopup() {
+  if (openFilterPopupEl) { openFilterPopupEl.remove(); openFilterPopupEl = null; }
+}
+
+function openColumnFilterPopup(tableKey, colKey, btnEl) {
+  closeFilterPopup();
+  const cfg = TABLES[tableKey];
+  const col = cfg.listColumns.find(c => c.key === colKey);
+  if (!col) return;
+  const ui = getTableUI(tableKey);
+  const sourceRows = getTypeFilteredRows(tableKey);
+  const uniqueValues = Array.from(new Set(
+    sourceRows.map(r => getPlainText(getColumnDisplayValue(col, r)) || "(blank)")
+  )).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+  const currentAllowed = ui.filters[colKey]; // Set, or undefined = everything allowed
+
+  const popup = document.createElement("div");
+  popup.className = "filter-popup";
+  popup.innerHTML = `
+    <div class="filter-popup-actions-top">
+      <button type="button" class="link-btn" data-fp-action="selectAll">Select all</button>
+      <button type="button" class="link-btn" data-fp-action="clearAll">Clear</button>
+    </div>
+    <div class="filter-popup-list">
+      ${uniqueValues.map(v => `
+        <label class="filter-popup-item">
+          <input type="checkbox" value="${escapeHtml(v)}" ${(!currentAllowed || currentAllowed.has(v)) ? "checked" : ""}>
+          <span>${escapeHtml(v)}</span>
+        </label>
+      `).join("")}
+    </div>
+    <div class="filter-popup-actions-bottom">
+      <button type="button" class="ghost-btn" style="color:var(--text);border-color:var(--border);" data-fp-action="cancel">Cancel</button>
+      <button type="button" class="primary-btn" data-fp-action="apply">Apply</button>
+    </div>
+  `;
+  document.body.appendChild(popup);
+
+  const rect = btnEl.getBoundingClientRect();
+  const popupWidth = 220;
+  popup.style.top = `${rect.bottom + 4}px`;
+  popup.style.left = `${Math.min(Math.max(8, rect.right - popupWidth), window.innerWidth - popupWidth - 8)}px`;
+
+  popup.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const action = e.target.closest("[data-fp-action]")?.dataset.fpAction;
+    if (action === "selectAll") {
+      popup.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+    } else if (action === "clearAll") {
+      popup.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+    } else if (action === "cancel") {
+      closeFilterPopup();
+    } else if (action === "apply") {
+      const checked = Array.from(popup.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+      if (checked.length === 0 || checked.length === uniqueValues.length) {
+        delete ui.filters[colKey]; // nothing checked, or everything checked -> no filter
+      } else {
+        ui.filters[colKey] = new Set(checked);
+      }
+      ui.page = 1;
+      closeFilterPopup();
+      renderTable(tableKey);
+    }
+  });
+
+  openFilterPopupEl = popup;
+}
+
+document.addEventListener("click", (e) => {
+  if (openFilterPopupEl && !openFilterPopupEl.contains(e.target) && !e.target.closest(".col-filter-btn")) {
+    closeFilterPopup();
+  }
+});
+
+/* ---------------- Rendering: table ---------------- */
+function renderTable(tableKey) {
+  const cfg = TABLES[tableKey];
+  const ui = getTableUI(tableKey);
+  const writable = tableWritable(tableKey);
+  let rows = getTypeFilteredRows(tableKey);
+  renderFilterBar(tableKey);
+
+  // Excel-style column filters
+  Object.entries(ui.filters).forEach(([colKey, allowedSet]) => {
+    const col = cfg.listColumns.find(c => c.key === colKey);
+    if (!col || !allowedSet || allowedSet.size === 0) return;
+    rows = rows.filter(r => allowedSet.has(getPlainText(getColumnDisplayValue(col, r)) || "(blank)"));
+  });
+
+  // sort
+  if (ui.sortKey) {
+    const col = cfg.listColumns.find(c => c.key === ui.sortKey);
+    if (col) {
+      rows = [...rows].sort((a, b) => {
+        const av = getPlainText(getColumnDisplayValue(col, a));
+        const bv = getPlainText(getColumnDisplayValue(col, b));
+        const na = parseFloat(av), nb = parseFloat(bv);
+        const bothNumeric = av !== "" && bv !== "" && !isNaN(na) && !isNaN(nb) && String(na) === av.trim() && String(nb) === bv.trim();
+        const cmp = bothNumeric ? (na - nb) : av.localeCompare(bv, undefined, { numeric: true, sensitivity: "base" });
+        return cmp * ui.sortDir;
+      });
+    }
+  }
+
+  const table = document.getElementById("dataTable");
+  const emptyState = document.getElementById("emptyState");
+
+  if (!rows.length) {
+    table.innerHTML = "";
+    emptyState.hidden = false;
+    updateCounts();
+    return;
+  }
+  emptyState.hidden = true;
+
+  // pagination
+  const pageSize = ui.pageSize;
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  ui.page = Math.min(Math.max(1, ui.page), totalPages);
+  const startIdx = (ui.page - 1) * pageSize;
+  const pageRows = rows.slice(startIdx, startIdx + pageSize);
+
+  const head = `<thead><tr>${cfg.listColumns.map(c => {
+    const isSorted = ui.sortKey === c.key;
+    const arrow = isSorted ? (ui.sortDir === 1 ? "▲" : "▼") : "";
+    const hasFilter = ui.filters[c.key] && ui.filters[c.key].size > 0;
+    return `<th>
+      <div class="th-inner">
+        <span class="col-sort" data-col="${c.key}">${escapeHtml(c.label)}${arrow ? ` <span class="sort-indicator">${arrow}</span>` : ""}</span>
+        <button type="button" class="col-filter-btn ${hasFilter ? "active" : ""}" data-col="${c.key}" aria-label="Filter ${escapeHtml(c.label)}">▾</button>
+      </div>
+    </th>`;
+  }).join("")}${writable ? "<th>Actions</th>" : ""}</tr></thead>`;
+
+  const body = pageRows.map(r => {
+    const cells = cfg.listColumns.map(c => {
+      const val = c.render ? c.render(r) : escapeHtml(r[c.key] || "-");
+      return `<td class="${c.mono ? "mono" : ""}">${val}</td>`;
+    }).join("");
+    const actionsCell = writable ? `<td><div class="row-actions">
+          <button class="icon-btn" data-action="edit" data-id="${escapeHtml(r[cfg.idField])}">Edit</button>
+          <button class="icon-btn danger" data-action="delete" data-id="${escapeHtml(r[cfg.idField])}">Remove</button>
+        </div></td>` : "";
+    return `<tr>${cells}${actionsCell}</tr>`;
+  }).join("");
+
+  const foot = `<tfoot><tr><td colspan="${cfg.listColumns.length + (writable ? 1 : 0)}">
+    <div class="table-pagination">
+      <span class="page-info">${rows.length} record(s) — page ${ui.page} of ${totalPages}</span>
+      <div class="page-controls">
+        <button type="button" class="icon-btn" data-page-action="prev" ${ui.page <= 1 ? "disabled" : ""}>‹ Prev</button>
+        <button type="button" class="icon-btn" data-page-action="next" ${ui.page >= totalPages ? "disabled" : ""}>Next ›</button>
+      </div>
+    </div>
+  </td></tr></tfoot>`;
+
+  table.innerHTML = head + `<tbody>${body}</tbody>` + foot;
+  updateCounts();
+}
+
+/* Row action delegation */
+document.getElementById("dataTable").addEventListener("click", (e) => {
+  const tableKey = state.activeTable;
+
+  const sortEl = e.target.closest(".col-sort");
+  if (sortEl) {
+    const ui = getTableUI(tableKey);
+    const colKey = sortEl.dataset.col;
+    if (ui.sortKey !== colKey) {
+      ui.sortKey = colKey;
+      ui.sortDir = 1;
+    } else if (ui.sortDir === 1) {
+      ui.sortDir = -1;
+    } else {
+      ui.sortKey = null;
+      ui.sortDir = 1;
+    }
+    ui.page = 1;
+    renderTable(tableKey);
+    return;
+  }
+
+  const filterBtn = e.target.closest(".col-filter-btn");
+  if (filterBtn) {
+    e.stopPropagation();
+    openColumnFilterPopup(tableKey, filterBtn.dataset.col, filterBtn);
+    return;
+  }
+
+  const pageBtn = e.target.closest("[data-page-action]");
+  if (pageBtn) {
+    const ui = getTableUI(tableKey);
+    if (pageBtn.dataset.pageAction === "prev") ui.page = Math.max(1, ui.page - 1);
+    else ui.page = ui.page + 1; // renderTable clamps to the real last page
+    renderTable(tableKey);
+    return;
+  }
+
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const cfg = TABLES[tableKey];
+  const id = btn.dataset.id;
+  if (!tableWritable(tableKey)) return;
+  if (btn.dataset.action === "edit") {
+    openForm(tableKey, id);
+  } else if (btn.dataset.action === "delete") {
+    if (btn.dataset.armed === "1") {
+      if (tableKey === "locations" && state.data.locations.some(l => l.parent_id === id)) {
+        btn.textContent = "Has sub-locations";
+        btn.dataset.armed = "0";
+        btn.classList.remove("armed");
+        setTimeout(() => { if (btn.isConnected) btn.textContent = "Remove"; }, 2500);
+        return;
+      }
+      if (tableKey === "locations" && state.data.network_devices.some(d => d.location_id === id)) {
+        btn.textContent = "In use by a device";
+        btn.dataset.armed = "0";
+        btn.classList.remove("armed");
+        setTimeout(() => { if (btn.isConnected) btn.textContent = "Remove"; }, 2500);
+        return;
+      }
+      if (tableKey === "users" && id === (state.session && state.session.user_id)) {
+        btn.textContent = "Can't delete yourself"; btn.dataset.armed = "0"; btn.classList.remove("armed");
+        setTimeout(() => { if (btn.isConnected) btn.textContent = "Remove"; }, 2500);
+        return;
+      }
+      if (tableKey === "users") {
+        const target = state.data.users.find(u => u.user_id === id);
+        const admins = state.data.users.filter(u => u.role === "Admin" && u.status === "Active");
+        if (target && target.role === "Admin" && admins.length <= 1) {
+          btn.textContent = "Last active admin"; btn.dataset.armed = "0"; btn.classList.remove("armed");
+          setTimeout(() => { if (btn.isConnected) btn.textContent = "Remove"; }, 2500);
+          return;
+        }
+      }
+      state.data[tableKey] = state.data[tableKey].filter(r => r[cfg.idField] !== id);
+      persist(tableKey);
+      renderTable(tableKey);
+    } else {
+      btn.dataset.armed = "1";
+      btn.textContent = "Confirm delete?";
+      btn.classList.add("armed");
+      setTimeout(() => {
+        if (btn.isConnected && btn.dataset.armed === "1") {
+          btn.dataset.armed = "0";
+          btn.textContent = "Remove";
+          btn.classList.remove("armed");
+        }
+      }, 3000);
+    }
+  }
+});
+
+/* ---------------- Rendering: form ---------------- */
+function fieldBlock(field, value) {
+  const id = "f_" + field.key;
+  const wide = field.type === "textarea";
+  let control;
+
+  if (field.type === "select") {
+    const opts = field.dynamicOptions ? field.dynamicOptions() : (field.options || []).map(o => ({ value: o, label: o }));
+    if (opts === null) {
+      // No predefined list for the current context (e.g. no rack list for this site/location) — free text instead.
+      control = `<input type="text" id="${id}" data-key="${field.key}" value="${escapeHtml(value || "")}" placeholder="${escapeHtml(field.placeholder || "Custom")}" ${field.required ? "required" : ""}>`;
+    } else {
+      control = `<select id="${id}" data-key="${field.key}" ${field.required ? "required" : ""}>
+        <option value="">-- Select --</option>
+        ${opts.map(o => `<option value="${escapeHtml(o.value)}" ${String(value) === String(o.value) ? "selected" : ""}>${escapeHtml(o.label)}</option>`).join("")}
+      </select>`;
+    }
+  } else if (field.type === "forcedSelect") {
+    const opts = field.dynamicOptions ? field.dynamicOptions() : (field.options || []).map(o => ({ value: o, label: o }));
+    if (!opts.length) {
+      control = `<select id="${id}" data-key="${field.key}" disabled>
+        <option value="">${escapeHtml(field.placeholder || "-- Select --")}</option>
+      </select>`;
+    } else {
+      control = `<select id="${id}" data-key="${field.key}" ${field.required ? "required" : ""}>
+        <option value="">-- Select --</option>
+        ${opts.map(o => `<option value="${escapeHtml(o.value)}" ${String(value) === String(o.value) ? "selected" : ""}>${escapeHtml(o.label)}</option>`).join("")}
+      </select>`;
+    }
+  } else if (field.type === "locationCascade") {
+    const opts = field.dynamicOptions ? field.dynamicOptions() : null;
+    if (!Array.isArray(opts) || !opts.length) {
+      control = `<input type="text" id="${id}" data-key="${field.key}" value="${escapeHtml(value || "")}" placeholder="Select Site first" disabled>`;
+    } else {
+      const isOther = value && !opts.includes(value);
+      const selectValue = !value ? "" : (isOther ? "Other" : value);
+      control = `
+        <select id="${id}_select" data-key="${field.key}_select" ${field.required ? "required" : ""}>
+          <option value="">-- Select --</option>
+          ${opts.map(o => `<option value="${escapeHtml(o)}" ${selectValue === o ? "selected" : ""}>${escapeHtml(o)}</option>`).join("")}
+        </select>
+        <input type="text" id="${id}_other" data-key="${field.key}_other" value="${escapeHtml(isOther ? value : "")}" placeholder="Enter location" style="margin-top:6px;${isOther ? "" : "display:none;"}">
+      `;
+    }
+  } else if (field.type === "multiText") {
+    const rows = Array.isArray(value) && value.length ? value : [""];
+    control = `
+      <div class="multi-ip-list" id="${id}_list">
+        ${rows.map(v => `
+          <div class="multi-ip-row">
+            <input type="text" class="multi-ip-input" data-key="${field.key}" value="${escapeHtml(v)}" placeholder="${escapeHtml(field.placeholder || "")}">
+            <button type="button" class="icon-btn multi-ip-remove" aria-label="Remove this IP">−</button>
+          </div>
+        `).join("")}
+      </div>
+      <button type="button" class="ghost-btn multi-ip-add" data-key="${field.key}" data-placeholder="${escapeHtml(field.placeholder || "")}">+ Add IP</button>
+    `;
+  } else if (field.type === "multiNumber") {
+    const rows = Array.isArray(value) && value.length ? value : [""];
+    control = `
+      <div class="multi-ip-list" id="${id}_list">
+        ${rows.map(v => `
+          <div class="multi-ip-row">
+            <input type="number" class="multi-ip-input" data-key="${field.key}" value="${escapeHtml(v)}" placeholder="${escapeHtml(field.placeholder || "")}" min="0">
+            <button type="button" class="icon-btn multi-ip-remove" aria-label="Remove this entry">−</button>
+          </div>
+        `).join("")}
+      </div>
+      <button type="button" class="ghost-btn multi-number-add" data-key="${field.key}" data-placeholder="${escapeHtml(field.placeholder || "")}">+ Add ${escapeHtml(field.label)}</button>
+    `;
+  } else if (field.type === "multiSelect") {
+    const opts = field.dynamicOptions ? field.dynamicOptions() : [];
+    const selected = Array.isArray(value) && value.length ? value : [""];
+    const rowHtml = v => `
+      <div class="multi-ip-row">
+        <select class="multi-select-input" data-key="${field.key}">
+          <option value="">-- Select --</option>
+          ${opts.map(o => `<option value="${escapeHtml(o.value)}" ${v === o.value ? "selected" : ""}>${escapeHtml(o.label)}</option>`).join("")}
+        </select>
+        <button type="button" class="icon-btn multi-ip-remove" aria-label="Remove this entry">−</button>
+      </div>
+    `;
+    control = `
+      <div class="multi-ip-list" id="${id}_list">
+        ${selected.map(v => rowHtml(v)).join("")}
+      </div>
+      <button type="button" class="ghost-btn multi-select-add" data-key="${field.key}">+ Add</button>
+    `;
+  } else if (field.type === "nodeList") {
+    const nodes = Array.isArray(value) ? value : [];
+    const hwOptions = state.data.hardware.filter(h => h.asset_type === "Server");
+    const nodeRowHtml = (node, idx) => {
+      const rowId = node.node_id || `new-${idx}`;
+      const listId = `hwlist_${escapeHtml(rowId)}`;
+      const currentHw = state.data.hardware.find(h => h.hardware_id === node.hardware_id);
+      const currentSerial = currentHw ? currentHw.serial_number : "";
+      const available = availableHardwareForNode(node.hardware_id);
+      return `
+      <div class="node-row" data-node-id="${escapeHtml(node.node_id || "")}">
+        <div class="node-row-header">
+          <span class="node-row-title">Host ${idx + 1}</span>
+          <button type="button" class="icon-btn node-remove" aria-label="Remove this Host">Remove</button>
+        </div>
+        <div class="node-field-grid">
+          <label class="node-field">
+            <span class="field-label">Hardware (S/N)</span>
+            <input type="text" class="node-input" data-node-key="hardware_id" list="${listId}" value="${escapeHtml(currentSerial)}" placeholder="Type or pick a S/N" autocomplete="off">
+            <datalist id="${listId}">
+              ${available.map(h => `<option value="${escapeHtml(h.serial_number)}">${escapeHtml(hardwareLabelFor(h.hardware_id))}</option>`).join("")}
+            </datalist>
+          </label>
+          <label class="node-field">
+            <span class="field-label">Host name</span>
+            <input type="text" class="node-input" data-node-key="host_name" value="${escapeHtml(node.host_name || "")}">
+          </label>
+          <label class="node-field">
+            <span class="field-label">IP Host</span>
+            <input type="text" class="node-input" data-node-key="ip_host" data-ip-field="1" value="${escapeHtml(node.ip_host || "")}" placeholder="e.g. 192.168.10.1">
+          </label>
+          <label class="node-field">
+            <span class="field-label">IP Management (iDRAC/iLO)</span>
+            <input type="text" class="node-input" data-node-key="ip_management" data-ip-field="1" value="${escapeHtml(node.ip_management || "")}" placeholder="e.g. 192.168.1.10">
+          </label>
+
+        </div>
+      </div>
+    `;
+    };
+    control = `
+      <div class="node-list" id="${id}_list">
+        ${nodes.map((n, i) => nodeRowHtml(n, i)).join("")}
+      </div>
+      <button type="button" class="ghost-btn node-add" data-key="${field.key}">+ Add Host</button>
+    `;
+  } else if (field.type === "ip") {
+    control = `<input type="text" id="${id}" data-key="${field.key}" data-ip-field="1" value="${escapeHtml(value || "")}" placeholder="${escapeHtml(field.placeholder || "e.g. 192.168.1.10")}" inputmode="decimal" pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$" ${field.required ? "required" : ""}>`;
+  } else if (field.type === "mac") {
+    control = `<input type="text" id="${id}" data-key="${field.key}" data-mac-field="1" value="${escapeHtml(value || "")}" placeholder="${escapeHtml(field.placeholder || "e.g. aa:bb:cc:dd:ee:01")}" ${field.required ? "required" : ""}>`;
+  } else if (field.type === "password") {
+    // Never echo the stored hash back into the form — blank means "keep current password".
+    control = `<input type="password" id="${id}" data-key="${field.key}" placeholder="${escapeHtml(field.placeholder || "")}" autocomplete="new-password">`;
+  } else if (field.type === "selectAddable") {
+    const opts = SERVER_ROLES;
+    const isOther = value && !opts.includes(value);
+    control = `
+      <div style="display:flex;gap:6px;align-items:center;">
+        <select id="${id}" data-key="${field.key}" style="flex:1;min-width:0;" ${field.required ? "required" : ""}>
+          <option value="">-- Select --</option>
+          ${isOther ? `<option value="${escapeHtml(value)}" selected>${escapeHtml(value)}</option>` : ""}
+          ${opts.map(o => `<option value="${escapeHtml(o)}" ${String(value) === String(o) ? "selected" : ""}>${escapeHtml(o)}</option>`).join("")}
+        </select>
+        <button type="button" class="icon-btn addable-add" data-key="${field.key}" title="Add a new Server Role" style="flex-shrink:0;white-space:nowrap;">+ Role</button>
+      </div>`;
+  } else if (field.type === "derivedText") {
+    control = `<input type="text" id="${id}" data-key="${field.key}" value="${escapeHtml(value || "")}" readonly placeholder="Select ${escapeHtml(field.dependsLabel || "")} first">`;
+  } else if (field.type === "number") {
+    control = `<input type="number" id="${id}" data-key="${field.key}" value="${value ?? ""}" ${field.required ? "required" : ""}>`;
+  } else if (field.type === "date") {
+    control = `<input type="date" id="${id}" data-key="${field.key}" value="${escapeHtml(value || "")}" ${field.required ? "required" : ""}>`;
+  } else if (field.type === "textarea") {
+    control = `<textarea id="${id}" data-key="${field.key}" rows="2">${escapeHtml(value || "")}</textarea>`;
+  } else {
+    control = `<input type="text" id="${id}" data-key="${field.key}" value="${escapeHtml(value || "")}" placeholder="${escapeHtml(field.placeholder || "")}" ${field.required ? "required" : ""}>`;
+  }
+
+  return `<label class="field ${wide ? "full" : ""}">
+    <span class="field-label">${escapeHtml(field.label)}${field.required ? ' <span class="req">*</span>' : ""}</span>
+    <span class="control-slot" id="slot_${field.key}">${control}</span>
+  </label>`;
+}
+
+function renderGroupedFields(fields, record) {
+  const groups = [];
+  const idx = {};
+  fields.forEach(f => {
+    if (!(f.group in idx)) { idx[f.group] = groups.length; groups.push({ name: f.group, fields: [] }); }
+    groups[idx[f.group]].fields.push(f);
+  });
+  return groups.map(g => `
+    <fieldset>
+      <legend>${escapeHtml(g.name)}</legend>
+      <div class="field-grid">
+        ${g.fields.map(f => fieldBlock(f, record ? record[f.key] : f.default)).join("")}
+      </div>
+    </fieldset>
+  `).join("");
+}
+
+function filterFieldsByType(fields, type) {
+  return fields.filter(f => !f.onlyFor || f.onlyFor === type);
+}
+
+/* formRecordCtx holds the record currently open in the panel (or null),
+   used as a fallback source of truth for cascading fields before their
+   sibling DOM elements exist yet (i.e. during the very first render). */
+let formRecordCtx = null;
+
+function getCascadeLocationValue(key) {
+  const id = "f_" + key;
+  const selEl = document.getElementById(id + "_select");
+  if (selEl) {
+    if (selEl.value === "Other") {
+      const otherEl = document.getElementById(id + "_other");
+      return otherEl ? otherEl.value.trim() : "";
+    }
+    return selEl.value;
+  }
+  const plainEl = document.getElementById(id);
+  if (plainEl) return plainEl.value.trim();
+  return formRecordCtx ? (formRecordCtx[key] || "") : "";
+}
+
+function getMultiTextValues(key) {
+  const list = document.getElementById("f_" + key + "_list");
+  if (!list) return Array.isArray(formRecordCtx && formRecordCtx[key]) ? formRecordCtx[key] : [];
+  return Array.from(list.querySelectorAll(`.multi-ip-input[data-key="${key}"]`))
+    .map(el => el.value.trim())
+    .filter(Boolean);
+}
+
+function getMultiSelectValues(key) {
+  const list = document.getElementById("f_" + key + "_list");
+  if (!list) return Array.isArray(formRecordCtx && formRecordCtx[key]) ? formRecordCtx[key] : [];
+  return Array.from(list.querySelectorAll(`.multi-select-input[data-key="${key}"]`))
+    .map(el => el.value)
+    .filter(Boolean);
+}
+function getMultiNumberValues(key) {
+  const list = document.getElementById("f_" + key + "_list");
+  if (!list) return Array.isArray(formRecordCtx && formRecordCtx[key]) ? formRecordCtx[key] : [];
+  return Array.from(list.querySelectorAll(`.multi-ip-input[data-key="${key}"]`))
+    .map(el => el.value.trim())
+    .filter(v => v !== "")
+    .map(v => Number(v));
+}
+
+function getNodeListValues(key) {
+  const list = document.getElementById("f_" + key + "_list");
+  if (!list) return Array.isArray(formRecordCtx && formRecordCtx[key]) ? formRecordCtx[key] : [];
+  return Array.from(list.querySelectorAll(".node-row"))
+    .map(row => {
+      const get = k => (row.querySelector(`[data-node-key="${k}"]`)?.value || "").trim();
+      const typedSerial = get("hardware_id");
+      const matchedHw = typedSerial
+        ? state.data.hardware.find(h => h.asset_type === "Server" && h.serial_number.toLowerCase() === typedSerial.toLowerCase())
+        : null;
+      return {
+        node_id: row.dataset.nodeId || genNodeId(),
+        hardware_id: matchedHw ? matchedHw.hardware_id : "",
+        hardware_id_raw: typedSerial, // transient — used for error messages, stripped before saving
+        host_name: get("host_name"),
+        ip_host: get("ip_host"),
+        ip_management: get("ip_management"),
+      };
+    })
+    .filter(n => n.hardware_id || n.hardware_id_raw || n.host_name || n.ip_host || n.ip_management);
+}
+
+function getLiveValue(key) {
+  if (key === "location") return getCascadeLocationValue("location");
+  const el = document.getElementById("f_" + key);
+  if (el) return el.value;
+  return formRecordCtx ? (formRecordCtx[key] || "") : "";
+}
+
+function refreshFieldSlot(field, value) {
+  const slot = document.getElementById("slot_" + field.key);
+  if (!slot) return;
+  const temp = document.createElement("div");
+  temp.innerHTML = fieldBlock(field, value);
+  const newSlot = temp.querySelector(".control-slot");
+  slot.innerHTML = newSlot ? newSlot.innerHTML : "";
+}
+
+function collectCurrentDomValues(fields) {
+  const out = {};
+  fields.forEach(f => {
+    if (f.type === "locationCascade") { out[f.key] = getCascadeLocationValue(f.key); return; }
+    if (f.type === "multiText") { out[f.key] = getMultiTextValues(f.key); return; }
+    if (f.type === "multiSelect") { out[f.key] = getMultiSelectValues(f.key); return; }
+    if (f.type === "multiNumber") { out[f.key] = getMultiNumberValues(f.key); return; }
+    if (f.type === "nodeList") { out[f.key] = getNodeListValues(f.key); return; }
+    const el = document.getElementById("f_" + f.key);
+    if (el) out[f.key] = el.value;
+  });
+  return out;
+}
+
+function wireLocationCascade() {
+  if (!state.editing) return;
+  const cfg = TABLES[state.editing.tableKey];
+  const siteField = cfg.fields.find(f => f.key === "site");
+  const locationField = cfg.fields.find(f => f.key === "location" && f.type === "locationCascade");
+  const rackField = cfg.fields.find(f => f.key === "rack_number");
+  const siteSel = document.getElementById("f_site");
+  if (!siteField || !locationField || !siteSel) return; // this form doesn't use the cascade
+
+  function refreshRack() {
+    if (rackField) refreshFieldSlot(rackField, "");
+  }
+  function wireLocationSelectToggle() {
+    const selEl = document.getElementById("f_location_select");
+    const otherEl = document.getElementById("f_location_other");
+    if (selEl) {
+      selEl.addEventListener("change", () => {
+        if (otherEl) otherEl.style.display = selEl.value === "Other" ? "" : "none";
+        refreshRack();
+      });
+    }
+    if (otherEl) otherEl.addEventListener("input", refreshRack);
+  }
+  function refreshLocation() {
+    refreshFieldSlot(locationField, "");
+    wireLocationSelectToggle();
+    refreshRack();
+  }
+
+  siteSel.addEventListener("change", refreshLocation);
+  wireLocationSelectToggle();
+}
+
+/* Network Device form: Site -> Factory -> Floor -> Area chained selects,
+   each level's options depend on the one above it. */
+function wireNetworkDeviceLocationCascade() {
+  if (!state.editing || state.editing.tableKey !== "network_devices") return;
+  const cfg = TABLES[state.editing.tableKey];
+  const factoryField = cfg.fields.find(f => f.key === "parent_factory");
+  const floorField = cfg.fields.find(f => f.key === "location_id");
+
+  const siteSel = document.getElementById("f_parent_site");
+  const factorySel = document.getElementById("f_parent_factory");
+  if (!siteSel || !factorySel) return;
+
+  siteSel.addEventListener("change", () => {
+    refreshFieldSlot(factoryField, "");
+    refreshFieldSlot(floorField, "");
+    wireNetworkDeviceLocationCascade();
+  });
+  factorySel.addEventListener("change", () => {
+    refreshFieldSlot(floorField, "");
+  });
+}
+
+/* VLAN form: CIDR and Usable IP are derived read-only fields, recalculated
+   whenever Network Address or Subnet Mask change. */
+function wireVlanAutoCalc() {
+  if (!state.editing || state.editing.tableKey !== "vlans") return;
+  const cfg = TABLES[state.editing.tableKey];
+  const netEl = document.getElementById("f_network_address");
+  const maskEl = document.getElementById("f_subnet_mask");
+  const cidrField = cfg.fields.find(f => f.key === "cidr");
+  const usableField = cfg.fields.find(f => f.key === "usable_ip");
+  if (!netEl || !maskEl) return;
+
+  function recalc() {
+    const cidr = maskToCidr(maskEl.value.trim());
+    const cidrEl = document.getElementById("f_cidr");
+    if (cidrEl) cidrEl.value = cidr !== null ? `/${cidr}` : "";
+    const range = subnetRangeFor(netEl.value.trim(), maskEl.value.trim());
+    const usableEl = document.getElementById("f_usable_ip");
+    if (usableEl) usableEl.value = range ? range.usableLabel : "";
+  }
+  netEl.addEventListener("input", recalc);
+  maskEl.addEventListener("input", recalc);
+  recalc();
+}
+
+/* Network Device form: Sub-category options depend on the chosen Category. */
+function wireNetworkDeviceCategoryCascade() {
+  if (!state.editing || state.editing.tableKey !== "network_devices") return;
+  const cfg = TABLES[state.editing.tableKey];
+  const subField = cfg.fields.find(f => f.key === "subcategory");
+  const catSel = document.getElementById("f_category");
+  if (!subField || !catSel) return;
+
+  catSel.addEventListener("change", () => {
+    refreshFieldSlot(subField, "");
+  });
+}
+
+function wireAddableFields() {
+  document.querySelectorAll(".addable-add").forEach(btn => {
+    if (btn.dataset.wired === "1") return;
+    btn.dataset.wired = "1";
+    btn.addEventListener("click", async () => {
+      if (!state.editing) return;
+      const key = btn.dataset.key;
+      const name = window.prompt("เพิ่ม Server Role ใหม่ / Add a new Server Role:");
+      if (name === null) return;
+      const added = await addServerRole(name);
+      if (!added) return;
+      const cfg = TABLES[state.editing.tableKey];
+      const field = cfg.fields.find(f => f.key === key);
+      if (field) refreshFieldSlot(field, added);
+      wireAddableFields();
+    });
+  });
+}
+
+function attachDynamicHandlers() {
+  document.querySelectorAll('[data-ip-field="1"]').forEach(filterIpKeystroke);
+  document.querySelectorAll('[data-mac-field="1"]').forEach(filterMacKeystroke);
+
+  const hostSel = document.getElementById("f_host_ref");
+  const clusterInput = document.getElementById("f_cluster_name");
+  if (hostSel && clusterInput) {
+    hostSel.addEventListener("change", () => {
+      const [clusterId] = hostSel.value.split("::");
+      clusterInput.value = clusterNameFor(clusterId);
+    });
+  }
+
+  const hwSel = document.getElementById("f_hardware_id");
+  const costInput = document.getElementById("f_hardware_cost_center");
+  if (hwSel && costInput) {
+    const syncCostCenter = () => {
+      const hw = state.data.hardware.find(h => h.hardware_id === hwSel.value);
+      costInput.value = hw ? (hw.cost_center || "") : "";
+    };
+    hwSel.addEventListener("change", syncCostCenter);
+    syncCostCenter(); // populate immediately so edit mode shows the current linked value
+  }
+
+  wireLocationCascade();
+  wireNetworkDeviceLocationCascade();
+  wireNetworkDeviceCategoryCascade();
+  wireVlanAutoCalc();
+  wireAddableFields();
+}
+
+function renderPanelBody(tableKey, record) {
+  const cfg = TABLES[tableKey];
+  const panelBody = document.getElementById("panelBody");
+  const noteHtml = cfg.fixedNote ? `<p class="form-hint">${escapeHtml(cfg.fixedNote)}</p>` : "";
+  const discKey = cfg.discriminatorKey;
+  formRecordCtx = record;
+
+  if (!discKey) {
+    panelBody.innerHTML = noteHtml + renderGroupedFields(cfg.fields, record);
+    attachDynamicHandlers();
+    return;
+  }
+
+  // Type-filtered form: render the discriminator selector on its own,
+  // then only the fields relevant to whichever value is currently selected.
+  const discField = cfg.fields.find(f => f.key === discKey);
+  const otherFields = cfg.fields.filter(f => f.key !== discKey);
+  const currentType = record ? record[discKey] : "";
+  const hintText = "Select " + discField.label + " first to show the relevant fields";
+
+  panelBody.innerHTML = noteHtml + `
+    <fieldset>
+      <legend>${escapeHtml(discField.label)}</legend>
+      <div class="field-grid">${fieldBlock(discField, currentType)}</div>
+    </fieldset>
+    <p class="form-hint" id="typeHint">${currentType ? "" : escapeHtml(hintText)}</p>
+    <div id="dynamicFields">${renderGroupedFields(filterFieldsByType(otherFields, currentType), record)}</div>
+  `;
+
+  document.getElementById("f_" + discKey).addEventListener("change", (e) => {
+    const newType = e.target.value;
+    const preserved = collectCurrentDomValues(otherFields);
+    const merged = Object.assign({}, record, preserved);
+    formRecordCtx = merged;
+    document.getElementById("typeHint").textContent = newType ? "" : hintText;
+    document.getElementById("dynamicFields").innerHTML = renderGroupedFields(filterFieldsByType(otherFields, newType), merged);
+    attachDynamicHandlers();
+  });
+
+  attachDynamicHandlers();
+}
+
+function openForm(tableKey, id = null) {
+  if (!tableWritable(tableKey)) return;
+  state.editing = { tableKey, id };
+  const cfg = TABLES[tableKey];
+  let record = id ? state.data[tableKey].find(r => r[cfg.idField] === id) : null;
+  const fcfg = FILTER_BARS[tableKey];
+  const prefillType = (!record && fcfg && state[fcfg.stateKey] !== "all") ? state[fcfg.stateKey] : null;
+
+  if (record && tableKey === "locations" && record.parent_id) {
+    const parentKey = { Factory: "parent_site", Floor: "parent_factory" }[record.level];
+    if (parentKey) record = Object.assign({}, record, { [parentKey]: record.parent_id });
+  }
+  if (record && tableKey === "network_devices" && record.location_id) {
+    // Walk the Floor's ancestor chain so the Site/Factory selects
+    // pre-populate correctly when editing an existing device.
+    const floor = state.data.locations.find(l => l.location_id === record.location_id);
+    const factory = floor ? state.data.locations.find(l => l.location_id === floor.parent_id) : null;
+    const site = factory ? state.data.locations.find(l => l.location_id === factory.parent_id) : null;
+    record = Object.assign({}, record, {
+      parent_site: site ? site.location_id : "",
+      parent_factory: factory ? factory.location_id : "",
+    });
+  }
+
+  document.getElementById("panelTitle").textContent = record ? `Edit — ${cfg.label}` : `Add — ${cfg.label}`;
+  document.getElementById("formError").hidden = true;
+  renderPanelBody(tableKey, record || (prefillType ? { [cfg.discriminatorKey]: prefillType } : null));
+  document.getElementById("modalBackdrop").classList.add("open");
+  document.querySelector(".dialog-content").scrollTop = 0;
+}
+
+function closeForm() {
+  document.getElementById("modalBackdrop").classList.remove("open");
+  state.editing = null;
+}
+
+function collectFormValues(tableKey) {
+  const cfg = TABLES[tableKey];
+  const discKey = cfg.discriminatorKey;
+  const typeEl = discKey ? document.getElementById("f_" + discKey) : null;
+  const currentType = typeEl ? typeEl.value : null;
+  const values = {};
+  const missing = [];
+  const invalid = [];
+
+  cfg.fields.forEach(f => {
+    const applies = !f.onlyFor || f.onlyFor === currentType;
+    const isListType = f.type === "multiText" || f.type === "nodeList" || f.type === "multiSelect" || f.type === "multiNumber";
+    if (!applies) { values[f.key] = isListType ? [] : ""; return; } // irrelevant for this type — don't keep stale data
+
+    if (f.type === "multiText") {
+      const arr = getMultiTextValues(f.key);
+      if (f.required && arr.length === 0) missing.push(f.label);
+      values[f.key] = arr;
+      return;
+    }
+    if (f.type === "multiSelect") {
+      const arr = getMultiSelectValues(f.key);
+      if (f.required && arr.length === 0) missing.push(f.label);
+      values[f.key] = arr;
+      return;
+    }
+    if (f.type === "multiNumber") {
+      const arr = getMultiNumberValues(f.key);
+      if (f.required && arr.length === 0) missing.push(f.label);
+      values[f.key] = arr;
+      return;
+    }
+    if (f.type === "nodeList") {
+      const arr = getNodeListValues(f.key);
+      if (f.required && arr.length === 0) missing.push(f.label);
+      values[f.key] = arr;
+      return;
+    }
+    const v = f.type === "locationCascade" ? getCascadeLocationValue(f.key) : (document.getElementById("f_" + f.key)?.value.trim() || "");
+    if (f.required && !v) missing.push(f.label);
+    if (f.type === "ip" && v && !isValidIPv4(v)) invalid.push(`${f.label} must be a valid IP address (e.g. 192.168.1.10)`);
+    if (f.type === "mac" && v && !isValidMac(v)) invalid.push(`${f.label} must be a valid MAC address (e.g. aa:bb:cc:dd:ee:01)`);
+    values[f.key] = v;
+  });
+
+  return { values, missing, invalid };
+}
+
+async function saveForm() {
+  if (!state.editing || !tableWritable(state.editing.tableKey)) return;
+  const { tableKey, id } = state.editing;
+  const cfg = TABLES[tableKey];
+  const { values, missing, invalid } = collectFormValues(tableKey);
+  const errorBox = document.getElementById("formError");
+  errorBox.hidden = true;
+  errorBox.innerHTML = "";
+
+  if (missing.length) {
+    errorBox.innerHTML = `Please fill in: ${escapeHtml(missing.join(", "))}`;
+    errorBox.hidden = false;
+    return;
+  }
+  if (invalid.length) {
+    errorBox.innerHTML = invalid.map(escapeHtml).join("<br>");
+    errorBox.hidden = false;
+    return;
+  }
+
+  if (tableKey === "users") {
+    if (values.password) {
+      values.password = await sha256Hex(values.password);
+    } else if (!id) {
+      errorBox.innerHTML = "Please fill in: Password";
+      errorBox.hidden = false;
+      return;
+    } else {
+      delete values.password; // blank on edit means "keep the current password"
+    }
+  }
+
+  const conflicts = checkDuplicates(tableKey, values, id).concat(checkHardwareAssignment(tableKey, values, id));
+  if (tableKey === "clusters") conflicts.push(...validateNodes(values.nodes, id));
+  if (tableKey === "locations") conflicts.push(...validateLocation(values, id));
+  if (tableKey === "vlans") conflicts.push(...validateVlan(values));
+  if (conflicts.length) {
+    errorBox.innerHTML = conflicts.map(escapeHtml).join("<br>");
+    errorBox.hidden = false;
+    return;
+  }
+  if (tableKey === "clusters" && Array.isArray(values.nodes)) {
+    values.nodes = values.nodes.map(({ hardware_id_raw, ...rest }) => rest);
+  }
+  if (tableKey === "locations") {
+    values.parent_id = values.parent_site || values.parent_factory || values.parent_floor || null;
+    delete values.parent_site;
+    delete values.parent_factory;
+    delete values.parent_floor;
+  }
+  if (tableKey === "network_devices") {
+    // parent_site/parent_factory only drive the cascading dropdowns in the UI
+    // — the only value that actually gets persisted is location_id (the Floor).
+    delete values.parent_site;
+    delete values.parent_factory;
+  }
+  if (tableKey === "vlans" && values.vlan_id) {
+    values.vlan_id = Number(values.vlan_id);
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const arr = state.data[tableKey];
+
+  if (id) {
+    const rec = arr.find(r => r[cfg.idField] === id);
+    Object.assign(rec, values);
+    rec.updated_at = today;
+  } else {
+    const newId = generateId(cfg);
+    const rec = Object.assign({ [cfg.idField]: newId }, values, { created_at: today, updated_at: today });
+    arr.push(rec);
+  }
+
+  await persist(tableKey);
+  renderTable(tableKey);
+  closeForm();
+}
+
+/* ---------------- Wire up static controls ---------------- */
+document.getElementById("panelBody").addEventListener("click", (e) => {
+  const addBtn = e.target.closest(".multi-ip-add");
+  if (addBtn) {
+    e.preventDefault();
+    const list = document.getElementById(`f_${addBtn.dataset.key}_list`);
+    if (!list) return;
+    const row = document.createElement("div");
+    row.className = "multi-ip-row";
+    row.innerHTML = `<input type="text" class="multi-ip-input" data-key="${addBtn.dataset.key}" value="" placeholder="${addBtn.dataset.placeholder || ""}">
+      <button type="button" class="icon-btn multi-ip-remove" aria-label="Remove this IP">−</button>`;
+    list.appendChild(row);
+    row.querySelector("input").focus();
+    return;
+  }
+  const numberAddBtn = e.target.closest(".multi-number-add");
+  if (numberAddBtn) {
+    e.preventDefault();
+    const list = document.getElementById(`f_${numberAddBtn.dataset.key}_list`);
+    if (!list) return;
+    const row = document.createElement("div");
+    row.className = "multi-ip-row";
+    row.innerHTML = `<input type="number" class="multi-ip-input" data-key="${numberAddBtn.dataset.key}" value="" placeholder="${numberAddBtn.dataset.placeholder || ""}" min="0">
+      <button type="button" class="icon-btn multi-ip-remove" aria-label="Remove this entry">−</button>`;
+    list.appendChild(row);
+    row.querySelector("input").focus();
+    return;
+  }
+  const selectAddBtn = e.target.closest(".multi-select-add");
+  if (selectAddBtn) {
+    e.preventDefault();
+    const key = selectAddBtn.dataset.key;
+    const list = document.getElementById(`f_${key}_list`);
+    if (!list) return;
+    const cfg = TABLES[state.editing.tableKey];
+    const field = cfg.fields.find(f => f.key === key);
+    const opts = field && field.dynamicOptions ? field.dynamicOptions() : [];
+    const row = document.createElement("div");
+    row.className = "multi-ip-row";
+    row.innerHTML = `<select class="multi-select-input" data-key="${key}">
+        <option value="">-- Select --</option>
+        ${opts.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join("")}
+      </select>
+      <button type="button" class="icon-btn multi-ip-remove" aria-label="Remove this entry">−</button>`;
+    list.appendChild(row);
+    return;
+  }
+  const removeBtn = e.target.closest(".multi-ip-remove");
+  if (removeBtn) {
+    e.preventDefault();
+    const row = removeBtn.closest(".multi-ip-row");
+    if (row) row.remove();
+    return;
+  }
+
+  const nodeAddBtn = e.target.closest(".node-add");
+  if (nodeAddBtn) {
+    e.preventDefault();
+    const list = document.getElementById(`f_${nodeAddBtn.dataset.key}_list`);
+    if (!list) return;
+    const idx = list.querySelectorAll(".node-row").length;
+    const available = availableHardwareForNode(null);
+    const newNodeId = genNodeId();
+    const listId = `hwlist_${newNodeId}`;
+    const row = document.createElement("div");
+    row.className = "node-row";
+    row.dataset.nodeId = newNodeId;
+    row.innerHTML = `
+      <div class="node-row-header">
+        <span class="node-row-title">Host ${idx + 1}</span>
+        <button type="button" class="icon-btn node-remove" aria-label="Remove this Host">Remove</button>
+      </div>
+      <div class="node-field-grid">
+        <label class="node-field">
+          <span class="field-label">Hardware (S/N)</span>
+          <input type="text" class="node-input" data-node-key="hardware_id" list="${listId}" value="" placeholder="Type or pick a S/N" autocomplete="off">
+          <datalist id="${listId}">
+            ${available.map(h => `<option value="${escapeHtml(h.serial_number)}">${escapeHtml(hardwareLabelFor(h.hardware_id))}</option>`).join("")}
+          </datalist>
+        </label>
+        <label class="node-field">
+          <span class="field-label">Host name</span>
+          <input type="text" class="node-input" data-node-key="host_name" value="Host-${String(idx + 1).padStart(2, "0")}">
+        </label>
+        <label class="node-field">
+          <span class="field-label">IP Host</span>
+          <input type="text" class="node-input" data-node-key="ip_host" data-ip-field="1" value="" placeholder="e.g. 192.168.10.1">
+        </label>
+        <label class="node-field">
+          <span class="field-label">IP Management (iDRAC/iLO)</span>
+          <input type="text" class="node-input" data-node-key="ip_management" data-ip-field="1" value="" placeholder="e.g. 192.168.1.10">
+        </label>
+      </div>
+    `;
+    list.appendChild(row);
+    row.querySelectorAll('[data-ip-field="1"]').forEach(filterIpKeystroke);
+    return;
+  }
+
+  const nodeRemoveBtn = e.target.closest(".node-remove");
+  if (nodeRemoveBtn) {
+    e.preventDefault();
+    const row = nodeRemoveBtn.closest(".node-row");
+    const list = row ? row.parentElement : null;
+    if (row) row.remove();
+    if (list) {
+      Array.from(list.querySelectorAll(".node-row")).forEach((r, i) => {
+        r.querySelector(".node-row-title").textContent = `Host ${i + 1}`;
+      });
+    }
+  }
+});
+document.getElementById("nav").addEventListener("click", (e) => {
+  const btn = e.target.closest(".nav-item");
+  if (btn && btn.dataset.table) switchTable(btn.dataset.table);
+});
+document.getElementById("addBtn").addEventListener("click", () => openForm(state.activeTable, null));
+document.getElementById("closePanelBtn").addEventListener("click", closeForm);
+document.getElementById("cancelBtn").addEventListener("click", closeForm);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.getElementById("modalBackdrop").classList.contains("open")) closeForm();
+});
+document.getElementById("dataForm").addEventListener("submit", (e) => { e.preventDefault(); saveForm(); });
+
+/* ---------------- Init ---------------- */
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const username = document.getElementById("loginUser").value.trim();
+  const password = document.getElementById("loginPass").value;
+  const errBox = document.getElementById("loginError");
+  const u = state.data.users.find(u => u.username.toLowerCase() === username.toLowerCase());
+  const passwordHash = await sha256Hex(password);
+  if (!u || u.password !== passwordHash) { errBox.textContent = "Invalid username or password."; errBox.hidden = false; return; }
+  if (u.status !== "Active") { errBox.textContent = "This account is disabled."; errBox.hidden = false; return; }
+  errBox.hidden = true;
+  document.getElementById("loginPass").value = "";
+  state.session = { user_id: u.user_id, username: u.username, role: u.role, full_name: u.full_name };
+  saveSession();
+  showApp();
+});
+document.getElementById("logoutBtn").addEventListener("click", () => {
+  clearSession();
+  showLogin();
+});
+
+(async function init() {
+  await loadAll();
+  await loadServerRoles();
+  if (restoreSession()) showApp();
+  else showLogin();
+})();
+</script>
+</body>
+</html>

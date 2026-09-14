@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Database Connection Setup — Server Inventory</title>
+<style>
+  :root{
+    --bg:#F6F6F2; --surface:#FFFFFF; --accent:#2F6F5E; --accent-dark:#20493D;
+    --text:#1B1F23; --text-muted:#666B72; --border:#E1E1DC;
+    --danger:#B3261E; --danger-bg:#FBEAE9; --ok:#1F6B3A; --ok-bg:#EAF3EC;
+    --font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI","Leelawadee UI","Noto Sans Thai","Tahoma",sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:14px;line-height:1.5;display:flex;justify-content:center;padding:48px 16px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px 28px 24px;width:100%;max-width:480px;}
+  h1{font-size:19px;margin:0 0 4px;}
+  .sub{color:var(--text-muted);font-size:13px;margin:0 0 22px;}
+  fieldset{border:none;padding:0;margin:0 0 16px;}
+  legend{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);padding:0 0 8px;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+  .field label{font-size:12.5px;color:var(--text-muted);}
+  .field input, .field select{border:1px solid var(--border);border-radius:7px;padding:9px 10px;font-size:14px;width:100%;}
+  .field input:focus, .field select:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent);}
+  .radio-row{display:flex;gap:16px;margin-bottom:12px;}
+  .radio-row label{display:flex;align-items:center;gap:6px;font-size:13.5px;cursor:pointer;}
+  .hint{font-size:12px;color:var(--text-muted);margin:-8px 0 12px;}
+  button{background:var(--accent);color:#fff;border:none;padding:11px 16px;border-radius:8px;cursor:pointer;font-weight:500;font-size:14px;width:100%;}
+  button:hover{background:var(--accent-dark);}
+  button:disabled{opacity:0.6;cursor:not-allowed;}
+  .msg{border-radius:8px;padding:10px 12px;font-size:13px;margin-top:14px;display:none;}
+  .msg.error{background:var(--danger-bg);color:var(--danger);border:1px solid #EBC9C6;}
+  .msg.ok{background:var(--ok-bg);color:var(--ok);border:1px solid #BFDCC7;}
+  .msg.show{display:block;}
+  .current{background:#FAFAF7;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--text-muted);margin-bottom:18px;}
+  .current strong{color:var(--text);}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Database Connection Setup</h1>
+    <p class="sub">Connect Server Inventory to your SQL Server 2022/2025 database. This only needs to be done once per server.</p>
+
+    <div class="current" id="currentBox" hidden>
+      Currently connected to <strong id="currentServer"></strong> / <strong id="currentDb"></strong>
+    </div>
+
+    <form id="setupForm">
+      <fieldset>
+        <legend>Server</legend>
+        <div class="field">
+          <label for="server">Server name</label>
+          <input type="text" id="server" name="server" placeholder="e.g. SQL01\INSTANCE or 192.168.1.20,1433" required>
+        </div>
+        <div class="field">
+          <label for="database">Database</label>
+          <input type="text" id="database" name="database" placeholder="ServerInventory" value="ServerInventory" required>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Authentication</legend>
+        <div class="radio-row">
+          <label><input type="radio" name="auth" value="sql" checked> SQL Server Authentication</label>
+          <label><input type="radio" name="auth" value="windows"> Windows Authentication</label>
+        </div>
+        <div id="sqlAuthFields">
+          <div class="field">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" autocomplete="username">
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" autocomplete="current-password">
+          </div>
+        </div>
+        <p class="hint" id="windowsHint" hidden>Uses the Windows account this server process is running as (Trusted Connection). No username/password needed.</p>
+      </fieldset>
+
+      <button type="submit" id="submitBtn">Test connection &amp; Save</button>
+      <p class="msg" id="msgBox"></p>
+    </form>
+    <p style="text-align:center;margin:18px 0 0;font-size:13px;"><a href="index.html" style="color:var(--accent);text-decoration:none;">← Back to Inventory</a></p>
+  </div>
+
+<script>
+const authRadios = document.querySelectorAll('input[name="auth"]');
+const sqlAuthFields = document.getElementById("sqlAuthFields");
+const windowsHint = document.getElementById("windowsHint");
+authRadios.forEach(r => r.addEventListener("change", () => {
+  const isWindows = document.querySelector('input[name="auth"]:checked').value === "windows";
+  sqlAuthFields.hidden = isWindows;
+  windowsHint.hidden = !isWindows;
+}));
+
+async function loadCurrent() {
+  try {
+    const res = await fetch("/api/setup");
+    if (!res.ok) return;
+    const cfg = await res.json();
+    if (cfg && cfg.server) {
+      document.getElementById("currentServer").textContent = cfg.server;
+      document.getElementById("currentDb").textContent = cfg.database;
+      document.getElementById("currentBox").hidden = false;
+      document.getElementById("server").value = cfg.server;
+      document.getElementById("database").value = cfg.database;
+      if (cfg.auth === "windows") {
+        document.querySelector('input[name="auth"][value="windows"]').checked = true;
+        sqlAuthFields.hidden = true;
+        windowsHint.hidden = false;
+      } else {
+        document.getElementById("username").value = cfg.username || "";
+      }
+    }
+  } catch (e) { /* no existing config yet — fine */ }
+}
+loadCurrent();
+
+document.getElementById("setupForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const submitBtn = document.getElementById("submitBtn");
+  const msgBox = document.getElementById("msgBox");
+  const auth = document.querySelector('input[name="auth"]:checked').value;
+
+  const payload = {
+    server: document.getElementById("server").value.trim(),
+    database: document.getElementById("database").value.trim(),
+    auth,
+    username: auth === "sql" ? document.getElementById("username").value : "",
+    password: auth === "sql" ? document.getElementById("password").value : "",
+  };
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Testing connection...";
+  msgBox.className = "msg";
+
+  try {
+    const res = await fetch("/api/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (res.ok && body.ok) {
+      msgBox.textContent = "Connected and schema is ready. Redirecting...";
+      msgBox.className = "msg ok show";
+      setTimeout(() => { window.location.href = "/"; }, 900);
+    } else {
+      msgBox.textContent = body.error || "Connection failed.";
+      msgBox.className = "msg error show";
+    }
+  } catch (err) {
+    msgBox.textContent = "Request failed: " + err.message;
+    msgBox.className = "msg error show";
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Test connection & Save";
+  }
+});
+</script>
+</body>
+</html>
