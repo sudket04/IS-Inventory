@@ -636,6 +636,27 @@ CREATE TABLE dbo.app_kv (
 );
 GO
 
+/* ---------------------------------------------------------------------------
+   Id allocation for the relational API (routers/records.py, not wired into
+   index.html yet). One row per id prefix (HW, SRV, ...) — allocating a new
+   id is a single atomic UPDATE ... OUTPUT against the matching row, which
+   takes a row lock for the duration, so two concurrent inserts can never be
+   handed the same id. See db.next_id().
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.id_counters', 'U') IS NULL
+CREATE TABLE dbo.id_counters (
+    counter_key VARCHAR(20) NOT NULL PRIMARY KEY,   -- matches a table's id_prefix in table_registry.py
+    next_seq    INT         NOT NULL DEFAULT 0
+);
+GO
+INSERT INTO dbo.id_counters (counter_key, next_seq)
+SELECT v.counter_key, 0 FROM (VALUES
+    ('HW'),('CLU'),('SRV'),('LOC'),('VLA'),('NET'),('USR'),('PRM'),('AD'),
+    ('SWC'),('LIC'),('ALC')
+) v(counter_key)
+WHERE NOT EXISTS (SELECT 1 FROM dbo.id_counters c WHERE c.counter_key = v.counter_key);
+GO
+
 /* Helpful indexes */
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_locations_parent')
     CREATE INDEX IX_locations_parent ON dbo.locations(parent_id);

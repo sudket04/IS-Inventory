@@ -213,6 +213,10 @@
   .badge.status-Active{background:#EAF3EC;border-color:#BFDCC7;color:#1F6B3A;}
   .ro-note{color:var(--text-muted);font-size:12px;}
   .login-screen{position:fixed;inset:0;z-index:100;background:var(--sidebar);display:flex;align-items:center;justify-content:center;padding:20px;}
+  .boot-overlay{position:fixed;inset:0;z-index:200;background:var(--sidebar);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--sidebar-text);}
+  .boot-spinner{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,0.18);border-top-color:#fff;animation:boot-spin .8s linear infinite;}
+  .boot-overlay p{font-size:13px;color:var(--sidebar-text-dim);margin:0;}
+  @keyframes boot-spin{to{transform:rotate(360deg);}}
   .login-card{width:360px;max-width:100%;background:var(--surface);border-radius:14px;padding:30px 28px;box-shadow:0 24px 60px rgba(0,0,0,0.35);display:flex;flex-direction:column;gap:14px;}
   .login-brand{display:flex;gap:10px;align-items:center;margin-bottom:2px;}
   .login-brand-title{font-weight:600;font-size:15px;color:var(--text);}
@@ -411,6 +415,10 @@
   </main>
 </div>
 
+<div class="boot-overlay" id="bootOverlay">
+  <div class="boot-spinner"></div>
+  <p>Loading inventory…</p>
+</div>
 <div class="login-screen" id="loginScreen">
   <form class="login-card" id="loginForm">
     <div class="login-brand">
@@ -1827,17 +1835,23 @@ async function persistExtra(key) {
 }
 
 async function loadAll() {
+  // Fetch every table's blob in parallel rather than one round-trip at a
+  // time — with a real backend this turns ~12 sequential requests at boot
+  // into 1 batch, so it matters a lot once StorageAdapter isn't just hitting
+  // localStorage.
   let anyLoaded = false;
-  for (const key of Object.keys(TABLES)) {
-    const raw = await StorageAdapter.get(TABLES[key].storageKey);
+  const tableKeys = Object.keys(TABLES);
+  const tableResults = await Promise.all(tableKeys.map(key => StorageAdapter.get(TABLES[key].storageKey)));
+  tableKeys.forEach((key, i) => {
+    const raw = tableResults[i];
     if (raw) {
       try { state.data[key] = JSON.parse(raw); anyLoaded = true; } catch (e) { state.data[key] = []; }
     }
-  }
+  });
   if (!anyLoaded) {
     seedData();
     await seedUsers();
-    for (const key of Object.keys(TABLES)) await persist(key);
+    await Promise.all(tableKeys.map(key => persist(key)));
     await persistExtra("ad_memberships");
   }
   // Ensure a login account always exists (e.g. data seeded before accounts were added).
@@ -1845,10 +1859,12 @@ async function loadAll() {
     await seedUsers();
     await persist("users");
   }
-  for (const key of Object.keys(EXTRA_STORAGE)) {
-    const raw = await StorageAdapter.get(EXTRA_STORAGE[key]);
+  const extraKeys = Object.keys(EXTRA_STORAGE);
+  const extraResults = await Promise.all(extraKeys.map(key => StorageAdapter.get(EXTRA_STORAGE[key])));
+  extraKeys.forEach((key, i) => {
+    const raw = extraResults[i];
     if (raw) { try { state.data[key] = JSON.parse(raw); } catch (e) { state.data[key] = []; } }
-  }
+  });
 }
 
 /* ---------------- Change history + Recycle bin ---------------- */
@@ -3957,11 +3973,13 @@ function renderGlobalSearchResults(groups) {
   box.hidden = false;
 }
 const globalSearchInput = document.getElementById("globalSearchInput");
+let globalSearchDebounce = null;
 globalSearchInput.addEventListener("input", () => {
   const q = globalSearchInput.value;
   const results = document.getElementById("globalSearchResults");
-  if (!q.trim()) { results.hidden = true; return; }
-  renderGlobalSearchResults(performGlobalSearch(q));
+  if (!q.trim()) { results.hidden = true; clearTimeout(globalSearchDebounce); return; }
+  clearTimeout(globalSearchDebounce);
+  globalSearchDebounce = setTimeout(() => renderGlobalSearchResults(performGlobalSearch(q)), 150);
 });
 globalSearchInput.addEventListener("focus", () => {
   if (globalSearchInput.value.trim()) renderGlobalSearchResults(performGlobalSearch(globalSearchInput.value));
@@ -4006,6 +4024,7 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
   renderNav();
   await loadAll();
   await loadCatalogs();
+  document.getElementById("bootOverlay").hidden = true;
   if (restoreSession()) showApp();
   else showLogin();
 })();
