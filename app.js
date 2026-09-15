@@ -168,6 +168,9 @@ const LOOKUPS = {
 
   // AD Users (Permission Control)
   AdUserStatus: ["Enabled", "Disabled"],
+
+  // Server Permission — folder classification level
+  PermissionLevel: ["Section", "Top Secret", "Secret", "Confidential", "Special"],
 };
 
 /* Stack ID choices: ST001-ST100, generated rather than typed by hand. */
@@ -886,7 +889,7 @@ const TABLES = {
         dynamicOptions: () => state.data.servers.map(s => ({ value: s.server_id, label: s.system_name })) },
       { key: "folder_name", label: "Folder name", type: "text", required: true, group: "Folder" },
       { key: "folder_path", label: "Path", type: "text", placeholder: "e.g. \\\\FS-PROD-01\\Share\\Folder", group: "Folder" },
-      { key: "level", label: "Level", type: "text", placeholder: "e.g. Level 1", group: "Folder" },
+      { key: "level", label: "Level", type: "select", options: LOOKUPS.PermissionLevel, required: true, group: "Folder" },
       { key: "department", label: "Department", type: "text", group: "Folder" },
       { key: "rw_group", label: "AD group — Read/Write", type: "text", group: "Access" },
       { key: "ro_group", label: "AD group — Read only", type: "text", group: "Access" },
@@ -922,9 +925,6 @@ const TABLES = {
   },
 };
 
-/* Tables outside the standing Server/Network scope exception — these get the
-   cross-entity global search and per-record version history features. */
-const NON_SERVER_NETWORK_TABLES = ["locations", "server_permissions", "ad_users", "users"];
 
 /* ---------------- Uniqueness rules (duplicate checks) ---------------- */
 /* Each rule checks `key` for duplicates within the same table (optionally
@@ -1370,9 +1370,9 @@ function seedData() {
   ];
 
   state.data.server_permissions = [
-    { permission_id: "PRM-001", server_id: "SRV-001", folder_name: "Production Control", folder_path: "\\\\FS-PROD-01\\Share\\ProductionControl", level: "Level 1", department: "Production Control", rw_group: "Production Control_Modify", ro_group: "", quota_gb: 500, owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
-    { permission_id: "PRM-002", server_id: "SRV-001", folder_name: "PC Common", folder_path: "\\\\FS-PROD-01\\Share\\PC_Common", level: "Level 2", department: "Production Control", rw_group: "PC Common_Modify", ro_group: "All Staff_Read Only", quota_gb: 200, owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
-    { permission_id: "PRM-003", server_id: "SRV-002", folder_name: "IT Secret", folder_path: "\\\\FS-HQ-02\\Secret\\ITInfra", level: "Level 1", department: "IT Infrastructure", rw_group: "IT Secret_Modify", ro_group: "", quota_gb: 120, owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
+    { permission_id: "PRM-001", server_id: "SRV-001", folder_name: "Production Control", folder_path: "\\\\FS-PROD-01\\Share\\ProductionControl", level: "Confidential", department: "Production Control", rw_group: "Production Control_Modify", ro_group: "", quota_gb: 500, owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
+    { permission_id: "PRM-002", server_id: "SRV-001", folder_name: "PC Common", folder_path: "\\\\FS-PROD-01\\Share\\PC_Common", level: "Section", department: "Production Control", rw_group: "PC Common_Modify", ro_group: "All Staff_Read Only", quota_gb: 200, owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
+    { permission_id: "PRM-003", server_id: "SRV-002", folder_name: "IT Secret", folder_path: "\\\\FS-HQ-02\\Secret\\ITInfra", level: "Secret", department: "IT Infrastructure", rw_group: "IT Secret_Modify", ro_group: "", quota_gb: 120, owner: "IT Infrastructure", remarks: "-", created_at: today, updated_at: today },
   ];
 
   state.data.ad_users = [
@@ -2312,17 +2312,21 @@ function openColumnFilterPopup(tableKey, colKey, btnEl) {
   const popup = document.createElement("div");
   popup.className = "filter-popup";
   popup.innerHTML = `
+    <div class="filter-popup-search">
+      <input type="text" class="filter-popup-search-input" placeholder="Search values…" autocomplete="off">
+    </div>
     <div class="filter-popup-actions-top">
       <button type="button" class="link-btn" data-fp-action="selectAll">Select all</button>
       <button type="button" class="link-btn" data-fp-action="clearAll">Clear</button>
     </div>
     <div class="filter-popup-list">
       ${uniqueValues.map(v => `
-        <label class="filter-popup-item">
+        <label class="filter-popup-item" data-fp-value="${escapeHtml(v.toLowerCase())}">
           <input type="checkbox" value="${escapeHtml(v)}" ${(!currentAllowed || currentAllowed.has(v)) ? "checked" : ""}>
           <span>${escapeHtml(v)}</span>
         </label>
       `).join("")}
+      <p class="filter-popup-empty" hidden>No matching values.</p>
     </div>
     <div class="filter-popup-actions-bottom">
       <button type="button" class="ghost-btn" style="color:var(--text);border-color:var(--border);" data-fp-action="cancel">Cancel</button>
@@ -2336,13 +2340,31 @@ function openColumnFilterPopup(tableKey, colKey, btnEl) {
   popup.style.top = `${rect.bottom + 4}px`;
   popup.style.left = `${Math.min(Math.max(8, rect.right - popupWidth), window.innerWidth - popupWidth - 8)}px`;
 
+  const searchInput = popup.querySelector(".filter-popup-search-input");
+  searchInput.addEventListener("input", () => {
+    const q = searchInput.value.trim().toLowerCase();
+    const items = popup.querySelectorAll(".filter-popup-item");
+    let anyVisible = false;
+    items.forEach(item => {
+      const matches = !q || item.dataset.fpValue.includes(q);
+      item.hidden = !matches;
+      if (matches) anyVisible = true;
+    });
+    popup.querySelector(".filter-popup-empty").hidden = anyVisible;
+  });
+  searchInput.addEventListener("click", (e) => e.stopPropagation());
+  setTimeout(() => searchInput.focus(), 0);
+
   popup.addEventListener("click", (e) => {
     e.stopPropagation();
     const action = e.target.closest("[data-fp-action]")?.dataset.fpAction;
+    // Select all / Clear only ever touch the values the search box is
+    // currently showing — exactly how Excel's own filter dropdown behaves
+    // once you've typed something into its search box.
     if (action === "selectAll") {
-      popup.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+      popup.querySelectorAll('.filter-popup-item:not([hidden]) input[type="checkbox"]').forEach(cb => { cb.checked = true; });
     } else if (action === "clearAll") {
-      popup.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+      popup.querySelectorAll('.filter-popup-item:not([hidden]) input[type="checkbox"]').forEach(cb => { cb.checked = false; });
     } else if (action === "cancel") {
       closeFilterPopup();
     } else if (action === "apply") {
@@ -3123,8 +3145,7 @@ function closeForm() {
 
 /* ---------------- Per-record version history ----------------
    Reuses the existing audit_log — filtered to one record and numbered in
-   chronological order (oldest = version 1). Only offered on tables outside
-   the Server/Network scope exception; see NON_SERVER_NETWORK_TABLES. */
+   chronological order (oldest = version 1). Offered on every table. */
 function openHistoryPanel(tableKey, id) {
   const cfg = TABLES[tableKey];
   const record = state.data[tableKey].find(r => r[cfg.idField] === id);
@@ -3595,74 +3616,6 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && document.getElementById("renewModalBackdrop").classList.contains("open")) closeRenewModal();
 });
 document.getElementById("dataForm").addEventListener("submit", (e) => { e.preventDefault(); saveForm(); });
-
-/* ---------------- Global search ----------------
-   Deliberately excludes hardware/clusters/servers/network_devices/vlans —
-   the Server and Network menus are out of scope for this feature. */
-function globalSearchSubtitle(tableKey, record) {
-  switch (tableKey) {
-    case "locations": return record.level || "";
-    case "server_permissions": return serverNameFor(record.server_id);
-    case "ad_users": return record.department || record.job_title || "";
-    case "users": return record.role || "";
-    default: return "";
-  }
-}
-function performGlobalSearch(query) {
-  const q = query.trim().toLowerCase();
-  if (q.length < 2) return [];
-  const role = currentRole();
-  return NON_SERVER_NETWORK_TABLES
-    .filter(key => tableViewableAs(key, role))
-    .map(key => ({
-      key, label: TABLES[key].label,
-      rows: state.data[key].filter(r => JSON.stringify(r).toLowerCase().includes(q)).slice(0, 5),
-    }))
-    .filter(g => g.rows.length);
-}
-function renderGlobalSearchResults(groups) {
-  const box = document.getElementById("globalSearchResults");
-  if (!groups.length) {
-    box.innerHTML = `<p class="gs-empty">No matches.</p>`;
-    box.hidden = false;
-    return;
-  }
-  box.innerHTML = groups.map(g => `
-    <div class="gs-group-label">${escapeHtml(g.label)}</div>
-    ${g.rows.map(r => {
-      const id = r[TABLES[g.key].idField];
-      const sub = globalSearchSubtitle(g.key, r);
-      return `<button type="button" class="gs-item" data-table="${g.key}" data-id="${escapeHtml(id)}">${escapeHtml(recordDisplayName(g.key, r))}${sub ? `<span class="gs-item-sub">${escapeHtml(sub)}</span>` : ""}</button>`;
-    }).join("")}
-  `).join("");
-  box.hidden = false;
-}
-const globalSearchInput = document.getElementById("globalSearchInput");
-let globalSearchDebounce = null;
-globalSearchInput.addEventListener("input", () => {
-  const q = globalSearchInput.value;
-  const results = document.getElementById("globalSearchResults");
-  if (!q.trim()) { results.hidden = true; clearTimeout(globalSearchDebounce); return; }
-  clearTimeout(globalSearchDebounce);
-  globalSearchDebounce = setTimeout(() => renderGlobalSearchResults(performGlobalSearch(q)), 150);
-});
-globalSearchInput.addEventListener("focus", () => {
-  if (globalSearchInput.value.trim()) renderGlobalSearchResults(performGlobalSearch(globalSearchInput.value));
-});
-document.getElementById("globalSearchResults").addEventListener("click", (e) => {
-  const btn = e.target.closest(".gs-item");
-  if (!btn) return;
-  const { table, id } = btn.dataset;
-  document.getElementById("globalSearchResults").hidden = true;
-  globalSearchInput.value = "";
-  switchTable(table);
-  openForm(table, id);
-});
-document.addEventListener("click", (e) => {
-  if (!document.getElementById("globalSearch").contains(e.target)) {
-    document.getElementById("globalSearchResults").hidden = true;
-  }
-});
 
 /* ---------------- Init ---------------- */
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
