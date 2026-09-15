@@ -93,16 +93,25 @@ const StorageAdapter = (function () {
   async function get(key) {
     try {
       const res = await fetch("/api/data/" + encodeURIComponent(key));
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error("bad status " + res.status);
-      const body = await res.json();
-      return body.value;
+      if (res.ok) {
+        const body = await res.json();
+        return body.value;
+      }
+      // Falls through to the local mirror below for a 404 too, not just a
+      // thrown/network error — a 404 from a real backend saying "this key
+      // has no row in app_kv yet" and a 404 from there being NO backend at
+      // all (index.html opened via a plain static file server, or directly
+      // as a file, with no app.py running) are indistinguishable from here.
+      // Treating every 404 as authoritative "not found" used to make
+      // seedData() re-run and silently overwrite previously-saved data on
+      // every single page load whenever there was no backend — that's the
+      // exact bug behind "I added a record and after reloading it's gone".
     } catch (e) {
-      // No backend — fall back to the durable localStorage mirror, then memory.
-      const fromLs = lsGet(key);
-      if (fromLs !== undefined) return fromLs;
-      return Object.prototype.hasOwnProperty.call(memory, key) ? memory[key] : null;
+      // fetch itself failed (network/CORS) — definitely no backend reachable
     }
+    const fromLs = lsGet(key);
+    if (fromLs !== undefined) return fromLs;
+    return Object.prototype.hasOwnProperty.call(memory, key) ? memory[key] : null;
   }
   async function set(key, value) {
     memory[key] = value;   // in-memory mirror
@@ -287,6 +296,7 @@ const state = {
   data: {
     clusters: [], hardware: [], servers: [], locations: [], vlans: [], network_devices: [], users: [],
     server_permissions: [], ad_users: [],
+    software_catalogue: [], software_licenses: [], software_allocations: [],
     audit_log: [], recycle_bin: [], ad_memberships: [], record_versions: [],   // not TABLES-driven — see EXTRA_STORAGE / logChange / moveToRecycleBin
   },
   session: null,       // { user_id, username, role, full_name } once signed in
@@ -1351,6 +1361,14 @@ function seedData() {
     { membership_id: "MBR-004", ad_user_id: "AD-003", group_name: "PC Common_Modify", created_at: today, updated_at: today },
   ];
 
+  seedSoftwareData(today);
+}
+
+/* Split out from seedData() so it can also run on its own — as a one-time
+   migration for a browser whose localStorage predates the Software
+   Management tables (added after that browser's very first, one-time
+   seedData() run already happened; see the migration check in loadAll()). */
+function seedSoftwareData(today) {
   state.data.software_catalogue = [
     { software_id: "SWC-001", vendor: "VMware", name: "vSphere", edition: "Enterprise Plus", version: "8.x", category: "Virtualization", type: "Virtualization", deployment: "On-Premise", criticality: "Critical", status: "Active", description: "-", created_at: today, updated_at: today },
     { software_id: "SWC-002", vendor: "Microsoft", name: "SQL Server", edition: "Enterprise", version: "2022", category: "Database", type: "Database", deployment: "On-Premise", criticality: "Critical", status: "Active", description: "-", created_at: today, updated_at: today },
@@ -1412,6 +1430,14 @@ async function loadAll() {
   if (!state.data.users || !state.data.users.length) {
     await seedUsers();
     await persist("users");
+  }
+  // Same idea for a browser whose localStorage predates the Software
+  // Management tables entirely: anyLoaded was already true from the older
+  // tables, so the seedData() branch above never ran, and these three
+  // arrays would otherwise stay at their [] default forever.
+  if (!state.data.software_catalogue || !state.data.software_catalogue.length) {
+    seedSoftwareData(new Date().toISOString().slice(0, 10));
+    await Promise.all(["software_catalogue", "software_licenses", "software_allocations"].map(persist));
   }
   const extraKeys = Object.keys(EXTRA_STORAGE);
   const extraResults = await Promise.all(extraKeys.map(key => StorageAdapter.get(EXTRA_STORAGE[key])));
