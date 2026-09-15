@@ -417,74 +417,74 @@ CREATE TABLE dbo.network_devices (
 GO
 
 /* ---------------------------------------------------------------------------
-   Software catalogue
+   Software catalogue — modelled directly on the Software Management
+   prototype's own Catalogue page (see software_management_prototype.html):
+   vendor/edition/version/category/type/deployment/criticality/status are
+   all its fields, verbatim.
    --------------------------------------------------------------------------- */
 IF OBJECT_ID('dbo.software', 'U') IS NULL
 CREATE TABLE dbo.software (
-    software_id VARCHAR(20)   NOT NULL PRIMARY KEY,             -- e.g. SFW-001
-    name        NVARCHAR(120) NOT NULL,
-    vendor      NVARCHAR(120) NULL,
-    category    NVARCHAR(60)  NOT NULL,
-    version     NVARCHAR(60)  NULL,
-    install_type VARCHAR(20)  NOT NULL
-                CONSTRAINT CK_software_install CHECK (install_type IN ('On-Premise','Cloud','SaaS')),
-    status      VARCHAR(20)   NOT NULL
-                CONSTRAINT CK_software_status CHECK (status IN ('Active','Deprecated','EOL')),
-    eos_date    DATE          NULL,                            -- end of support
-    owner       NVARCHAR(120) NULL,
-    remarks     NVARCHAR(400) NULL,
-    created_at  DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
-    updated_at  DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    software_id   VARCHAR(20)   NOT NULL PRIMARY KEY,           -- e.g. SFW-001
+    vendor        NVARCHAR(120) NOT NULL,
+    name          NVARCHAR(120) NOT NULL,
+    edition       NVARCHAR(60)  NULL,
+    version       NVARCHAR(60)  NULL,
+    category      NVARCHAR(60)  NOT NULL,
+    software_type NVARCHAR(60)  NOT NULL,
+    deployment    VARCHAR(20)   NOT NULL
+                  CONSTRAINT CK_software_deploy CHECK (deployment IN ('On-Premise','Cloud','Hybrid')),
+    criticality   VARCHAR(10)   NOT NULL
+                  CONSTRAINT CK_software_critical CHECK (criticality IN ('Critical','High','Medium','Low')),
+    status        VARCHAR(20)   NOT NULL
+                  CONSTRAINT CK_software_status CHECK (status IN ('Active','Inactive','Retired')),
+    description   NVARCHAR(400) NULL,
+    created_at    DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    updated_at    DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT UQ_software_name UNIQUE (name)
 );
 GO
 
 /* ---------------------------------------------------------------------------
-   License control — status holds the manually-set states (Active/Suspended/
-   Terminated); Expiring Soon/Expired are computed by the app from
-   expiry_date on top of that, so they can never go stale.
+   License control — also modelled on the prototype's License Control page,
+   with two additions the prototype has no equivalent for (kept from this
+   app's own earlier design, per explicit requirement to keep them working):
+   1. status holds a manually-set Suspended/Terminated override — Expiring
+      Soon/Expired are still computed from expiry_date on top of that.
+   2. contract_no/expiry_date/cost are locked in the UI; only the "Renew"
+      action changes them, archiving the prior period into
+      dbo.license_renewals below (THB only, for cost audit).
+   software_id is required — every License must reference a Software
+   Catalogue entry, per the prototype's own design.
    --------------------------------------------------------------------------- */
 IF OBJECT_ID('dbo.licenses', 'U') IS NULL
 CREATE TABLE dbo.licenses (
     license_id      VARCHAR(20)   NOT NULL PRIMARY KEY,         -- e.g. LIC-001
-    software_id     VARCHAR(20)   NULL                          -- optional — a per-Cluster/Server MA may have no Software title
+    software_id     VARCHAR(20)   NOT NULL
                     CONSTRAINT FK_licenses_software REFERENCES dbo.software(software_id),
     license_type    VARCHAR(30)   NOT NULL
-                    CONSTRAINT CK_licenses_type CHECK (license_type IN ('Perpetual','Subscription','Maintenance Agreement (MA)','OEM','Open Source')),
-    license_metric  VARCHAR(20)   NOT NULL                      -- adopted from the Software Management prototype's richer metric list
+                    CONSTRAINT CK_licenses_type CHECK (license_type IN ('Perpetual','Subscription','OEM','Volume License','Enterprise Agreement','Trial','Maintenance Agreement (MA)')),
+    license_metric  VARCHAR(20)   NOT NULL
                     CONSTRAINT CK_licenses_metric CHECK (license_metric IN ('Per Core','Per CPU','Per Socket','Per User','Per Device','Per VM','Per Host','Per Workload','Per TB','Server + CAL','Per Installation','Unlimited')),
-    status          VARCHAR(20)   NOT NULL DEFAULT 'Active'
-                    CONSTRAINT CK_licenses_status CHECK (status IN ('Active','Suspended','Terminated')),
     license_key     NVARCHAR(200) NULL,
-    seats_total     INT           NOT NULL DEFAULT 0,
-    seats_used      INT           NOT NULL DEFAULT 0,          -- manual fallback only; once dbo.license_allocations has rows for this license, the app treats seats_used as SUM(license_allocations.quantity) instead
+    status          VARCHAR(20)   NOT NULL DEFAULT 'Active'      -- manual override — see header comment
+                    CONSTRAINT CK_licenses_status CHECK (status IN ('Active','Suspended','Terminated')),
+    seats_total     INT           NOT NULL DEFAULT 0,            -- "Purchased Quantity" in the prototype
+    unit            NVARCHAR(30)  NULL,                         -- e.g. Core / User / Workload
     purchase_date   DATE          NULL,
+    start_date      DATE          NULL,
     -- Current period — locked in the UI, only the "Renew" action changes
     -- these; every past period is archived in dbo.license_renewals below.
-    agreement_no    NVARCHAR(60)  NULL,
+    contract_no     NVARCHAR(60)  NULL,
     expiry_date     DATE          NULL,
     cost            DECIMAL(12,2) NULL,                        -- THB only
-    vendor_contact  NVARCHAR(200) NULL,
+    po_no           NVARCHAR(60)  NULL,
+    invoice_no      NVARCHAR(60)  NULL,
+    auto_renewal    VARCHAR(3)    NULL
+                    CONSTRAINT CK_licenses_autorenew CHECK (auto_renewal IN ('Yes','No')),
+    owner           NVARCHAR(120) NULL,
     remarks         NVARCHAR(400) NULL,
     created_at      DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
     updated_at      DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME()
-    -- Must be anchored to something: software_id set, or at least one row in
-    -- dbo.license_linked_assets below — enforced in the API/app layer, since
-    -- a CHECK constraint here can't see another table's rows.
-);
-GO
-
-/* A License/MA can link directly to one or more Cluster/Server records
-   (e.g. a per-cluster VMware vCenter subscription with no separate
-   "software title" concept in this register). */
-IF OBJECT_ID('dbo.license_linked_assets', 'U') IS NULL
-CREATE TABLE dbo.license_linked_assets (
-    license_id VARCHAR(20) NOT NULL
-               CONSTRAINT FK_licasset_license REFERENCES dbo.licenses(license_id) ON DELETE CASCADE,
-    asset_type VARCHAR(10) NOT NULL
-               CONSTRAINT CK_licasset_type CHECK (asset_type IN ('cluster','server')),
-    asset_id   VARCHAR(20) NOT NULL,
-    CONSTRAINT PK_license_linked_assets PRIMARY KEY (license_id, asset_type, asset_id)
 );
 GO
 
@@ -506,23 +506,26 @@ CREATE TABLE dbo.license_renewals (
 );
 GO
 
-/* License Allocation — adopted from the Software Management prototype:
-   splits a License's purchased seats (seats_total) across the real
-   Cluster/Server target(s) actually consuming them, each with its own
-   quantity. The app sums these per license_id to get an always-accurate
-   seats_used instead of trusting a manually-typed number (see the comment
-   on dbo.licenses.seats_used above). The app-layer "don't over-allocate"
-   check (SUM(quantity) for a license <= that license's seats_total) is
-   enforced the same way as the licenses anchor rule — in the API/app layer,
-   since a CHECK constraint can't sum sibling rows or read another table. */
+/* License Allocation — modelled on the prototype's own Allocation page:
+   splits a License's purchased quantity (seats_total) across the real
+   target(s) actually consuming it, each with its own quantity/unit/
+   environment. The app sums these per license_id to get an always-accurate
+   "seats used" instead of a manually-typed number.
+   target_type follows the prototype's own list (Physical Server/Virtual
+   Machine/Device/User/Workload/Site); target_id resolves to a real row in
+   dbo.servers/network_devices/ad_users/locations for every type except
+   Workload, which has no backing master table and is stored as free text.
+   The app-layer "don't over-allocate" check (SUM(quantity) for a license
+   <= that license's seats_total) is enforced in the API/app layer, since a
+   CHECK constraint can't sum sibling rows. */
 IF OBJECT_ID('dbo.license_allocations', 'U') IS NULL
 CREATE TABLE dbo.license_allocations (
     allocation_id VARCHAR(20)   NOT NULL PRIMARY KEY,           -- e.g. ALC-001
     license_id    VARCHAR(20)   NOT NULL
                   CONSTRAINT FK_licalloc_license REFERENCES dbo.licenses(license_id) ON DELETE CASCADE,
-    target_type   VARCHAR(10)   NOT NULL
-                  CONSTRAINT CK_licalloc_targettype CHECK (target_type IN ('cluster','server')),
-    target_id     VARCHAR(20)   NOT NULL,
+    target_type   VARCHAR(20)   NOT NULL
+                  CONSTRAINT CK_licalloc_targettype CHECK (target_type IN ('Physical Server','Virtual Machine','Device','User','Workload','Site')),
+    target_id     NVARCHAR(60)  NOT NULL,                       -- a real id, or free text when target_type = 'Workload'
     quantity      INT           NOT NULL,
     unit          NVARCHAR(30)  NULL,                          -- e.g. Core / User / Workload
     environment   VARCHAR(20)   NOT NULL
@@ -704,8 +707,6 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_hwrenew_hardware')
     CREATE INDEX IX_hwrenew_hardware ON dbo.hardware_ma_renewals(hardware_id, renewed_at DESC);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_licrenew_license')
     CREATE INDEX IX_licrenew_license ON dbo.license_renewals(license_id, renewed_at DESC);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_licasset_asset')
-    CREATE INDEX IX_licasset_asset ON dbo.license_linked_assets(asset_type, asset_id);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_licalloc_license')
     CREATE INDEX IX_licalloc_license ON dbo.license_allocations(license_id);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_licalloc_target')
