@@ -706,13 +706,14 @@ const TABLES = {
       { key: "firewall_zone", label: "Firewall Zone", type: "select", options: LOOKUPS.NetworkZone, group: "Routing" },
       { key: "routing", label: "Routing", type: "text", placeholder: "e.g. Core → Firewall", group: "Routing" },
 
-      { key: "dhcp_enabled", label: "DHCP", type: "select", options: LOOKUPS.DhcpEnabled, required: true, group: "DHCP" },
+      { key: "dhcp_enabled", label: "DHCP", type: "select", options: LOOKUPS.DhcpEnabled, required: true, default: "No", group: "DHCP" },
       { key: "dhcp_server", label: "DHCP Server", type: "ip", group: "DHCP" },
-      { key: "dhcp_start", label: "DHCP Start", type: "ip", placeholder: "e.g. 10.10.10.100", group: "DHCP" },
-      { key: "dhcp_end", label: "DHCP End", type: "ip", placeholder: "e.g. 10.10.10.200", group: "DHCP" },
+      { key: "dhcp_start", label: "DHCP usable start (auto)", type: "ip", locked: true, group: "DHCP" },
+      { key: "dhcp_end", label: "DHCP usable end (auto)", type: "ip", locked: true, group: "DHCP" },
 
       { key: "static_start", label: "Static IP Range — Start", type: "ip", placeholder: "e.g. 10.10.10.2", group: "Static IP Range" },
       { key: "static_end", label: "Static IP Range — End", type: "ip", placeholder: "e.g. 10.10.10.99", group: "Static IP Range" },
+      { key: "static_usable", label: "Static IP usable (auto)", type: "derivedText", dependsLabel: "Static Start / End", group: "Static IP Range" },
     ],
   },
 
@@ -1139,13 +1140,13 @@ function checkDuplicates(tableKey, values, excludeId) {
   rules.forEach(rule => {
     const discVal = cfg.discriminatorKey ? values[cfg.discriminatorKey] : null;
     if (rule.onlyFor && discVal !== rule.onlyFor) return; // rule doesn't apply to this record's type
-    const val = (values[rule.key] || "").trim();
+    const val = String(values[rule.key] || "").trim();
     if (!val) return; // don't flag empty optional fields
 
     const dupSelf = state.data[tableKey].some(r => {
       if (r[cfg.idField] === excludeId) return false;
       if (rule.onlyFor && cfg.discriminatorKey && r[cfg.discriminatorKey] !== rule.onlyFor) return false;
-      return (r[rule.key] || "").trim().toLowerCase() === val.toLowerCase();
+      return String(r[rule.key] || "").trim().toLowerCase() === val.toLowerCase();
     });
 
     let dupCross = false;
@@ -1154,7 +1155,7 @@ function checkDuplicates(tableKey, values, excludeId) {
       const otherCfg = TABLES[cc.table];
       dupCross = state.data[cc.table].some(r => {
         if (cc.onlyFor && otherCfg.discriminatorKey && r[otherCfg.discriminatorKey] !== cc.onlyFor) return false;
-        return (r[rule.key] || "").trim().toLowerCase() === val.toLowerCase();
+        return String(r[rule.key] || "").trim().toLowerCase() === val.toLowerCase();
       });
     });
 
@@ -1191,7 +1192,8 @@ function validateVlan(values) {
   checkInSubnet("Static IP Range End", static_end);
 
   if (dhcp_enabled === "Yes") {
-    if (!dhcp_start || !dhcp_end) errors.push("DHCP Start and DHCP End are required when DHCP is enabled");
+    if (!dhcp_server) errors.push("DHCP Server is required when DHCP is enabled");
+    if (!dhcp_start || !dhcp_end) errors.push("The subnet has no room left for a DHCP range once the Gateway/Static IP range are excluded");
     else if (ipToInt(dhcp_start) > ipToInt(dhcp_end)) errors.push("DHCP Start must come before DHCP End");
   }
   if (static_start && static_end && ipToInt(static_start) > ipToInt(static_end)) {
@@ -1730,6 +1732,15 @@ function wireIpOctetGroups(scopeEl) {
       });
     });
   });
+}
+
+function setIpFieldValue(key, dotted) {
+  const hidden = document.getElementById("f_" + key);
+  if (hidden) hidden.value = dotted || "";
+  const octets = String(dotted || "").split(".");
+  const group = hidden ? hidden.closest(".ip-input-group") : null;
+  if (!group) return;
+  group.querySelectorAll(".ip-octet").forEach((el, i) => { el.value = octets[i] || ""; });
 }
 
 /* Warranty expiry (hardware & network devices) is never typed directly —
@@ -2809,15 +2820,16 @@ function fieldBlock(field, value) {
   } else if (field.type === "ip") {
     const octets = String(value || "").split(".");
     const seg = i => escapeHtml((octets[i] || "").replace(/\D/g, ""));
+    const lockedAttr = field.locked ? "readonly" : "";
     control = `<span class="ip-input-group">
       <input type="hidden" id="${id}" data-key="${field.key}" value="${escapeHtml(value || "")}">
-      <input type="text" class="ip-octet" inputmode="numeric" maxlength="3" value="${seg(0)}" aria-label="${escapeHtml(field.label)} octet 1">
+      <input type="text" class="ip-octet" inputmode="numeric" maxlength="3" value="${seg(0)}" aria-label="${escapeHtml(field.label)} octet 1" ${lockedAttr}>
       <span class="ip-dot">.</span>
-      <input type="text" class="ip-octet" inputmode="numeric" maxlength="3" value="${seg(1)}" aria-label="${escapeHtml(field.label)} octet 2">
+      <input type="text" class="ip-octet" inputmode="numeric" maxlength="3" value="${seg(1)}" aria-label="${escapeHtml(field.label)} octet 2" ${lockedAttr}>
       <span class="ip-dot">.</span>
-      <input type="text" class="ip-octet" inputmode="numeric" maxlength="3" value="${seg(2)}" aria-label="${escapeHtml(field.label)} octet 3">
+      <input type="text" class="ip-octet" inputmode="numeric" maxlength="3" value="${seg(2)}" aria-label="${escapeHtml(field.label)} octet 3" ${lockedAttr}>
       <span class="ip-dot">.</span>
-      <input type="text" class="ip-octet" inputmode="numeric" maxlength="3" value="${seg(3)}" aria-label="${escapeHtml(field.label)} octet 4">
+      <input type="text" class="ip-octet" inputmode="numeric" maxlength="3" value="${seg(3)}" aria-label="${escapeHtml(field.label)} octet 4" ${lockedAttr}>
     </span>`;
   } else if (field.type === "mac") {
     control = `<input type="text" id="${id}" data-key="${field.key}" data-mac-field="1" value="${escapeHtml(value || "")}" placeholder="${escapeHtml(field.placeholder || "e.g. aa:bb:cc:dd:ee:01")}" ${field.required ? "required" : ""}>`;
@@ -3055,6 +3067,69 @@ function wireVlanAutoCalc() {
   recalc();
 }
 
+/* VLAN form: the DHCP Server/Start/End fields are hidden until DHCP is
+   enabled. DHCP Start/End are never typed — they're the subnet's usable
+   range minus the Gateway and minus the Static IP range (if one was
+   entered); with no Static range, DHCP simply gets the full usable range. */
+function wireVlanDhcpCascade() {
+  if (!state.editing || state.editing.tableKey !== "vlans") return;
+  const dhcpSel = document.getElementById("f_dhcp_enabled");
+  const netEl = document.getElementById("f_network_address");
+  const maskEl = document.getElementById("f_subnet_mask");
+  const gatewayEl = document.getElementById("f_gateway");
+  const staticStartEl = document.getElementById("f_static_start");
+  const staticEndEl = document.getElementById("f_static_end");
+  const staticUsableEl = document.getElementById("f_static_usable");
+  if (!dhcpSel || !netEl || !maskEl) return;
+
+  const dhcpServerRow = document.getElementById("f_dhcp_server")?.closest(".field");
+  const dhcpStartRow = document.getElementById("f_dhcp_start")?.closest(".field");
+  const dhcpEndRow = document.getElementById("f_dhcp_end")?.closest(".field");
+
+  function recalcDhcpRange() {
+    const range = subnetRangeFor(netEl.value.trim(), maskEl.value.trim());
+    if (!range) { setIpFieldValue("dhcp_start", ""); setIpFieldValue("dhcp_end", ""); return; }
+    let startInt = range.firstUsable;
+    const gatewayIp = (gatewayEl?.value || "").trim();
+    if (gatewayIp && ipToInt(gatewayIp) === startInt) startInt += 1;
+    const staticStart = (staticStartEl?.value || "").trim();
+    const staticEndInt = ipToInt((staticEndEl?.value || "").trim());
+    if (staticStart && !Number.isNaN(staticEndInt) && staticEndInt >= startInt) startInt = staticEndInt + 1;
+    const endInt = range.lastUsable;
+    const valid = startInt <= endInt;
+    setIpFieldValue("dhcp_start", valid ? intToIp(startInt) : "");
+    setIpFieldValue("dhcp_end", valid ? intToIp(endInt) : "");
+  }
+
+  function recalcStaticUsable() {
+    if (!staticUsableEl) return;
+    const s = (staticStartEl?.value || "").trim();
+    const e = (staticEndEl?.value || "").trim();
+    const sInt = ipToInt(s), eInt = ipToInt(e);
+    staticUsableEl.value = (s && e && !Number.isNaN(sInt) && !Number.isNaN(eInt) && sInt <= eInt)
+      ? `${s}–${e} (${eInt - sInt + 1} addresses)` : "";
+  }
+
+  function syncVisibility() {
+    const isYes = dhcpSel.value === "Yes";
+    if (dhcpServerRow) dhcpServerRow.hidden = !isYes;
+    if (dhcpStartRow) dhcpStartRow.hidden = !isYes;
+    if (dhcpEndRow) dhcpEndRow.hidden = !isYes;
+  }
+
+  function recalcAll() { recalcDhcpRange(); recalcStaticUsable(); }
+
+  dhcpSel.addEventListener("change", () => { syncVisibility(); recalcAll(); });
+  netEl.addEventListener("input", recalcAll);
+  maskEl.addEventListener("input", recalcAll);
+  gatewayEl?.addEventListener("input", recalcAll);
+  staticStartEl?.addEventListener("input", recalcAll);
+  staticEndEl?.addEventListener("input", recalcAll);
+
+  syncVisibility();
+  recalcAll();
+}
+
 /* Network Device form: Sub-category options depend on the chosen Category. */
 function wireNetworkDeviceCategoryCascade() {
   if (!state.editing || state.editing.tableKey !== "network_devices") return;
@@ -3169,6 +3244,7 @@ function attachDynamicHandlers() {
   wireNetworkDeviceLocationCascade();
   wireNetworkDeviceCategoryCascade();
   wireVlanAutoCalc();
+  wireVlanDhcpCascade();
   wireHardwareStorageUnitCascade();
   wireOsCascade();
   wireNetworkStackCascade();
