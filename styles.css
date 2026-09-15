@@ -43,10 +43,28 @@
   /* Main */
   .main{flex:1;min-width:0;padding:0 32px 28px;display:flex;flex-direction:column;gap:18px;}
   .topbar{position:sticky;top:0;z-index:15;background:var(--bg);padding:28px 0 18px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;}
+  .topbar-head{display:flex;align-items:center;gap:12px;}
   .topbar h1{margin:0;font-size:20px;font-weight:600;}
   .muted{color:var(--text-muted);font-size:12.5px;margin:4px 0 0;}
   .primary-btn{background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:500;font-size:13.5px;}
   .primary-btn:hover{background:var(--accent-dark);}
+
+  /* Mobile sidebar drawer toggle (hidden on desktop) */
+  .hamburger-btn{display:none;flex-shrink:0;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;width:36px;height:36px;padding:0;cursor:pointer;color:var(--text);}
+  .hamburger-btn:hover{background:#EFEFEA;}
+  .sidebar-backdrop[hidden]{display:none;}
+
+  /* User menu (top-right, every screen size) */
+  .user-menu{position:relative;}
+  .user-menu-trigger{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:5px 12px 5px 5px;cursor:pointer;color:var(--text);}
+  .user-menu-trigger:hover{background:#EFEFEA;}
+  .user-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;letter-spacing:0.02em;}
+  .user-menu-info{display:flex;flex-direction:column;align-items:flex-start;line-height:1.25;}
+  .user-menu-caret{color:var(--text-muted);transition:transform .15s;flex-shrink:0;}
+  .user-menu.open .user-menu-caret{transform:rotate(180deg);}
+  .user-menu-panel{position:absolute;top:calc(100% + 8px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(15,17,20,0.16);min-width:150px;z-index:30;padding:6px;}
+  .user-menu-logout{display:flex;align-items:center;gap:8px;width:100%;background:transparent;border:none;color:var(--danger);padding:8px 10px;border-radius:7px;cursor:pointer;font-size:13px;text-align:left;}
+  .user-menu-logout:hover{background:var(--danger-bg);}
 
   .workspace{display:grid;grid-template-columns:1fr;gap:20px;align-items:start;}
 
@@ -54,7 +72,23 @@
   .filter-bar{display:flex;gap:6px;padding:12px 14px 0;flex-wrap:wrap;}
   .filter-chip{background:#F2F2EE;border:1px solid var(--border);color:var(--text-muted);padding:6px 12px;border-radius:99px;font-size:12.5px;cursor:pointer;}
   .filter-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;}
-  .table-scroll{overflow:auto;max-width:100%;max-height:calc(100vh - 240px);}
+  /* Scroll-shadow hint: a soft shadow fades in on whichever edge still has
+     more columns to scroll to, and disappears once you've scrolled all the
+     way there — pure CSS (two pairs of gradients, one pinned to the content
+     via `local` so it scrolls away, one pinned to the viewport via `scroll`
+     so it reappears), no JS needed. Makes it obvious on a narrow screen
+     that a table has more columns than currently visible. */
+  .table-scroll{
+    overflow:auto;max-width:100%;max-height:calc(100vh - 240px);
+    background:
+      linear-gradient(to right, var(--surface) 30%, rgba(255,255,255,0)) 0 0,
+      linear-gradient(to right, rgba(255,255,255,0), var(--surface) 70%) 100% 0,
+      linear-gradient(to right, rgba(20,24,30,0.10), rgba(20,24,30,0)) 0 0,
+      linear-gradient(to right, rgba(20,24,30,0), rgba(20,24,30,0.10)) 100% 0;
+    background-repeat:no-repeat;
+    background-size:24px 100%, 24px 100%, 10px 100%, 10px 100%;
+    background-attachment:local, local, scroll, scroll;
+  }
   table{border-collapse:collapse;width:100%;min-width:640px;}
   thead th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);background:#FAFAF7;padding:0;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:2;}
   .th-inner{display:flex;align-items:center;gap:4px;padding:10px 8px 10px 14px;}
@@ -194,8 +228,6 @@
   .history-version{font-weight:600;font-size:13px;color:var(--text-muted);}
   .history-when{font-size:12.5px;color:var(--text-muted);}
   .history-entry-by{font-size:12.5px;color:var(--text-muted);margin-top:2px;}
-  .user-chip{display:flex;align-items:center;gap:10px;}
-  .user-chip-info{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25;}
   .user-chip-name{font-size:13px;font-weight:600;color:var(--text);}
   .user-chip-role{font-size:11px;color:var(--text-muted);}
   .nav-link{text-decoration:none;display:block;}
@@ -224,13 +256,22 @@
   .login-hint{font-size:12px;color:var(--text-muted);text-align:center;margin:2px 0 0;}
 
   @media (max-width:880px){
-    .app{flex-direction:column;}
-    .sidebar{width:100%;height:auto;flex-direction:row;align-items:center;padding:14px 16px;top:0;z-index:20;overflow-y:visible;}
-    .brand{margin-bottom:0;}
-    .nav{flex-direction:row;margin-bottom:0;margin-left:16px;flex-wrap:wrap;}
-    .nav-section{flex-direction:row;margin-bottom:0;align-items:center;gap:4px;}
-    .nav-section-title{padding:4px 6px;}
-    .topbar{top:0;}
+    /* Sidebar becomes an off-canvas drawer instead of squeezing into a
+       horizontal, wrapping nav bar — that used to overlap the page content
+       and made the nav nearly unusable on a phone-width screen. */
+    .hamburger-btn{display:flex;}
+    .sidebar{
+      position:fixed; top:0; left:0; height:100vh; width:270px; max-width:82vw;
+      transform:translateX(-100%); transition:transform .2s ease; z-index:50;
+      box-shadow:2px 0 24px rgba(0,0,0,0.25);
+    }
+    .sidebar.open{transform:translateX(0);}
+    .sidebar-backdrop{position:fixed;inset:0;background:rgba(10,14,20,0.45);z-index:40;}
+    .main{padding:0 16px 24px;}
+    .topbar{flex-direction:column;align-items:stretch;padding:16px 0 14px;gap:12px;}
+    .topbar-title h1{font-size:18px;}
+    .global-search{order:2;width:100%;max-width:none;flex-basis:auto;}
+    .topbar-actions{order:3;justify-content:space-between;}
     .table-scroll{max-height:calc(100vh - 320px);}
     .modal-backdrop{padding:0;}
     .panel{width:100%;height:100%;max-height:100%;border-radius:0;}

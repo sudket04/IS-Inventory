@@ -1747,12 +1747,22 @@ function restoreSession() {
   } catch (e) { return false; }
 }
 
+/* "Administrator" -> "AD", "Somchai Pattana" -> "SP" — a short, stable
+   fallback avatar when there's no photo to show. */
+function initialsFor(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 function updateUserChip() {
   const chip = document.getElementById("userChip");
   if (!state.session) { chip.hidden = true; return; }
   chip.hidden = false;
-  document.getElementById("userChipName").textContent = state.session.full_name || state.session.username;
+  const name = state.session.full_name || state.session.username;
+  document.getElementById("userChipName").textContent = name;
   document.getElementById("userChipRole").textContent = state.session.role;
+  document.getElementById("userAvatar").textContent = initialsFor(name);
 }
 
 const PERMISSION_ONLY_TABLES = ["permission_dashboard", "access_check", "ad_users", "server_permissions"];
@@ -3504,6 +3514,43 @@ document.getElementById("panelBody").addEventListener("change", (e) => {
 document.getElementById("nav").addEventListener("click", (e) => {
   const btn = e.target.closest(".nav-item");
   if (btn && btn.dataset.table) switchTable(btn.dataset.table);
+  closeSidebarDrawer(); // no-op on desktop; on mobile a nav pick should close the drawer
+});
+
+/* ---------------- Mobile sidebar drawer ---------------- */
+function openSidebarDrawer() {
+  document.getElementById("sidebar").classList.add("open");
+  document.getElementById("sidebarBackdrop").hidden = false;
+  document.getElementById("hamburgerBtn").setAttribute("aria-expanded", "true");
+}
+function closeSidebarDrawer() {
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("sidebarBackdrop").hidden = true;
+  document.getElementById("hamburgerBtn").setAttribute("aria-expanded", "false");
+}
+document.getElementById("hamburgerBtn").addEventListener("click", () => {
+  const sidebar = document.getElementById("sidebar");
+  if (sidebar.classList.contains("open")) closeSidebarDrawer();
+  else openSidebarDrawer();
+});
+document.getElementById("sidebarBackdrop").addEventListener("click", closeSidebarDrawer);
+
+/* ---------------- User menu (top-right) ---------------- */
+document.getElementById("userMenuTrigger").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const menu = document.getElementById("userChip");
+  const panel = document.getElementById("userMenuPanel");
+  const willOpen = panel.hidden;
+  panel.hidden = !willOpen;
+  menu.classList.toggle("open", willOpen);
+  document.getElementById("userMenuTrigger").setAttribute("aria-expanded", String(willOpen));
+});
+document.addEventListener("click", (e) => {
+  const menu = document.getElementById("userChip");
+  if (!menu.contains(e.target)) {
+    document.getElementById("userMenuPanel").hidden = true;
+    menu.classList.remove("open");
+  }
 });
 document.getElementById("customView").addEventListener("change", (e) => {
   if (state.activeTable !== "access_check") return;
