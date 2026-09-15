@@ -2386,8 +2386,14 @@ function mountSoftwarePrototypeIframe(internalPage) {
       } catch (e) { /* cross-origin fallback: prototype still shows its own default page */ }
     });
   }
-  iframe.srcdoc = atob(SOFTWARE_PROTOTYPE_HTML_B64);
+  iframe.srcdoc = decodeUtf8Base64(SOFTWARE_PROTOTYPE_HTML_B64);
   host.appendChild(iframe);
+}
+function decodeUtf8Base64(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder("utf-8").decode(bytes);
 }
 
 const CUSTOM_VIEWS = {
