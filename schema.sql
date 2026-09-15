@@ -417,12 +417,77 @@ CREATE TABLE dbo.network_devices (
 GO
 
 /* ---------------------------------------------------------------------------
-   Software Management has no tables of its own here — the whole feature is
-   now software_management_prototype.html lifted wholesale into index.html
-   (base64-embedded, run through a data: URI iframe), which keeps its own
-   in-memory JS arrays as its only "storage" and is not persisted to this
-   database at all.
+   Software Management — Catalogue is the master list; License Control holds
+   quantity/metric/expiry/contract detail against a Catalogue entry; License
+   Allocation binds a License to whatever is actually using it (server, VM,
+   device, user, workload, or site). "Used" quantity is always computed as
+   SUM(software_allocations.quantity) for the license, never stored, so it
+   can't drift out of sync with the allocations that back it.
    --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.software_catalogue', 'U') IS NULL
+CREATE TABLE dbo.software_catalogue (
+    software_id  VARCHAR(20)   NOT NULL PRIMARY KEY,            -- e.g. SWC-001
+    vendor       NVARCHAR(120) NOT NULL,
+    name         NVARCHAR(150) NOT NULL,
+    edition      NVARCHAR(80)  NULL,
+    version      NVARCHAR(40)  NULL,
+    category     NVARCHAR(80)  NOT NULL,                        -- catalog_values: software_category
+    type         NVARCHAR(80)  NOT NULL,                        -- catalog_values: software_type
+    deployment   VARCHAR(20)   NOT NULL DEFAULT 'On-Premise'
+                 CONSTRAINT CK_swcat_deploy CHECK (deployment IN ('On-Premise','Cloud','Hybrid')),
+    criticality  VARCHAR(10)   NOT NULL DEFAULT 'Medium'
+                 CONSTRAINT CK_swcat_critical CHECK (criticality IN ('Critical','High','Medium','Low')),
+    status       VARCHAR(10)   NOT NULL DEFAULT 'Active'
+                 CONSTRAINT CK_swcat_status CHECK (status IN ('Active','Inactive','Retired')),
+    description  NVARCHAR(500) NULL,
+    created_at   DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    updated_at   DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+IF OBJECT_ID('dbo.software_licenses', 'U') IS NULL
+CREATE TABLE dbo.software_licenses (
+    license_id     VARCHAR(20)   NOT NULL PRIMARY KEY,          -- e.g. LIC-001
+    software_id    VARCHAR(20)   NOT NULL
+                   CONSTRAINT FK_swlic_software REFERENCES dbo.software_catalogue(software_id),
+    license_type   NVARCHAR(60)  NULL,                          -- catalog_values: license_type
+    license_metric NVARCHAR(60)  NULL,                          -- catalog_values: license_metric
+    purchased_qty  INT           NOT NULL,
+    unit           NVARCHAR(40)  NULL,
+    purchase_date  DATE          NULL,
+    start_date     DATE          NULL,
+    expiry_date    DATE          NULL,                          -- NULL = perpetual, never expires
+    contract_no    NVARCHAR(60)  NULL,
+    po_no          NVARCHAR(60)  NULL,
+    invoice_no     NVARCHAR(60)  NULL,
+    cost           DECIMAL(14,2) NULL,
+    currency       VARCHAR(3)    NOT NULL DEFAULT 'THB',
+    auto_renewal   VARCHAR(3)    NOT NULL DEFAULT 'No'
+                   CONSTRAINT CK_swlic_renew CHECK (auto_renewal IN ('Yes','No')),
+    owner          NVARCHAR(120) NULL,
+    remark         NVARCHAR(500) NULL,
+    created_at     DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    updated_at     DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+IF OBJECT_ID('dbo.software_allocations', 'U') IS NULL
+CREATE TABLE dbo.software_allocations (
+    allocation_id VARCHAR(20)   NOT NULL PRIMARY KEY,           -- e.g. ALC-001
+    license_id    VARCHAR(20)   NOT NULL
+                  CONSTRAINT FK_swalloc_license REFERENCES dbo.software_licenses(license_id),
+    target_type   VARCHAR(20)   NOT NULL DEFAULT 'Physical Server'
+                  CONSTRAINT CK_swalloc_targettype CHECK (target_type IN ('Physical Server','Virtual Machine','Device','User','Workload','Site')),
+    target_name   NVARCHAR(150) NOT NULL,
+    quantity      INT           NOT NULL,
+    unit          NVARCHAR(40)  NULL,
+    environment   VARCHAR(20)   NOT NULL DEFAULT 'Production'
+                  CONSTRAINT CK_swalloc_env CHECK (environment IN ('Production','DR','Test','Development')),
+    remark        NVARCHAR(500) NULL,
+    created_at    DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    updated_at    DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
 
 /* ---------------------------------------------------------------------------
    Server Permission — shared folders on a File Server and the AD group(s)
@@ -563,10 +628,33 @@ IF OBJECT_ID('dbo.app_kv', 'U') IS NULL
 CREATE TABLE dbo.app_kv (
     kv_key     VARCHAR(80)   NOT NULL PRIMARY KEY,             -- inv_hardware, inv_vlans, inv_users, inv_server_roles,
                                                                 -- inv_server_permissions, inv_ad_users, inv_audit_log,
-                                                                -- inv_recycle_bin, inv_catalogs, inv_record_versions, ...
+                                                                -- inv_recycle_bin, inv_catalogs, inv_record_versions,
+                                                                -- inv_software_catalogue, inv_software_licenses,
+                                                                -- inv_software_allocations, ...
     kv_value   NVARCHAR(MAX) NULL,
     updated_at DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME()
 );
+GO
+
+/* ---------------------------------------------------------------------------
+   Id allocation for the relational API (routers/records.py, not wired into
+   index.html yet). One row per id prefix (HW, SRV, ...) — allocating a new
+   id is a single atomic UPDATE ... OUTPUT against the matching row, which
+   takes a row lock for the duration, so two concurrent inserts can never be
+   handed the same id. See db.next_id().
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.id_counters', 'U') IS NULL
+CREATE TABLE dbo.id_counters (
+    counter_key VARCHAR(20) NOT NULL PRIMARY KEY,   -- matches a table's id_prefix in table_registry.py
+    next_seq    INT         NOT NULL DEFAULT 0
+);
+GO
+INSERT INTO dbo.id_counters (counter_key, next_seq)
+SELECT v.counter_key, 0 FROM (VALUES
+    ('HW'),('CLU'),('SRV'),('LOC'),('VLA'),('NET'),('USR'),('PRM'),('AD'),
+    ('SWC'),('LIC'),('ALC')
+) v(counter_key)
+WHERE NOT EXISTS (SELECT 1 FROM dbo.id_counters c WHERE c.counter_key = v.counter_key);
 GO
 
 /* Helpful indexes */
@@ -588,4 +676,8 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_recordversions_record'
     CREATE INDEX IX_recordversions_record ON dbo.record_versions(table_key, record_id, changed_at DESC);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_hwrenew_hardware')
     CREATE INDEX IX_hwrenew_hardware ON dbo.hardware_ma_renewals(hardware_id, renewed_at DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_swlic_software')
+    CREATE INDEX IX_swlic_software ON dbo.software_licenses(software_id);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_swalloc_license')
+    CREATE INDEX IX_swalloc_license ON dbo.software_allocations(license_id);
 GO
