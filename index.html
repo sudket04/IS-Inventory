@@ -143,6 +143,9 @@
   .form-hint{font-size:12px;color:var(--text-muted);margin:0 0 10px;}
   fieldset{border:none;padding:0;margin:0 0 20px;}
   legend{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--accent);padding:0 0 8px;border-bottom:1px solid rgba(0,0,0,0.08);margin-bottom:14px;width:100%;}
+  .radio-group{display:flex;gap:16px;align-items:center;padding-top:6px;}
+  .radio-option{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;cursor:pointer;}
+  .radio-option input{margin:0;cursor:pointer;}
   .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 12px;}
   .field{display:flex;flex-direction:column;gap:4px;grid-column:span 1;}
   .field.full{grid-column:1 / -1;}
@@ -474,6 +477,7 @@ const NAV_SECTIONS = [
   { title: "Software", items: [
     { table: "software", icon: "software", label: "Software catalogue" },
     { table: "licenses", icon: "license", label: "License control" },
+    { table: "license_allocations", icon: "license", label: "License Allocation" },
   ] },
   { title: "Permission Control", id: "permissionSection", items: [
     { table: "permission_dashboard", icon: "permissionDashboard", label: "Permission dashboard" },
@@ -594,7 +598,10 @@ const LOOKUPS = {
   InstallType: ["On-Premise", "Cloud", "SaaS"],
   SoftwareStatus: ["Active", "Deprecated", "EOL"],
   LicenseType: ["Perpetual", "Subscription", "Maintenance Agreement (MA)", "OEM", "Open Source"],
-  LicenseModel: ["User", "Device", "Core", "Server", "Concurrent"],
+  // Adopted from the Software Management prototype — more granular than a
+  // plain "seat model" so it reads correctly for infra-metered licenses
+  // (VMware per-core, Veeam per-workload, etc.), not just per-user software.
+  LicenseMetric: ["Per Core", "Per CPU", "Per Socket", "Per User", "Per Device", "Per VM", "Per Host", "Per Workload", "Per TB", "Server + CAL", "Per Installation", "Unlimited"],
   LicenseStoredStatus: ["Active", "Suspended", "Terminated"],
 
   // AD Users (Permission Control)
@@ -707,7 +714,7 @@ const SITE_LOCATIONS = {
 const state = {
   data: {
     clusters: [], hardware: [], servers: [], locations: [], vlans: [], network_devices: [], users: [],
-    software: [], licenses: [], server_permissions: [], ad_users: [],
+    software: [], licenses: [], license_allocations: [], server_permissions: [], ad_users: [],
     audit_log: [], recycle_bin: [], ad_memberships: [], record_versions: [],   // not TABLES-driven — see EXTRA_STORAGE / logChange / moveToRecycleBin
   },
   session: null,       // { user_id, username, role, full_name } once signed in
@@ -766,9 +773,41 @@ function linkedAssetLabelFor(ref) {
   }
   return ref;
 }
+/* Derived, read-only categorisation of a License/MA record based on what
+   it's linked to — not stored, always recomputed from linked_assets so it
+   can never drift out of sync with the real links. */
+function licenseScopeFor(record) {
+  const linked = record.linked_assets || [];
+  const hasServer = linked.some(a => String(a).startsWith("server:"));
+  const hasCluster = linked.some(a => String(a).startsWith("cluster:"));
+  if (hasServer && hasCluster) return "Mixed";
+  if (hasServer) return "Server-bound";
+  if (hasCluster) return "Cluster-bound";
+  return "Catalogue only";
+}
 function softwareNameFor(softwareId) {
   const s = state.data.software.find(s => s.software_id === softwareId);
   return s ? s.name : "-";
+}
+/* Once a License has real per-target Allocation rows, "seats used" is the
+   sum of those (always in sync, can't drift) — otherwise fall back to the
+   plain manually-typed value so licenses that don't need a breakdown keep
+   working exactly as before. */
+function seatsUsedFor(license) {
+  const allocated = state.data.license_allocations.filter(a => a.license_id === license.license_id);
+  if (allocated.length) return allocated.reduce((sum, a) => sum + (Number(a.quantity) || 0), 0);
+  return Number(license.seats_used) || 0;
+}
+function seatsAllocatedFor(licenseId, excludeId) {
+  return state.data.license_allocations
+    .filter(a => a.license_id === licenseId && a.allocation_id !== excludeId)
+    .reduce((sum, a) => sum + (Number(a.quantity) || 0), 0);
+}
+function licenseLabelFor(licenseId) {
+  const l = state.data.licenses.find(x => x.license_id === licenseId);
+  if (!l) return licenseId;
+  if (l.software_id) return softwareNameFor(l.software_id);
+  return (l.linked_assets || []).map(linkedAssetLabelFor).join(", ") || l.license_id;
 }
 function serverNameFor(serverId) {
   const s = state.data.servers.find(s => s.server_id === serverId);
@@ -1171,11 +1210,13 @@ const TABLES = {
       { key: "fixed_asset", label: "Fixed Asset", type: "text", placeholder: "e.g. IS001", group: "Identity" },
       { key: "description", label: "Description", type: "text", group: "Identity" },
 
-      { key: "network_zone", label: "Network Zone", type: "select", options: LOOKUPS.NetworkZone, group: "Role & Stack" },
-      { key: "role", label: "Role", type: "select", options: LOOKUPS.DeviceRole, group: "Role & Stack" },
-      { key: "detail", label: "Detail", type: "text", placeholder: "e.g. Core Switch Wifi", group: "Role & Stack" },
-      { key: "stack_id", label: "Stack ID", type: "select", options: STACK_ID_OPTIONS, group: "Role & Stack" },
-      { key: "stack_role", label: "Stack Role", type: "select", options: LOOKUPS.StackRole, group: "Role & Stack" },
+      { key: "network_zone", label: "Network Zone", type: "select", options: LOOKUPS.NetworkZone, group: "Role" },
+      { key: "role", label: "Role", type: "select", options: LOOKUPS.DeviceRole, group: "Role" },
+      { key: "detail", label: "Detail", type: "text", placeholder: "e.g. Core Switch Wifi", group: "Role" },
+
+      { key: "stack_enabled", label: "Part of a Switch Stack?", type: "radio", options: ["No", "Yes"], default: "No", group: "Stack" },
+      { key: "stack_id", label: "Stack ID", type: "select", options: STACK_ID_OPTIONS, group: "Stack" },
+      { key: "stack_role", label: "Stack Role", type: "select", options: LOOKUPS.StackRole, group: "Stack" },
 
       { key: "mac_address", label: "MAC Address", type: "mac", required: true, placeholder: "e.g. aa:bb:cc:dd:ee:01", group: "Network" },
       { key: "ip_management", label: "IP Management", type: "ip", required: true, placeholder: "e.g. 192.168.104.126", group: "Network" },
@@ -1242,9 +1283,10 @@ const TABLES = {
     listColumns: [
       { key: "software_id", label: "Software", render: r => r.software_id ? escapeHtml(softwareNameFor(r.software_id)) : "-" },
       { key: "linked_assets", label: "Linked to", render: r => (r.linked_assets || []).length ? r.linked_assets.map(linkedAssetLabelFor).map(escapeHtml).join(", ") : "-" },
+      { key: "scope", label: "Scope", render: r => escapeHtml(licenseScopeFor(r)) },
       { key: "license_type", label: "Type" },
-      { key: "license_model", label: "Model" },
-      { key: "seats", label: "Seats", render: r => `${r.seats_used ?? 0} / ${r.seats_total ?? 0}` },
+      { key: "license_metric", label: "Metric" },
+      { key: "seats", label: "Seats", render: r => `${seatsUsedFor(r)} / ${r.seats_total ?? 0}` },
       { key: "expiry_date", label: "Expiry", mono: true, render: r => formatDateDMY(r.expiry_date) },
       { key: "status", label: "Status", render: r => statusBadge(licenseStatus(r)) },
     ],
@@ -1257,11 +1299,11 @@ const TABLES = {
           ...state.data.servers.map(s => ({ value: `server:${s.server_id}`, label: `[Server] ${s.system_name} (${s.hosting_type})` })),
         ] },
       { key: "license_type", label: "License type", type: "select", options: LOOKUPS.LicenseType, required: true, group: "Identity" },
-      { key: "license_model", label: "License model", type: "select", options: LOOKUPS.LicenseModel, required: true, group: "Identity" },
+      { key: "license_metric", label: "License metric", type: "select", options: LOOKUPS.LicenseMetric, required: true, group: "Identity" },
       { key: "license_key", label: "License key", type: "text", group: "Identity" },
       { key: "status", label: "Status", type: "select", options: LOOKUPS.LicenseStoredStatus, required: true, group: "Identity" },
       { key: "seats_total", label: "Seats total", type: "number", required: true, group: "Seats" },
-      { key: "seats_used", label: "Seats used", type: "number", group: "Seats" },
+      { key: "seats_used", label: "Seats used (manual — auto-overridden once License Allocation rows exist)", type: "number", group: "Seats" },
       { key: "purchase_date", label: "Purchase date", type: "date", group: "Dates" },
       // Current period — locked; only the "Renew" button (Actions column) can
       // set/renew these, so every renewal is captured in renewal_history for
@@ -1270,6 +1312,35 @@ const TABLES = {
       { key: "expiry_date", label: "Expiry date", type: "lockedText", group: "Current period (use the Renew button)" },
       { key: "cost", label: "Cost (THB, latest)", type: "lockedText", group: "Current period (use the Renew button)" },
       { key: "vendor_contact", label: "Vendor contact", type: "text", group: "Agreement" },
+      { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
+    ],
+  },
+
+  /* Adopted from the Software Management prototype: a License's seats get
+     split across many real targets (Cluster/Server) each with their own
+     quantity — this is what makes seatsUsedFor() an accurate, always-in-sync
+     rollup instead of a manually-typed number that can drift. */
+  license_allocations: {
+    key: "license_allocations", label: "License Allocation", desc: "Breaks down a License's purchased seats across the Cluster/Server(s) actually consuming them",
+    idField: "allocation_id", idPrefix: "ALC", storageKey: "inv_license_allocations",
+    listColumns: [
+      { key: "license_id", label: "License", render: r => escapeHtml(licenseLabelFor(r.license_id)) },
+      { key: "target", label: "Target", render: r => escapeHtml(linkedAssetLabelFor(r.target)) },
+      { key: "quantity", label: "Quantity", render: r => `${r.quantity ?? 0} ${escapeHtml(r.unit || "")}`.trim() },
+      { key: "environment", label: "Environment" },
+      { key: "remarks", label: "Remarks", render: r => escapeHtml(r.remarks || "-") },
+    ],
+    fields: [
+      { key: "license_id", label: "License", type: "select", required: true, group: "Allocation",
+        dynamicOptions: () => state.data.licenses.map(l => ({ value: l.license_id, label: `${l.license_id} — ${licenseLabelFor(l.license_id)}` })) },
+      { key: "target", label: "Target (Cluster / Server)", type: "select", required: true, group: "Allocation",
+        dynamicOptions: () => [
+          ...state.data.clusters.map(c => ({ value: `cluster:${c.cluster_id}`, label: `[Cluster] ${c.cluster_name}` })),
+          ...state.data.servers.map(s => ({ value: `server:${s.server_id}`, label: `[Server] ${s.system_name} (${s.hosting_type})` })),
+        ] },
+      { key: "quantity", label: "Quantity", type: "number", required: true, min: 1, group: "Allocation" },
+      { key: "unit", label: "Unit", type: "text", placeholder: "e.g. Core / User / Workload", group: "Allocation" },
+      { key: "environment", label: "Environment", type: "select", options: LOOKUPS.Environment, required: true, group: "Allocation" },
       { key: "remarks", label: "Remarks", type: "textarea", group: "Other" },
     ],
   },
@@ -1328,7 +1399,7 @@ const TABLES = {
 
 /* Tables outside the standing Server/Network scope exception — these get the
    cross-entity global search and per-record version history features. */
-const NON_SERVER_NETWORK_TABLES = ["locations", "software", "licenses", "server_permissions", "ad_users", "users"];
+const NON_SERVER_NETWORK_TABLES = ["locations", "software", "licenses", "license_allocations", "server_permissions", "ad_users", "users"];
 
 /* ---------------- Uniqueness rules (duplicate checks) ---------------- */
 /* Each rule checks `key` for duplicates within the same table (optionally
@@ -1386,11 +1457,36 @@ function validateServerPermission(values, excludeId) {
 /* A License/MA record must be anchored to something — either a Software
    title, or a direct link to a Cluster/Server (e.g. a per-cluster MA that
    has no separate "software title" of its own). */
+/* A Network device that's marked as part of a switch stack must specify
+   which Stack and what role it plays in it. */
+function validateNetworkDevice(values) {
+  if (values.stack_enabled === "Yes" && (!values.stack_id || !values.stack_role)) {
+    return ["Please fill in: Stack ID, Stack Role (required when this device is part of a Switch Stack)"];
+  }
+  return [];
+}
 function validateLicense(values) {
   const hasSoftware = !!values.software_id;
   const hasLinked = Array.isArray(values.linked_assets) && values.linked_assets.length > 0;
   if (!hasSoftware && !hasLinked) {
     return ["Please link this License/MA to a Software title, or to a Cluster/Server (at least one is required)"];
+  }
+  return [];
+}
+
+/* An Allocation can't claim more of a License's seats than were purchased —
+   adopted from the Software Management prototype's overflow check, so
+   seats_used (derived from these rows, see seatsUsedFor) can never exceed
+   seats_total. */
+function validateLicenseAllocation(values, excludeId) {
+  if (!values.license_id || !values.quantity) return [];
+  const license = state.data.licenses.find(l => l.license_id === values.license_id);
+  if (!license) return [];
+  const already = seatsAllocatedFor(values.license_id, excludeId);
+  const qty = Number(values.quantity) || 0;
+  const total = Number(license.seats_total) || 0;
+  if (already + qty > total) {
+    return [`Allocation exceeds this License's capacity — Purchased: ${total}, Already allocated: ${already}, Remaining: ${Math.max(0, total - already)}`];
   }
   return [];
 }
@@ -1744,7 +1840,7 @@ function seedData() {
   state.data.network_devices = [
     {
       device_id: "NET-001", status: "Use", category: "Network Device", subcategory: "Core Switch",
-      stack_id: "ST016", stack_role: "Active", network_zone: "Trust", detail: "Core Switch Wifi", role: "L3",
+      stack_enabled: "Yes", stack_id: "ST016", stack_role: "Active", network_zone: "Trust", detail: "Core Switch Wifi", role: "L3",
       brand: "Cisco", model: "C9500-16X", serial_number: "RR2", description: "-", fixed_asset: "IS004",
       mac_address: "aa:bb:cc:dd:e4", device_name: "OT1-Maincore", ip_management: "192.168.104.128",
       location_id: "LOC-003", rack_number: "Rack 01",
@@ -1759,8 +1855,8 @@ function seedData() {
   ];
 
   state.data.licenses = [
-    { license_id: "LIC-001", software_id: "SFW-001", linked_assets: [], license_type: "OEM", license_model: "Core", status: "Active", license_key: "XXXXX-XXXXX-XXXXX", seats_total: 20, seats_used: 12, purchase_date: "2023-01-15", agreement_no: "AGR-2023-0001", expiry_date: "2027-01-15", cost: 8000, renewal_history: [], vendor_contact: "-", remarks: "-", created_at: today, updated_at: today },
-    { license_id: "LIC-002", software_id: "SFW-002", linked_assets: ["cluster:CLU-001"], license_type: "Subscription", license_model: "Core", status: "Active", license_key: "-", seats_total: 8, seats_used: 8, purchase_date: "2023-06-01",
+    { license_id: "LIC-001", software_id: "SFW-001", linked_assets: [], license_type: "OEM", license_metric: "Per Core", status: "Active", license_key: "XXXXX-XXXXX-XXXXX", seats_total: 20, seats_used: 12, purchase_date: "2023-01-15", agreement_no: "AGR-2023-0001", expiry_date: "2027-01-15", cost: 8000, renewal_history: [], vendor_contact: "-", remarks: "-", created_at: today, updated_at: today },
+    { license_id: "LIC-002", software_id: "SFW-002", linked_assets: ["cluster:CLU-001"], license_type: "Subscription", license_metric: "Per Core", status: "Active", license_key: "-", seats_total: 8, seats_used: 8, purchase_date: "2023-06-01",
       agreement_no: "AGR-2026-0004", expiry_date: "2027-06-01", cost: 16000,
       renewal_history: [
         { renewal_id: "RNW-seed-lic1", contract_no: "AGR-2023-0002", provider: "", start_date: "2023-06-01", end_date: "2024-06-01", cost_thb: 13000, note: "Initial subscription", renewed_by: "admin", renewed_at: "2023-06-01T00:00:00.000Z" },
@@ -1768,6 +1864,10 @@ function seedData() {
         { renewal_id: "RNW-seed-lic3", contract_no: "AGR-2025-0003", provider: "", start_date: "2025-06-01", end_date: "2026-06-01", cost_thb: 15000, note: "", renewed_by: "admin", renewed_at: "2025-06-01T00:00:00.000Z" },
       ],
       vendor_contact: "-", remarks: "-", created_at: today, updated_at: today },
+  ];
+
+  state.data.license_allocations = [
+    { allocation_id: "ALC-001", license_id: "LIC-002", target: "cluster:CLU-001", quantity: 8, unit: "Core", environment: "Production", remarks: "-", created_at: today, updated_at: today },
   ];
 
   state.data.server_permissions = [
@@ -1844,6 +1944,7 @@ function recordDisplayName(tableKey, record) {
     case "users": return record.username || "-";
     case "software": return record.name || "-";
     case "licenses": return `${softwareNameFor(record.software_id)} license`;
+    case "license_allocations": return `${licenseLabelFor(record.license_id)} → ${linkedAssetLabelFor(record.target)}`;
     case "server_permissions": return `${record.folder_name || "-"} @ ${serverNameFor(record.server_id)}`;
     case "ad_users": return record.display_name || record.user_logon || "-";
     default: {
@@ -2768,6 +2869,20 @@ document.getElementById("dataTable").addEventListener("click", async (e) => {
         setTimeout(() => { if (btn.isConnected) btn.textContent = "Remove"; }, 2500);
         return;
       }
+      if (tableKey === "software" && state.data.licenses.some(l => l.software_id === id)) {
+        btn.textContent = "In use by a License";
+        btn.dataset.armed = "0";
+        btn.classList.remove("armed");
+        setTimeout(() => { if (btn.isConnected) btn.textContent = "Remove"; }, 2500);
+        return;
+      }
+      if (tableKey === "licenses" && state.data.license_allocations.some(a => a.license_id === id)) {
+        btn.textContent = "Has Allocations";
+        btn.dataset.armed = "0";
+        btn.classList.remove("armed");
+        setTimeout(() => { if (btn.isConnected) btn.textContent = "Remove"; }, 2500);
+        return;
+      }
       if (tableKey === "users" && id === (state.session && state.session.user_id)) {
         btn.textContent = "Can't delete yourself"; btn.dataset.armed = "0"; btn.classList.remove("armed");
         setTimeout(() => { if (btn.isConnected) btn.textContent = "Remove"; }, 2500);
@@ -2834,6 +2949,12 @@ function fieldBlock(field, value) {
         ${opts.map(o => `<option value="${escapeHtml(o.value)}" ${String(value) === String(o.value) ? "selected" : ""}>${escapeHtml(o.label)}</option>`).join("")}
       </select>`;
     }
+  } else if (field.type === "radio") {
+    const opts = field.options || [];
+    const current = value !== undefined && value !== null && value !== "" ? String(value) : String(field.default ?? opts[0] ?? "");
+    control = `<div class="radio-group" id="${id}">
+      ${opts.map(o => `<label class="radio-option"><input type="radio" name="${field.key}" data-key="${field.key}" value="${escapeHtml(o)}" ${current === String(o) ? "checked" : ""}> ${escapeHtml(o)}</label>`).join("")}
+    </div>`;
   } else if (field.type === "locationCascade") {
     const opts = field.dynamicOptions ? field.dynamicOptions() : null;
     if (!Array.isArray(opts) || !opts.length) {
@@ -2993,6 +3114,11 @@ function getMultiTextValues(key) {
     .filter(Boolean);
 }
 
+function getRadioValue(key) {
+  const checked = document.querySelector(`input[name="${key}"][data-key="${key}"]:checked`);
+  if (checked) return checked.value;
+  return formRecordCtx ? (formRecordCtx[key] || "") : "";
+}
 function getMultiSelectValues(key) {
   const list = document.getElementById("f_" + key + "_list");
   if (!list) return Array.isArray(formRecordCtx && formRecordCtx[key]) ? formRecordCtx[key] : [];
@@ -3050,6 +3176,7 @@ function collectCurrentDomValues(fields) {
     if (f.type === "multiSelect") { out[f.key] = getMultiSelectValues(f.key); return; }
     if (f.type === "multiNumber") { out[f.key] = getMultiNumberValues(f.key); return; }
     if (f.type === "nodeList") { out[f.key] = getNodeListValues(f.key); return; }
+    if (f.type === "radio") { out[f.key] = getRadioValue(f.key); return; }
     const el = document.getElementById("f_" + f.key);
     if (el) out[f.key] = el.value;
   });
@@ -3148,6 +3275,23 @@ function wireNetworkDeviceCategoryCascade() {
   });
 }
 
+/* Network Device form: Stack ID/Stack Role are only relevant when this
+   device is actually part of a switch stack. */
+function wireNetworkStackCascade() {
+  if (!state.editing || state.editing.tableKey !== "network_devices") return;
+  const radios = document.querySelectorAll('input[name="stack_enabled"]');
+  const idRow = document.getElementById("f_stack_id")?.closest(".field");
+  const roleRow = document.getElementById("f_stack_role")?.closest(".field");
+  if (!radios.length || !idRow || !roleRow) return;
+  function sync() {
+    const isStacked = getRadioValue("stack_enabled") === "Yes";
+    idRow.hidden = !isStacked;
+    roleRow.hidden = !isStacked;
+  }
+  radios.forEach(r => r.addEventListener("change", sync));
+  sync();
+}
+
 function wireAddableFields() {
   document.querySelectorAll(".addable-add").forEach(btn => {
     if (btn.dataset.wired === "1") return;
@@ -3231,6 +3375,7 @@ function attachDynamicHandlers() {
   wireVlanAutoCalc();
   wireHardwareStorageUnitCascade();
   wireOsCascade();
+  wireNetworkStackCascade();
   wireAddableFields();
 }
 
@@ -3292,6 +3437,11 @@ function openForm(tableKey, id = null) {
     record = Object.assign({}, record, {
       groups: state.data.ad_memberships.filter(m => m.ad_user_id === record.ad_user_id).map(m => m.group_name),
     });
+  }
+  if (record && tableKey === "network_devices" && record.stack_enabled === undefined) {
+    // Legacy records predate the Stack toggle — infer it from whether a
+    // Stack ID was already set, so existing stack data isn't hidden/lost.
+    record = Object.assign({}, record, { stack_enabled: record.stack_id ? "Yes" : "No" });
   }
   if (record && tableKey === "network_devices" && record.location_id) {
     // Walk the Floor's ancestor chain so the Site/Factory selects
@@ -3506,6 +3656,12 @@ function collectFormValues(tableKey) {
       values[f.key] = arr;
       return;
     }
+    if (f.type === "radio") {
+      const rv = getRadioValue(f.key) || f.default || "";
+      if (f.required && !rv) missing.push(f.label);
+      values[f.key] = rv;
+      return;
+    }
     const v = f.type === "locationCascade" ? getCascadeLocationValue(f.key) : (document.getElementById("f_" + f.key)?.value.trim() || "");
     if (f.required && !v) missing.push(f.label);
     if (f.type === "ip" && v && !isValidIPv4(v)) invalid.push(`${f.label} must be a valid IP address (e.g. 192.168.1.10)`);
@@ -3555,6 +3711,8 @@ async function saveForm() {
   if (tableKey === "vlans") conflicts.push(...validateVlan(values));
   if (tableKey === "server_permissions") conflicts.push(...validateServerPermission(values, id));
   if (tableKey === "licenses") conflicts.push(...validateLicense(values));
+  if (tableKey === "network_devices") conflicts.push(...validateNetworkDevice(values));
+  if (tableKey === "license_allocations") conflicts.push(...validateLicenseAllocation(values, id));
   if (conflicts.length) {
     errorBox.innerHTML = conflicts.map(escapeHtml).join("<br>");
     errorBox.hidden = false;
@@ -3572,6 +3730,12 @@ async function saveForm() {
     // — the only value that actually gets persisted is location_id (the Floor).
     delete values.parent_site;
     delete values.parent_factory;
+    // Stack ID/Role only mean something while Stack is enabled — clear them
+    // immediately so a stale value never lingers once switched back to "No".
+    if (values.stack_enabled !== "Yes") {
+      values.stack_id = "";
+      values.stack_role = "";
+    }
   }
   if (tableKey === "vlans" && values.vlan_id) {
     values.vlan_id = Number(values.vlan_id);

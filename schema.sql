@@ -395,6 +395,8 @@ CREATE TABLE dbo.network_devices (
     network_zone    NVARCHAR(30)  NULL,
     role            VARCHAR(4)    NULL,                         -- L2/L3
     detail          NVARCHAR(120) NULL,
+    stack_enabled   VARCHAR(3)    NOT NULL DEFAULT 'No'          -- Yes/No — gates stack_id/stack_role in the UI
+                    CONSTRAINT CK_netdev_stackenabled CHECK (stack_enabled IN ('Yes','No')),
     stack_id        VARCHAR(10)   NULL,
     stack_role      NVARCHAR(20)  NULL,
     mac_address     NVARCHAR(20)  NOT NULL,
@@ -449,13 +451,13 @@ CREATE TABLE dbo.licenses (
                     CONSTRAINT FK_licenses_software REFERENCES dbo.software(software_id),
     license_type    VARCHAR(30)   NOT NULL
                     CONSTRAINT CK_licenses_type CHECK (license_type IN ('Perpetual','Subscription','Maintenance Agreement (MA)','OEM','Open Source')),
-    license_model   VARCHAR(20)   NOT NULL
-                    CONSTRAINT CK_licenses_model CHECK (license_model IN ('User','Device','Core','Server','Concurrent')),
+    license_metric  VARCHAR(20)   NOT NULL                      -- adopted from the Software Management prototype's richer metric list
+                    CONSTRAINT CK_licenses_metric CHECK (license_metric IN ('Per Core','Per CPU','Per Socket','Per User','Per Device','Per VM','Per Host','Per Workload','Per TB','Server + CAL','Per Installation','Unlimited')),
     status          VARCHAR(20)   NOT NULL DEFAULT 'Active'
                     CONSTRAINT CK_licenses_status CHECK (status IN ('Active','Suspended','Terminated')),
     license_key     NVARCHAR(200) NULL,
     seats_total     INT           NOT NULL DEFAULT 0,
-    seats_used      INT           NOT NULL DEFAULT 0,
+    seats_used      INT           NOT NULL DEFAULT 0,          -- manual fallback only; once dbo.license_allocations has rows for this license, the app treats seats_used as SUM(license_allocations.quantity) instead
     purchase_date   DATE          NULL,
     -- Current period — locked in the UI, only the "Renew" action changes
     -- these; every past period is archived in dbo.license_renewals below.
@@ -501,6 +503,33 @@ CREATE TABLE dbo.license_renewals (
     note        NVARCHAR(400) NULL,
     renewed_by  NVARCHAR(60)  NULL,
     renewed_at  DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+/* License Allocation — adopted from the Software Management prototype:
+   splits a License's purchased seats (seats_total) across the real
+   Cluster/Server target(s) actually consuming them, each with its own
+   quantity. The app sums these per license_id to get an always-accurate
+   seats_used instead of trusting a manually-typed number (see the comment
+   on dbo.licenses.seats_used above). The app-layer "don't over-allocate"
+   check (SUM(quantity) for a license <= that license's seats_total) is
+   enforced the same way as the licenses anchor rule — in the API/app layer,
+   since a CHECK constraint can't sum sibling rows or read another table. */
+IF OBJECT_ID('dbo.license_allocations', 'U') IS NULL
+CREATE TABLE dbo.license_allocations (
+    allocation_id VARCHAR(20)   NOT NULL PRIMARY KEY,           -- e.g. ALC-001
+    license_id    VARCHAR(20)   NOT NULL
+                  CONSTRAINT FK_licalloc_license REFERENCES dbo.licenses(license_id) ON DELETE CASCADE,
+    target_type   VARCHAR(10)   NOT NULL
+                  CONSTRAINT CK_licalloc_targettype CHECK (target_type IN ('cluster','server')),
+    target_id     VARCHAR(20)   NOT NULL,
+    quantity      INT           NOT NULL,
+    unit          NVARCHAR(30)  NULL,                          -- e.g. Core / User / Workload
+    environment   VARCHAR(20)   NOT NULL
+                  CONSTRAINT CK_licalloc_env CHECK (environment IN ('Production','UAT','Development','DR')),
+    remarks       NVARCHAR(400) NULL,
+    created_at    DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME(),
+    updated_at    DATETIME2(0)  NOT NULL DEFAULT SYSUTCDATETIME()
 );
 GO
 
@@ -677,4 +706,8 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_licrenew_license')
     CREATE INDEX IX_licrenew_license ON dbo.license_renewals(license_id, renewed_at DESC);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_licasset_asset')
     CREATE INDEX IX_licasset_asset ON dbo.license_linked_assets(asset_type, asset_id);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_licalloc_license')
+    CREATE INDEX IX_licalloc_license ON dbo.license_allocations(license_id);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_licalloc_target')
+    CREATE INDEX IX_licalloc_target ON dbo.license_allocations(target_type, target_id);
 GO
