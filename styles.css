@@ -203,6 +203,10 @@
   .field input:focus, .field select:focus, .field textarea:focus{outline:none;border-color:var(--accent);border-width:2px;padding:9.5px 13px;}
   .field input[readonly]{background:rgba(0,0,0,0.04);color:rgba(0,0,0,0.5);}
   .field textarea{resize:vertical;min-height:44px;}
+  .ip-input-group{display:inline-flex;align-items:center;gap:4px;width:100%;}
+  .ip-input-group .ip-octet{width:52px;flex:0 0 52px;text-align:center;padding:10.5px 4px;}
+  .ip-input-group .ip-octet:focus{padding:9.5px 3px;}
+  .ip-dot{flex:0 0 auto;color:rgba(0,0,0,0.4);font-weight:600;}
   .multi-ip-list{display:flex;flex-direction:column;gap:6px;}
   .multi-ip-row{display:flex;gap:6px;align-items:center;}
   .multi-ip-row input, .multi-ip-row select{flex:1;}

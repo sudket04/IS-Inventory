@@ -109,7 +109,10 @@
             <div class="field-grid">
               <label class="field">
                 <span class="field-label">New expiry date <span class="req">*</span></span>
-                <span class="control-slot"><input type="date" id="renewExpiry" required></span>
+                <span class="control-slot">
+                  <input type="hidden" id="renewExpiry">
+                  <input type="text" id="renewExpiryDisplay" class="date-mask-input" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off">
+                </span>
               </label>
               <label class="field">
                 <span class="field-label">Contract / Subscription No.</span>

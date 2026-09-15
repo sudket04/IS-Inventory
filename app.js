@@ -526,7 +526,8 @@ const TABLES = {
       { key: "u_position", label: "U position", type: "text", group: "Location" },
 
       { key: "commission_date", label: "Commission date", type: "date", group: "Lifecycle" },
-      { key: "warranty_expiry", label: "Warranty expiry (vendor)", type: "date", group: "Lifecycle" },
+      { key: "warranty_years", label: "Warranty period (years)", type: "select", options: ["1", "2", "3", "4", "5"], group: "Lifecycle" },
+      { key: "warranty_expiry", label: "Warranty expiry (vendor, auto)", type: "date", locked: true, group: "Lifecycle" },
       { key: "status", label: "Status", type: "select", options: LOOKUPS.HardwareStatus, required: true, group: "Lifecycle" },
 
       // MA (Maintenance Agreement) — a recurring support contract, separate
@@ -753,7 +754,7 @@ const TABLES = {
       { key: "stack_id", label: "Stack ID", type: "select", options: STACK_ID_OPTIONS, group: "Stack" },
       { key: "stack_role", label: "Stack Role", type: "select", options: LOOKUPS.StackRole, group: "Stack" },
 
-      { key: "mac_address", label: "MAC Address", type: "mac", required: true, placeholder: "e.g. aa:bb:cc:dd:ee:01", group: "Network" },
+      { key: "mac_address", label: "MAC Address", type: "mac", placeholder: "e.g. aa:bb:cc:dd:ee:01", group: "Network" },
       { key: "ip_management", label: "IP Management", type: "ip", required: true, placeholder: "e.g. 192.168.104.126", group: "Network" },
 
       { key: "parent_site", label: "Site", type: "select", required: true, group: "Location",
@@ -765,7 +766,8 @@ const TABLES = {
       { key: "rack_number", label: "Rack Number", type: "text", placeholder: "e.g. Rack 01", group: "Location" },
 
       { key: "commission_date", label: "Commission Date", type: "date", group: "Lifecycle" },
-      { key: "warranty_expiry", label: "Warranty expiry", type: "date", group: "Lifecycle" },
+      { key: "warranty_years", label: "Warranty period (years)", type: "select", options: ["1", "2", "3", "4", "5"], group: "Lifecycle" },
+      { key: "warranty_expiry", label: "Warranty expiry (auto)", type: "date", locked: true, group: "Lifecycle" },
       { key: "eol_date", label: "EOL Date", type: "date", group: "Lifecycle" },
     ],
   },
@@ -824,8 +826,7 @@ const TABLES = {
       { key: "contract_no", label: "Contract No.", type: "text", placeholder: "e.g. CTR-2026-001", group: "Contract" },
       { key: "po_no", label: "PO No.", type: "text", placeholder: "e.g. PO-2026-001", group: "Contract" },
       { key: "invoice_no", label: "Invoice No.", type: "text", placeholder: "e.g. INV-2026-001", group: "Contract" },
-      { key: "cost", label: "Cost", type: "number", min: 0, group: "Contract" },
-      { key: "currency", label: "Currency", type: "select", options: ["THB", "USD", "EUR"], default: "THB", group: "Contract" },
+      { key: "cost", label: "Cost (THB)", type: "number", min: 0, group: "Contract" },
       { key: "auto_renewal", label: "Auto Renewal", type: "select", options: ["Yes", "No"], default: "No", group: "Contract" },
       { key: "owner", label: "Owner", type: "text", placeholder: "e.g. IT Infrastructure", group: "Contract" },
       { key: "remark", label: "Remark", type: "textarea", group: "Other" },
@@ -1407,10 +1408,10 @@ function seedSoftwareData(today) {
   ];
 
   state.data.software_licenses = [
-    { license_id: "LIC-001", software_id: "SWC-001", license_type: "Subscription", license_metric: "Per Core", purchased_qty: 96, unit: "Core", purchase_date: "2026-01-01", start_date: "2026-01-01", expiry_date: "2026-12-31", contract_no: "CTR-VM-2026", po_no: "PO-001", invoice_no: "INV-001", cost: "", currency: "THB", auto_renewal: "Yes", owner: "IT Infrastructure", remark: "-", created_at: today, updated_at: today },
-    { license_id: "LIC-002", software_id: "SWC-002", license_type: "Perpetual", license_metric: "Per Core", purchased_qty: 32, unit: "Core", purchase_date: "2026-01-10", start_date: "2026-01-10", expiry_date: "", contract_no: "CTR-SQL-001", po_no: "PO-002", invoice_no: "INV-002", cost: "", currency: "THB", auto_renewal: "No", owner: "IT Infrastructure", remark: "-", created_at: today, updated_at: today },
-    { license_id: "LIC-003", software_id: "SWC-003", license_type: "Perpetual", license_metric: "Per Core", purchased_qty: 64, unit: "Core", purchase_date: "2025-06-01", start_date: "2025-06-01", expiry_date: "", contract_no: "", po_no: "PO-003", invoice_no: "INV-003", cost: "", currency: "THB", auto_renewal: "No", owner: "IT Infrastructure", remark: "-", created_at: today, updated_at: today },
-    { license_id: "LIC-004", software_id: "SWC-004", license_type: "Subscription", license_metric: "Per Workload", purchased_qty: 100, unit: "Workload", purchase_date: "2026-07-01", start_date: "2026-07-01", expiry_date: "2026-10-15", contract_no: "CTR-VEEAM-26", po_no: "PO-004", invoice_no: "INV-004", cost: "", currency: "THB", auto_renewal: "Yes", owner: "IT Infrastructure", remark: "-", created_at: today, updated_at: today },
+    { license_id: "LIC-001", software_id: "SWC-001", license_type: "Subscription", license_metric: "Per Core", purchased_qty: 96, unit: "Core", purchase_date: "2026-01-01", start_date: "2026-01-01", expiry_date: "2026-12-31", contract_no: "CTR-VM-2026", po_no: "PO-001", invoice_no: "INV-001", cost: "", auto_renewal: "Yes", owner: "IT Infrastructure", remark: "-", created_at: today, updated_at: today },
+    { license_id: "LIC-002", software_id: "SWC-002", license_type: "Perpetual", license_metric: "Per Core", purchased_qty: 32, unit: "Core", purchase_date: "2026-01-10", start_date: "2026-01-10", expiry_date: "", contract_no: "CTR-SQL-001", po_no: "PO-002", invoice_no: "INV-002", cost: "", auto_renewal: "No", owner: "IT Infrastructure", remark: "-", created_at: today, updated_at: today },
+    { license_id: "LIC-003", software_id: "SWC-003", license_type: "Perpetual", license_metric: "Per Core", purchased_qty: 64, unit: "Core", purchase_date: "2025-06-01", start_date: "2025-06-01", expiry_date: "", contract_no: "", po_no: "PO-003", invoice_no: "INV-003", cost: "", auto_renewal: "No", owner: "IT Infrastructure", remark: "-", created_at: today, updated_at: today },
+    { license_id: "LIC-004", software_id: "SWC-004", license_type: "Subscription", license_metric: "Per Workload", purchased_qty: 100, unit: "Workload", purchase_date: "2026-07-01", start_date: "2026-07-01", expiry_date: "2026-10-15", contract_no: "CTR-VEEAM-26", po_no: "PO-004", invoice_no: "INV-004", cost: "", auto_renewal: "Yes", owner: "IT Infrastructure", remark: "-", created_at: today, updated_at: today },
   ];
 
   state.data.software_allocations = [
@@ -1654,6 +1655,110 @@ function formatDateDMY(dateStr) {
   if (!dateStr) return "-";
   const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : "-";
+}
+/* dd/mm/yyyy masked date input: the user types into a plain text box, and a
+   sibling hidden input (same id every date field used before) keeps holding
+   the real yyyy-mm-dd value so every other date-consuming codepath (list
+   columns, warrantyStatus, sort, validation) needs no change at all. */
+function isoToDmyInput(iso) {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+}
+function dmyInputToIso(dmy) {
+  const m = String(dmy || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return "";
+  const dd = Number(m[1]), mm = Number(m[2]), yyyy = Number(m[3]);
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return "";
+  const check = new Date(yyyy, mm - 1, dd);
+  if (check.getFullYear() !== yyyy || check.getMonth() !== mm - 1 || check.getDate() !== dd) return "";
+  return `${yyyy}-${m[2]}-${m[1]}`;
+}
+function wireDateMaskInput(displayEl, hiddenEl) {
+  displayEl.addEventListener("input", () => {
+    const digits = displayEl.value.replace(/\D/g, "").slice(0, 8);
+    let out = digits.slice(0, 2);
+    if (digits.length > 2) out += "/" + digits.slice(2, 4);
+    if (digits.length > 4) out += "/" + digits.slice(4, 8);
+    displayEl.value = out;
+    hiddenEl.value = dmyInputToIso(out);
+    hiddenEl.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+function wireDateMaskInputs(scopeEl) {
+  if (!scopeEl) return;
+  scopeEl.querySelectorAll("[data-date-display]").forEach(displayEl => {
+    if (displayEl.dataset.dmWired) return;
+    displayEl.dataset.dmWired = "1";
+    const hiddenEl = document.getElementById("f_" + displayEl.dataset.dateDisplay);
+    if (hiddenEl) wireDateMaskInput(displayEl, hiddenEl);
+  });
+}
+
+/* Four-octet IP input: each box only accepts 0-255, auto-advances after 3
+   digits or on ".", and keeps a hidden input (the field's real id) joined
+   with dots in sync — so isValidIPv4/list rendering/etc. need no change. */
+function wireIpOctetGroups(scopeEl) {
+  if (!scopeEl) return;
+  scopeEl.querySelectorAll(".ip-input-group").forEach(group => {
+    if (group.dataset.ipWired) return;
+    group.dataset.ipWired = "1";
+    const hidden = group.querySelector('input[type="hidden"]');
+    const octets = Array.from(group.querySelectorAll(".ip-octet"));
+    function updateHidden() {
+      const parts = octets.map(o => o.value);
+      hidden.value = parts.every(p => p === "") ? "" : parts.join(".");
+      hidden.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    octets.forEach((input, idx) => {
+      input.addEventListener("input", () => {
+        let v = input.value.replace(/\D/g, "").slice(0, 3);
+        if (v !== "" && parseInt(v, 10) > 255) v = v.slice(0, 2);
+        input.value = v;
+        if (v.length === 3 && idx < octets.length - 1) {
+          octets[idx + 1].focus();
+          octets[idx + 1].select();
+        }
+        updateHidden();
+      });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === ".") {
+          e.preventDefault();
+          if (idx < octets.length - 1) { octets[idx + 1].focus(); octets[idx + 1].select(); }
+        } else if (e.key === "Backspace" && input.value === "" && idx > 0) {
+          octets[idx - 1].focus();
+        }
+      });
+    });
+  });
+}
+
+/* Warranty expiry (hardware & network devices) is never typed directly —
+   it's Commission date + Warranty period (years), recomputed live. */
+function computeWarrantyExpiry(commissionIso, years) {
+  const m = String(commissionIso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const y = Number(years);
+  if (!m || !y) return "";
+  const d = new Date(Number(m[1]) + y, Number(m[2]) - 1, Number(m[3]));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function setDateFieldValue(key, iso) {
+  const hidden = document.getElementById("f_" + key);
+  if (hidden) hidden.value = iso;
+  const display = document.querySelector(`[data-date-display="${key}"]`);
+  if (display) display.value = isoToDmyInput(iso);
+}
+function wireWarrantyAutoCalc() {
+  if (!state.editing) return;
+  if (state.editing.tableKey !== "hardware" && state.editing.tableKey !== "network_devices") return;
+  const commissionDisplay = document.querySelector('[data-date-display="commission_date"]');
+  const yearsEl = document.getElementById("f_warranty_years");
+  if (!commissionDisplay || !yearsEl) return;
+  function recalc() {
+    const commissionIso = document.getElementById("f_commission_date")?.value || "";
+    setDateFieldValue("warranty_expiry", computeWarrantyExpiry(commissionIso, yearsEl.value));
+  }
+  commissionDisplay.addEventListener("input", recalc);
+  yearsEl.addEventListener("change", recalc);
 }
 function formatDateTimeDMY(isoStr) {
   if (!isoStr) return "-";
@@ -2702,7 +2807,18 @@ function fieldBlock(field, value) {
       <button type="button" class="ghost-btn node-add" data-key="${field.key}">+ Add Host</button>
     `;
   } else if (field.type === "ip") {
-    control = `<input type="text" id="${id}" data-key="${field.key}" data-ip-field="1" value="${escapeHtml(value || "")}" placeholder="${escapeHtml(field.placeholder || "e.g. 192.168.1.10")}" inputmode="decimal" pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$" ${field.required ? "required" : ""}>`;
+    const octets = String(value || "").split(".");
+    const seg = i => escapeHtml((octets[i] || "").replace(/\D/g, ""));
+    control = `<span class="ip-input-group">
+      <input type="hidden" id="${id}" data-key="${field.key}" value="${escapeHtml(value || "")}">
+      <input type="text" class="ip-octet" inputmode="numeric" maxlength="3" value="${seg(0)}" aria-label="${escapeHtml(field.label)} octet 1">
+      <span class="ip-dot">.</span>
+      <input type="text" class="ip-octet" inputmode="numeric" maxlength="3" value="${seg(1)}" aria-label="${escapeHtml(field.label)} octet 2">
+      <span class="ip-dot">.</span>
+      <input type="text" class="ip-octet" inputmode="numeric" maxlength="3" value="${seg(2)}" aria-label="${escapeHtml(field.label)} octet 3">
+      <span class="ip-dot">.</span>
+      <input type="text" class="ip-octet" inputmode="numeric" maxlength="3" value="${seg(3)}" aria-label="${escapeHtml(field.label)} octet 4">
+    </span>`;
   } else if (field.type === "mac") {
     control = `<input type="text" id="${id}" data-key="${field.key}" data-mac-field="1" value="${escapeHtml(value || "")}" placeholder="${escapeHtml(field.placeholder || "e.g. aa:bb:cc:dd:ee:01")}" ${field.required ? "required" : ""}>`;
   } else if (field.type === "password") {
@@ -2728,7 +2844,8 @@ function fieldBlock(field, value) {
   } else if (field.type === "number") {
     control = `<input type="number" id="${id}" data-key="${field.key}" value="${value ?? ""}" min="${field.min ?? 0}" ${field.required ? "required" : ""}>`;
   } else if (field.type === "date") {
-    control = `<input type="date" id="${id}" data-key="${field.key}" value="${escapeHtml(value || "")}" ${field.required ? "required" : ""}>`;
+    control = `<input type="hidden" id="${id}" data-key="${field.key}" value="${escapeHtml(value || "")}">
+      <input type="text" class="date-mask-input" data-date-display="${field.key}" value="${escapeHtml(isoToDmyInput(value))}" placeholder="${field.locked ? "Auto-calculated" : "dd/mm/yyyy"}" inputmode="numeric" maxlength="10" autocomplete="off" ${field.locked ? "readonly" : ""}>`;
   } else if (field.type === "textarea") {
     control = `<textarea id="${id}" data-key="${field.key}" rows="2">${escapeHtml(value || "")}</textarea>`;
   } else {
@@ -3022,6 +3139,9 @@ function wireOsCascade() {
 function attachDynamicHandlers() {
   document.querySelectorAll('[data-ip-field="1"]').forEach(filterIpKeystroke);
   document.querySelectorAll('[data-mac-field="1"]').forEach(filterMacKeystroke);
+  wireDateMaskInputs(document.getElementById("panelBody"));
+  wireIpOctetGroups(document.getElementById("panelBody"));
+  wireWarrantyAutoCalc();
 
   const hostSel = document.getElementById("f_host_ref");
   const clusterInput = document.getElementById("f_cluster_name");
@@ -3200,6 +3320,7 @@ function openRenewModal(tableKey, id) {
   document.getElementById("renewPanelTitle").textContent = `Renew MA — ${recordDisplayName(tableKey, record)}`;
   document.getElementById("renewFormError").hidden = true;
   document.getElementById("renewExpiry").value = "";
+  document.getElementById("renewExpiryDisplay").value = "";
   document.getElementById("renewContractNo").value = record.ma_contract_no || "";
   document.getElementById("renewProvider").value = record.ma_provider || "";
   document.getElementById("renewCost").value = "";
@@ -3609,6 +3730,7 @@ document.getElementById("closeHistoryPanelBtn").addEventListener("click", closeH
 document.getElementById("closeHistoryBtn2").addEventListener("click", closeHistoryPanel);
 document.getElementById("closeRenewPanelBtn").addEventListener("click", closeRenewModal);
 document.getElementById("renewCancelBtn").addEventListener("click", closeRenewModal);
+wireDateMaskInput(document.getElementById("renewExpiryDisplay"), document.getElementById("renewExpiry"));
 document.getElementById("renewForm").addEventListener("submit", (e) => { e.preventDefault(); submitRenew(); });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && document.getElementById("modalBackdrop").classList.contains("open")) closeForm();
