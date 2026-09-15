@@ -1248,6 +1248,36 @@ function buildLocationSeed(today) {
   return locs;
 }
 
+/* Backfills any Site/Factory/Floor row from LOCATION_MASTER that isn't
+   already present in state.data.locations — matched by (level, name,
+   parent), never by array position — and leaves everything else alone:
+   custom Areas/Racks, any locations a user added by hand, any edits to
+   remarks, etc. This is what makes Location Master self-healing for a
+   browser whose localStorage predates this exact master list (or an
+   earlier, incomplete version of it) instead of staying stuck on stale
+   data forever — see the migration check in loadAll(). Returns true if it
+   actually added anything (so the caller knows whether to persist).
+*/
+function ensureLocationMaster() {
+  const today = new Date().toISOString().slice(0, 10);
+  let changed = false;
+  const findChild = (level, name, parentId) =>
+    state.data.locations.find(l => l.level === level && l.name === name && l.parent_id === parentId);
+  const addRow = (level, name, parentId) => {
+    const rec = { location_id: generateId({ key: "locations", idField: "location_id", idPrefix: "LOC" }),
+      level, name, parent_id: parentId, remarks: "-", created_at: today, updated_at: today };
+    state.data.locations.push(rec);
+    changed = true;
+    return rec;
+  };
+  LOCATION_MASTER.forEach(([siteName, factoryName, floorName]) => {
+    const site = findChild("Site", siteName, null) || addRow("Site", siteName, null);
+    const factory = findChild("Factory", factoryName, site.location_id) || addRow("Factory", factoryName, site.location_id);
+    findChild("Floor", floorName, factory.location_id) || addRow("Floor", floorName, factory.location_id);
+  });
+  return changed;
+}
+
 /* ---------------- Seed / example data ---------------- */
 function seedData() {
   const today = new Date().toISOString().slice(0, 10);
@@ -1438,6 +1468,14 @@ async function loadAll() {
   if (!state.data.software_catalogue || !state.data.software_catalogue.length) {
     seedSoftwareData(new Date().toISOString().slice(0, 10));
     await Promise.all(["software_catalogue", "software_licenses", "software_allocations"].map(persist));
+  }
+  // Location Master (Site > Factory > Floor) is reference data that should
+  // always contain every row from LOCATION_MASTER — this backfills anything
+  // missing (a browser whose locations predate this exact master list, or
+  // an earlier/partial version of it) additively, without touching custom
+  // Areas/Racks or any locations added by hand.
+  if (ensureLocationMaster()) {
+    await persist("locations");
   }
   const extraKeys = Object.keys(EXTRA_STORAGE);
   const extraResults = await Promise.all(extraKeys.map(key => StorageAdapter.get(EXTRA_STORAGE[key])));
