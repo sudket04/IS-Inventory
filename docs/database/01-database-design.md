@@ -4,7 +4,7 @@
 | หัวข้อ | รายละเอียด |
 |---|---|
 | **เอกสาร** | Database Design & Entity-Relationship Diagram |
-| **เวอร์ชัน** | 1.0 (Draft — รออนุมัติ) |
+| **เวอร์ชัน** | 1.1 (Draft — รออนุมัติ) |
 | **DBMS** | Microsoft SQL Server (2019 ขึ้นไป · ทดสอบกับ 2022/2025) |
 | **Collation ที่แนะนำ** | `Thai_100_CI_AS_SC_UTF8` หรือ `SQL_Latin1_General_CP1_CI_AS` + ใช้ `NVARCHAR` ทุกฟิลด์ข้อความ |
 | **อ้างอิง** | `docs/PRD.md` · `docs/design/*` |
@@ -197,15 +197,28 @@ flowchart TB
         system_settings
     end
 
+    subgraph D7["🌐 VLAN / IPAM (v1.1)"]
+        network_zones
+        vlans
+        vlan_ip_ranges
+        vlan_devices
+    end
+
     D2 --> D3
     D1 --> D3
     D3 --> D4
     D3 --> D5
     D1 --> D6
     D3 --> D6
+    D3 --> D7
+    D2 --> D7
 ```
 
-**รวมทั้งสิ้น 25 ตาราง · 5 View · 3 Stored Procedure · 1 Trigger**
+**รวมทั้งสิ้น 29 ตาราง · 9 View · 3 Stored Procedure · 4 Function · 1 Trigger**
+
+> 🌐 **v1.1 — โมดูล VLAN / IPAM** เพิ่มโดเมนที่ 7 เข้ามา (`network_zones` · `vlans` ·
+> `vlan_ip_ranges` · `vlan_devices`) ดูรายละเอียดใน `04-vlan-module.sql` และ
+> `05-vlan-module-design.md`
 
 ---
 
@@ -608,6 +621,84 @@ erDiagram
 
 ---
 
+### 5.7 โดเมนที่ 7 — VLAN / IP Address Management (v1.1)
+
+```mermaid
+erDiagram
+    network_zones ||--o{ vlans : "จัดโซนความปลอดภัย"
+    vlans ||--o{ vlan_ip_ranges : "แบ่งเป็นช่วง IP"
+    vlans ||--o{ vlan_devices : "ทำงานบนอุปกรณ์"
+    assets ||--o{ vlan_devices : "รองรับ VLAN"
+    assets ||--o{ vlans : "เป็น Gateway ให้"
+    assets ||--o{ vlans : "เป็น DHCP Server ให้"
+    locations ||--o{ vlans : "ตั้งอยู่ที่ Site"
+
+    network_zones {
+        int zone_id PK
+        varchar code UK "TRUST / DMZ / SERVER_DMZ / OA_NETWORK / OT_NETWORK / INTERNET_DMZ"
+        nvarchar name
+        tinyint trust_level "0-100"
+        varchar color_token
+        bit is_internet_facing
+    }
+
+    vlans {
+        int vlan_id PK
+        smallint vlan_number UK "1-4094"
+        nvarchar name
+        int zone_id FK
+        varchar network_address "บังคับรูปแบบ IP + ต้องเป็น network address จริง"
+        tinyint prefix_length
+        bigint network_numeric "คอลัมน์คำนวณ ใช้เทียบช่วง"
+        varchar gateway_ip "บังคับรูปแบบ IP + ต้องอยู่ใน subnet"
+        varchar gateway_device_role "FIREWALL / CORE_SWITCH / L3_SWITCH / ROUTER"
+        int gateway_asset_id FK
+        nvarchar gateway_interface
+        varchar ip_assignment_mode "STATIC_ONLY / DHCP_ONLY / MIXED"
+        varchar dhcp_source_type "FIREWALL / CORE_SWITCH / ROUTER / DHCP_SERVER / EXTERNAL"
+        int dhcp_server_asset_id FK
+        varchar dhcp_relay_ip
+        int dhcp_lease_hours
+        varchar dns_primary
+        varchar dns_secondary
+        int site_location_id FK
+    }
+
+    vlan_ip_ranges {
+        int range_id PK
+        int vlan_id FK
+        varchar range_type "STATIC / DHCP / RESERVED / EXCLUDED"
+        varchar start_ip
+        varchar end_ip
+        bigint start_numeric "คอลัมน์คำนวณ"
+        bigint end_numeric "คอลัมน์คำนวณ"
+        varchar dhcp_source_type "เผื่อ DHCP หลายแหล่งใน VLAN เดียว"
+    }
+
+    vlan_devices {
+        int vlan_device_id PK
+        int vlan_id FK
+        int asset_id FK
+        varchar device_role "GATEWAY / DHCP_SERVER / DHCP_RELAY / TRUNK / ACCESS"
+        nvarchar interface_name
+        bit is_tagged
+    }
+```
+
+**กติกาสำคัญของโดเมนนี้**
+
+| # | กติกา | วิธีบังคับ |
+|---|---|---|
+| 1 | ทุกฟิลด์ IP ต้องเป็นรูปแบบ IP ที่ถูกต้อง | `CHECK` เรียก `fn_is_valid_ipv4` |
+| 2 | `network_address` ต้องเป็นเลขที่อยู่เครือข่ายจริง ไม่ใช่ IP ของโฮสต์ | `CK_vlans_network_boundary` — ปฏิเสธ `10.10.20.5/24` |
+| 3 | Gateway ต้องอยู่ภายใน Subnet ของ VLAN นั้น | `CK_vlans_gateway_in_subnet` |
+| 4 | ใช้ DHCP ต้องระบุแหล่งที่มาเสมอ · Static เท่านั้นห้ามมีข้อมูล DHCP ค้าง | `CK_vlans_dhcp_consistency` |
+| 5 | ช่วง IP ต้องเรียงจากน้อยไปมาก | `CK_ranges_order` |
+
+> รายละเอียดตรรกะการคำนวณ IP และผลกระทบต่อหน้าเว็บ ดูใน `05-vlan-module-design.md`
+
+---
+
 ## 6. View ที่ระบบใช้งาน
 
 | View | หน้าที่ | ใช้ที่หน้าไหน |
@@ -617,6 +708,10 @@ erDiagram
 | `vw_expiring_assets` | รายการใกล้หมดอายุพร้อมระดับความเร่งด่วน | Dashboard · Worker แจ้งเตือน |
 | `vw_asset_relationships_expanded` | แสดงความสัมพันธ์ทั้งขาเข้าและขาออกในมุมมองเดียว | แท็บ Relations |
 | `vw_location_tree` | เส้นทางเต็มของสถานที่แบบลำดับชั้น | ตัวกรอง · Master Data |
+| `vw_all_ip_addresses` | 🌐 รวม IP ทุกตัวในระบบจาก 4 แหล่งไว้ในมุมมองเดียว | ฐานของการคำนวณ IP |
+| `vw_vlan_summary` | 🌐 คำนวณ Subnet, Pool และ IP คงเหลือของแต่ละ VLAN | VLAN List · VLAN Detail |
+| `vw_vlan_ip_allocation` | 🌐 จับคู่ IP ที่ใช้อยู่กับ VLAN และประเภทช่วง | แท็บ Allocated IPs · Asset Detail |
+| `vw_vlan_validation_issues` | 🌐 ตรวจหาความผิดปกติของการตั้งค่า VLAN 7 แบบ | แถบคำเตือนบนหน้า VLAN |
 
 ### 6.1 ตรรกะการนับ Seat (หัวใจของ FR-SW-03)
 
@@ -666,8 +761,9 @@ is_over_deployed = seats_used > seats_purchased
 | ตารางความสัมพันธ์ | 2 | `software_installations` `asset_relationships` |
 | ตารางสนับสนุน | 4 | `attachments` `notifications` `notification_history` `import_batches` |
 | ตารางระบบ | 4 | `audit_logs` `audit_logs_archive` `system_settings` `asset_tag_sequences` |
-| **รวมตาราง** | **25** | |
-| View | 5 | |
+| 🌐 ตาราง VLAN / IPAM (v1.1) | 4 | `network_zones` `vlans` `vlan_ip_ranges` `vlan_devices` |
+| **รวมตาราง** | **29** | |
+| View | 9 | |
 | Stored Procedure | 3 | `sp_generate_asset_tag` · `sp_soft_delete_asset` · `sp_archive_audit_logs` |
 | Trigger | 1 | `trg_audit_logs_no_modify` |
 

@@ -2,7 +2,7 @@
    KKND — IT Inventory Management System
    Database Schema for Microsoft SQL Server (2019+)
 
-   Version : 1.0 (Draft)
+   Version : 1.1 (Draft)  -- v1.1 เพิ่มโมดูล VLAN/IPAM ในไฟล์ 04-vlan-module.sql
    Author  : Database Architecture — Phase 3
    Ref     : docs/PRD.md · docs/database/01-database-design.md
 
@@ -348,7 +348,9 @@ CREATE TABLE dbo.network_details (
     poe_support         BIT            NULL,
     firmware_version    NVARCHAR(100)  NULL,
     firmware_updated_at DATE           NULL,
-    vlan_info           NVARCHAR(400)  NULL,
+    -- หมายเหตุ: ข้อมูล VLAN ไม่เก็บเป็นข้อความอิสระในตารางนี้
+    -- แต่ใช้โครงสร้างจริงในโมดูล VLAN/IPAM (ดู 04-vlan-module.sql)
+    -- ความสัมพันธ์ "อุปกรณ์นี้รองรับ VLAN ใดบ้าง" อยู่ในตาราง dbo.vlan_devices
     stack_info          NVARCHAR(200)  NULL,
     uplink_asset_id     INT            NULL,
     CONSTRAINT PK_network_details PRIMARY KEY CLUSTERED (asset_id),
