@@ -4,8 +4,8 @@
 | หัวข้อ | รายละเอียด |
 |---|---|
 | **เอกสาร** | Data Dictionary |
-| **เวอร์ชัน** | 1.1 (Draft — รออนุมัติ) |
-| **อ้างอิง** | `01-database-design.md` · `02-schema-sqlserver.sql` · `04-vlan-module.sql` |
+| **เวอร์ชัน** | 1.2 (Draft — รออนุมัติ) |
+| **อ้างอิง** | `01-database-design.md` · `02-schema-sqlserver.sql` · `04-vlan-module.sql` · `06-module-v1.2.sql` |
 | **วัตถุประสงค์** | อธิบาย**ความหมายเชิงธุรกิจ**และ**กติกาการตรวจสอบข้อมูล**ของแต่ละคอลัมน์ ซึ่งสคริปต์ SQL ไม่ได้บอก |
 
 **สัญลักษณ์ที่ใช้:** 🔑 Primary Key · 🔗 Foreign Key · ⭐ Unique · ❗ NOT NULL · ⬜ อนุญาตให้ว่างได้
@@ -69,7 +69,7 @@
 | `cpu_socket_count` | `TINYINT` | จำนวน CPU ที่ติดตั้ง | 1–8 |
 | `cpu_core_count` | `SMALLINT` | จำนวนคอร์รวม | ใช้คำนวณ License แบบ Core-based |
 | `ram_gb` | `INT` | หน่วยความจำ (GB) | `> 0` |
-| `storage_config` | `NVARCHAR(300)` | เช่น `4× 1.92TB SSD RAID 10` | เก็บเป็นข้อความอ่านง่าย ไม่แยกฟิลด์ เพราะรูปแบบหลากหลายเกินกว่าจะทำเป็นโครงสร้าง |
+| ~~`storage_config`~~ · ~~`storage_total_gb`~~ | — | ❌ **ยกเลิกใน v1.2** | แทนที่ด้วยตาราง `storage_volumes` ซึ่งเก็บ Local Disk, SAN LUN, VM Datastore, Cluster Shared Volume และ Backup Repository ได้ · พื้นที่รวมอ่านจาก `vw_asset_storage_summary` |
 | `os_install_date` / `last_patch_date` | `DATE` | วันติดตั้ง / วันแพตช์ล่าสุด | ใช้ทำรายงานเครื่องที่ไม่ได้อัปเดตนาน |
 | `parent_host_asset_id` | `INT` 🔗 | VM นี้อยู่บน Host เครื่องไหน | ห้ามชี้กลับมาที่ตัวเอง |
 
@@ -77,7 +77,7 @@
 
 | คอลัมน์ | ความหมาย | หมายเหตุ |
 |---|---|---|
-| `device_type` ❗ | `SWITCH` · `ROUTER` · `FIREWALL` · `ACCESS_POINT` · `LOAD_BALANCER` · `OTHER` | |
+| `device_type_id` ❗🔗 | 🔗 ชี้ไปยัง `network_device_types` | ⭐ **เปลี่ยนใน v1.2** จากข้อความเป็น Foreign Key · จัดกลุ่มเป็น 6 Class: `NETWORK` · `SECURITY` · `WIRELESS` · `OPTIMIZATION` · `VOICE` · `MANAGEMENT` · Admin เพิ่มประเภทใหม่ได้เองโดยไม่ต้อง Deploy |
 | `mgmt_ip` | IP สำหรับบริหารจัดการอุปกรณ์ | มี Index |
 | `port_count` / `port_speed` | จำนวนพอร์ต / ความเร็ว เช่น `24` / `1G + 4× 10G SFP+` | ใช้วางแผนขยายเครือข่าย |
 | `poe_support` | รองรับจ่ายไฟผ่านสาย LAN หรือไม่ | สำคัญต่อการวางแผนติดตั้ง AP และกล้อง |
@@ -110,6 +110,30 @@
 
 > **หมายเหตุสำหรับ `PERPETUAL` และ `OPEN_SOURCE`:** ให้ปล่อย `coverage_end_date` เป็นค่าว่าง
 > ระบบจะไม่นำไปคิดในการแจ้งเตือน และหน้าเว็บจะแสดงคำว่า `Perpetual` แทนวันที่
+
+---
+
+### 2.5 ตารางบทบาทและโครงสร้างใหม่ใน v1.2
+
+| ตาราง | ความหมายเชิงธุรกิจ | หมายเหตุสำคัญ |
+|---|---|---|
+| `server_roles` | บทบาทของเซิร์ฟเวอร์ 32 ค่าตั้งต้น แบ่ง 6 กลุ่ม | `is_dhcp_provider` ใช้กรองรายการ DHCP · `is_critical_service` ใช้จัดลำดับความเร่งด่วน |
+| `server_role_assignments` | 🔗 M:N ระหว่างเซิร์ฟเวอร์กับบทบาท | ⭐ **1 เครื่องมีบทบาทหลักได้เพียง 1 บทบาท** (Filtered Unique Index บน `is_primary`) |
+| `network_device_types` | ประเภทอุปกรณ์เครือข่ายพร้อมการจัดกลุ่ม | `can_be_gateway` · `can_provide_dhcp` · `gateway_role_code` · `dhcp_source_code` ใช้กรองและตรวจสอบรายการ |
+| `clusters` | กลุ่มเครื่องที่ทำงานร่วมกัน 13 ชนิด | รองรับ VMware HA, Hyper-V Failover, Veeam SOBR, DB AlwaysOn ฯลฯ |
+| `cluster_members` | 🔗 M:N ระหว่าง Cluster กับอุปกรณ์ | `left_date IS NULL` = ยังเป็นสมาชิก · ไม่ลบแถวเพื่อรักษาประวัติ |
+| `storage_volumes` | พื้นที่จัดเก็บ 10 ประเภท | ⭐ ผูกกับ **เครื่อง หรือ Cluster** ก็ได้ · `provider_asset_id` ระบุว่ามาจาก SAN/NAS ตัวไหน |
+
+**ฟิลด์ที่ควรรู้ใน `storage_volumes`**
+
+| ฟิลด์ | ความหมาย | กติกา |
+|---|---|---|
+| `asset_id` / `cluster_id` | เจ้าของ Volume | ⭐ ต้องมีอย่างน้อยหนึ่งอย่าง (`CK_vol_owner`) |
+| `provider_asset_id` | อุปกรณ์ที่จ่าย Storage | ใช้วิเคราะห์ผลกระทบเมื่อ SAN ล่ม |
+| `is_shared` | ใช้ร่วมกันหลายเครื่องหรือไม่ | ถ้าเป็น `1` **ต้องผูกกับ Cluster** |
+| `free_gb` · `used_percent` | คอลัมน์คำนวณอัตโนมัติ | ห้ามเขียนค่าโดยตรง |
+| `immutability_days` | 🔒 จำนวนวันที่ข้อมูลสำรองลบไม่ได้ | ว่างหรือเป็น 0 = **ความเสี่ยงต่อ Ransomware** |
+| `dedup_ratio` | อัตราการลดขนาดข้อมูล เช่น `3.20` | ใช้ประเมินพื้นที่จริงที่เก็บได้ |
 
 ---
 

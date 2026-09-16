@@ -4,7 +4,7 @@
 | หัวข้อ | รายละเอียด |
 |---|---|
 | **เอกสาร** | Database Design & Entity-Relationship Diagram |
-| **เวอร์ชัน** | 1.1 (Draft — รออนุมัติ) |
+| **เวอร์ชัน** | 1.2 (Draft — รออนุมัติ) |
 | **DBMS** | Microsoft SQL Server (2019 ขึ้นไป · ทดสอบกับ 2022/2025) |
 | **Collation ที่แนะนำ** | `Thai_100_CI_AS_SC_UTF8` หรือ `SQL_Latin1_General_CP1_CI_AS` + ใช้ `NVARCHAR` ทุกฟิลด์ข้อความ |
 | **อ้างอิง** | `docs/PRD.md` · `docs/design/*` |
@@ -214,11 +214,14 @@ flowchart TB
     D2 --> D7
 ```
 
-**รวมทั้งสิ้น 29 ตาราง · 9 View · 3 Stored Procedure · 4 Function · 1 Trigger**
+**รวมทั้งสิ้น 35 ตาราง · 15 View · 3 Stored Procedure · 4 Function · 4 Trigger**
 
-> 🌐 **v1.1 — โมดูล VLAN / IPAM** เพิ่มโดเมนที่ 7 เข้ามา (`network_zones` · `vlans` ·
-> `vlan_ip_ranges` · `vlan_devices`) ดูรายละเอียดใน `04-vlan-module.sql` และ
-> `05-vlan-module-design.md`
+> 🌐 **v1.1 — โมดูล VLAN / IPAM** เพิ่มโดเมนที่ 7 (`network_zones` · `vlans` ·
+> `vlan_ip_ranges` · `vlan_devices`) — ดู `04-vlan-module.sql` และ `05-vlan-module-design.md`
+>
+> 🧩 **v1.2 — Classification · Storage · DHCP Control** เพิ่มโดเมนที่ 8 (`server_roles` ·
+> `server_role_assignments` · `network_device_types` · `clusters` · `cluster_members` ·
+> `storage_volumes`) — ดู `06-module-v1.2.sql` และ `07-module-v1.2-design.md`
 
 ---
 
@@ -712,6 +715,12 @@ erDiagram
 | `vw_vlan_summary` | 🌐 คำนวณ Subnet, Pool และ IP คงเหลือของแต่ละ VLAN | VLAN List · VLAN Detail |
 | `vw_vlan_ip_allocation` | 🌐 จับคู่ IP ที่ใช้อยู่กับ VLAN และประเภทช่วง | แท็บ Allocated IPs · Asset Detail |
 | `vw_vlan_validation_issues` | 🌐 ตรวจหาความผิดปกติของการตั้งค่า VLAN 7 แบบ | แถบคำเตือนบนหน้า VLAN |
+| `vw_dhcp_capable_devices` | 🧩 รายการอุปกรณ์ที่เข้าข่ายเป็นแหล่ง DHCP ได้ | ⭐ Dropdown บนฟอร์ม VLAN + ใช้ใน Trigger |
+| `vw_gateway_capable_devices` | 🧩 รายการอุปกรณ์ที่เป็น Gateway ได้ | ⭐ Dropdown บนฟอร์ม VLAN + ใช้ใน Trigger |
+| `vw_server_roles_summary` | 🧩 สรุปบทบาททั้งหมดของเซิร์ฟเวอร์แต่ละเครื่อง | Asset List · Asset Detail |
+| `vw_asset_storage_summary` | 💾 พื้นที่จัดเก็บรวมรายเครื่อง | Asset Detail · รายงาน |
+| `vw_cluster_overview` | 💾 ภาพรวม Cluster พร้อมสถานะ Degraded | หน้า Clusters |
+| `vw_backup_repositories` | 💾 พื้นที่สำรองข้อมูล + เตือน Immutability | รายงาน Backup |
 
 ### 6.1 ตรรกะการนับ Seat (หัวใจของ FR-SW-03)
 
@@ -762,8 +771,10 @@ is_over_deployed = seats_used > seats_purchased
 | ตารางสนับสนุน | 4 | `attachments` `notifications` `notification_history` `import_batches` |
 | ตารางระบบ | 4 | `audit_logs` `audit_logs_archive` `system_settings` `asset_tag_sequences` |
 | 🌐 ตาราง VLAN / IPAM (v1.1) | 4 | `network_zones` `vlans` `vlan_ip_ranges` `vlan_devices` |
-| **รวมตาราง** | **29** | |
-| View | 9 | |
+| 🧩 ตาราง Classification (v1.2) | 3 | `server_roles` `server_role_assignments` `network_device_types` |
+| 💾 ตาราง Storage & Cluster (v1.2) | 3 | `clusters` `cluster_members` `storage_volumes` |
+| **รวมตาราง** | **35** | |
+| View | 15 | |
 | Stored Procedure | 3 | `sp_generate_asset_tag` · `sp_soft_delete_asset` · `sp_archive_audit_logs` |
 | Trigger | 1 | `trg_audit_logs_no_modify` |
 
