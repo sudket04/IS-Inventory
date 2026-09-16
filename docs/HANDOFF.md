@@ -1,0 +1,275 @@
+# HANDOFF — สรุปสถานะโปรเจกต์เพื่อส่งต่อ
+## KKND — IT Inventory Management System
+
+| หัวข้อ | รายละเอียด |
+|---|---|
+| **Repository** | `sudket04/KKND` |
+| **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
+| **อัปเดตล่าสุด** | 2026-09-16 · commit `1b4377e` |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · ⏳ **Phase 4 (Development) ยังไม่เริ่ม** |
+| **โค้ดโปรแกรม** | ❌ **ยังไม่มีแม้แต่บรรทัดเดียว** — มีเฉพาะเอกสารและสคริปต์ SQL |
+
+---
+
+## 1. วิธีทำงานร่วมกับผู้ใช้ (สำคัญ — อ่านก่อนเริ่ม)
+
+| กติกา | รายละเอียด |
+|---|---|
+| **ภาษา** | ตอบเป็น **ภาษาไทย** ใช้ศัพท์เทคนิคภาษาอังกฤษตามปกติ |
+| **ถามก่อนทำ** | ผู้ใช้เคยสั่งชัดเจนว่า **"ถามรายละเอียดให้ครบก่อนค่อยดำเนินการ"** — ห้ามลงมือโดยไม่ยืนยันก่อน |
+| **รูปแบบคำถาม** | ใช้ `AskUserQuestion` ครั้งละไม่เกิน 4 ข้อ พร้อมติดป้าย (แนะนำ) ที่ตัวเลือกที่เสนอ |
+| **เมื่อพบข้อขัดแย้ง** | ชี้ให้เห็นตรงๆ พร้อมเหตุผล แล้วเสนอทางแก้ — ผู้ใช้ตอบรับข้อเสนอเชิงเทคนิคเสมอเมื่อมีเหตุผลรองรับ |
+| **ทุกครั้งที่ส่งงาน** | เขียนไฟล์ → commit → push → `SendUserFile` → สรุปในแชตแบบกระชับ |
+| **ผู้ใช้ชอบ** | ตารางเปรียบเทียบ · Mermaid diagram · ASCII wireframe · การระบุเหตุผลกำกับทุกการตัดสินใจ |
+
+---
+
+## 2. ภาพรวมโปรเจกต์
+
+ระบบบริหารทรัพย์สิน IT แบบรวมศูนย์สำหรับใช้ภายในองค์กร ติดตั้งแบบ On-Premise
+
+| หัวข้อ | ค่า |
+|---|---|
+| ขนาดข้อมูล | **> 2,000 รายการ** (ออกแบบรองรับ 10,000) |
+| ผู้ใช้ | ~20 บัญชี · ใช้พร้อมกัน 10–15 · ออกแบบรองรับ 50 |
+| ข้อมูลเดิม | Excel / Google Sheets → ต้อง Import |
+| ฐานข้อมูล | **Microsoft SQL Server** (2019+) On-Premise |
+| ภาษาหน้าเว็บ | **English ทั้งหมด** |
+| ธีม | รองรับทั้ง Light และ Dark Mode |
+| อุปกรณ์ | Desktop-first + มือถือดูข้อมูลได้ |
+
+**Role 4 ระดับ (RBAC, Global Scope ไม่มี Row-Level Security):**
+`ADMIN` · `IT_STAFF` · `AUDITOR` · `VIEWER`
+
+**Authentication:** Local Username/Password + Argon2id (ไม่มี SSO ใน MVP แต่เตรียม `external_id` ไว้แล้ว)
+
+---
+
+## 3. สถานะแต่ละ Phase
+
+| Phase | สถานะ | เอกสาร |
+|:---:|---|---|
+| **1. Requirement** | ✅ เสร็จ | `docs/PRD.md` |
+| **2. UI/UX Design** | ✅ เสร็จ | `docs/design/01` `02` `03` |
+| **3. Database** | ✅ เสร็จ (v1.0 → v1.4) | `docs/database/01`–`12` |
+| **4. Development** | ⏳ **ยังไม่เริ่ม** | — |
+
+---
+
+## 4. รายการไฟล์ทั้งหมด (9,907 บรรทัด)
+
+### 4.1 Requirement
+| ไฟล์ | บรรทัด | เนื้อหา |
+|---|---:|---|
+| `docs/PRD.md` | 486 | 60+ Functional Requirements · 14 NFR · Permission Matrix · Roadmap 8 Sprint |
+
+### 4.2 UI/UX Design
+| ไฟล์ | บรรทัด | เนื้อหา |
+|---|---:|---|
+| `docs/design/01-user-flow.md` | 383 | IA · User Flow 8 เส้นทาง · UI State 5 สถานะ · กฎการยืนยัน |
+| `docs/design/02-wireframes.md` | 855 | Wireframe 9 หน้า + เวอร์ชันมือถือ + สถานะพิเศษ |
+| `docs/design/03-design-system.md` | 561 | Design Token · Component Spec 8 ตัว · ผลตรวจ WCAG AA |
+
+### 4.3 Database — เอกสารออกแบบ
+| ไฟล์ | บรรทัด | เนื้อหา |
+|---|---:|---|
+| `01-database-design.md` | 783 | ER Diagram 7 โดเมน · Index Strategy · คำตอบ Open Questions |
+| `03-data-dictionary.md` | 270 | ความหมายเชิงธุรกิจรายคอลัมน์ |
+| `05-vlan-module-design.md` | 390 | ตรรกะคำนวณ IP · Wireframe หน้า VLAN |
+| `07-module-v1.2-design.md` | 454 | Server Roles · Storage/Cluster · DHCP Control |
+| `08-taxonomy-proposal.md` | 528 | ผังประเภท 110 Subtype · Cascading 4 ชุด |
+| `09-master-asset-contract-history.md` | 432 | Master Asset · MA History · Temporal Tables |
+
+### 4.4 Database — SQL (⚠️ รันตามลำดับเลขไฟล์)
+| ลำดับ | ไฟล์ | บรรทัด | เนื้อหา |
+|:---:|---|---:|---|
+| 1 | `02-schema-sqlserver.sql` | 1,047 | v1.0 — 25 ตารางหลัก · 5 View · 3 SP · Trigger Append-Only |
+| 2 | `04-vlan-module.sql` | 685 | v1.1 — VLAN/IPAM · Zone · IP Validation |
+| 3 | `06-module-v1.2.sql` | 742 | v1.2 — Server Roles · Cluster · Storage Volume · DHCP Control |
+| 4 | `10-module-v1.3a-taxonomy.sql` | 855 | v1.3a — asset_types · device_models |
+| 5 | `11-module-v1.3b-details-rack-ipam.sql` | 705 | v1.3b — ตารางขยาย 4 หมวด · Rack · IPAM |
+| 6 | `12-module-v1.4-contracts-temporal.sql` | 731 | v1.4 — Master Asset · Contracts · Temporal |
+
+> ⚠️ **ยังไม่เคยรันจริง** — ไม่มี SQL Server ใน environment นี้
+> ตรวจ Syntax และลำดับ Dependency ด้วยตาแล้วเท่านั้น **ต้องทดสอบบน DB ทดสอบก่อนเสมอ**
+
+---
+
+## 5. โครงสร้างฐานข้อมูลปัจจุบัน
+
+**48 ตาราง · 31 ตารางประวัติ (Temporal) · ~30 View · 5 Function · 3 SP · 8 Trigger**
+
+### 5.1 หมวดทรัพย์สิน 8 หมวด (Prefix ของ Asset Tag)
+
+| Prefix | หมวด | ตารางขยาย |
+|---|---|---|
+| `SRV` | Server | `server_details` |
+| `NET` | Network Device | `network_details` |
+| `SFT` | Software License | `software_details` |
+| `PC` | Computer | `computer_details` |
+| `STG` | Storage | `storage_details` |
+| `PWR` | Power & Cooling | `power_details` |
+| `PER` | Peripheral | `peripheral_details` |
+| `IOT` | Mobile & IoT/OT | `mobile_iot_details` |
+
+**Asset Tag:** `[PREFIX]-[YYYY]-[NNNN]` สร้างโดย `sp_generate_asset_tag` (ใช้ `UPDLOCK`) · **ไม่นำรหัสกลับมาใช้ซ้ำ**
+
+### 5.2 ผังประเภท 3 ชั้น
+`asset_categories` (8) → `asset_types` level 1 (44 Type) → `asset_types` level 2 (110 Subtype)
+
+ธงความสามารถใน `asset_types` ที่ขับเคลื่อนการกรอง Dropdown:
+`is_virtual` · `is_rackable` + `default_u_height` · `requires_ip` · `can_host_vm` ·
+`is_layer3` · `can_be_gateway` + `gateway_role_code` · `can_provide_dhcp` + `dhcp_source_code`
+
+### 5.3 กลุ่มตารางหลัก
+
+| กลุ่ม | ตาราง |
+|---|---|
+| Identity | `roles` `users` `refresh_tokens` |
+| Master Data | `locations` `departments` `vendors` `manufacturers` `asset_categories` `asset_statuses` `relationship_types` `asset_types` `device_models` `server_roles` `network_zones` |
+| Core Asset | `assets` + ตารางขยาย 8 ตาราง · `asset_tag_sequences` |
+| ความสัมพันธ์ | `software_installations` `asset_relationships` `server_role_assignments` |
+| Infrastructure | `clusters` `cluster_members` `storage_volumes` `racks` `rack_mounts` |
+| Network/IPAM | `vlans` `vlan_ip_ranges` `vlan_devices` `ip_addresses` `tally` |
+| สัญญา | `contracts` `contract_assets` |
+| Support | `attachments` `notifications` `notification_history` `import_batches` |
+| Compliance | `audit_logs` `audit_logs_archive` `system_settings` |
+
+---
+
+## 6. ⭐ การตัดสินใจเชิงสถาปัตยกรรม (ห้ามรื้อโดยไม่ถามผู้ใช้)
+
+| # | การตัดสินใจ | เหตุผล |
+|:---:|---|---|
+| 1 | **Class Table Inheritance** — `assets` แกนกลาง + ตารางขยาย 1:1 | เพิ่มหมวดใหม่ได้โดยไม่รื้อ Schema · ค้นข้ามหมวดได้ด้วย Query เดียว |
+| 2 | **Software License เป็นทรัพย์สินหมวดหนึ่ง** ไม่แยกตาราง | ใช้กลไกแจ้งเตือน ค้นหา และสัญญา ร่วมกับฮาร์ดแวร์ทั้งหมด |
+| 3 | **Audit Log แบบ Append-Only 3 ชั้น** | Trigger `INSTEAD OF` + `DENY` ระดับ DB + ไม่มี API |
+| 4 | **Temporal Tables 31 ตาราง** | ดึงสภาพข้อมูลทั้งแถว ณ เวลาใดก็ได้ด้วย `FOR SYSTEM_TIME AS OF` |
+| 5 | **สัญญาเป็นเส้นเวลา** (`previous_contract_id`) | เก็บประวัติการต่อ MA · อัตราขึ้นราคา · Coverage Gap |
+| 6 | **Seat อยู่ใน `contract_assets` ไม่ใช่ `software_details`** | ต่ออายุแล้วจำนวน Seat ของงวดเก่าไม่หาย |
+| 7 | **IPAM แยกตาราง `ip_addresses`** | รองรับหลาย IP ต่อเครื่อง · จอง IP ล่วงหน้า · Dropdown เลือก IP ว่าง |
+| 8 | **เก็บเฉพาะ IP ที่ถูกจอง/ใช้** ไม่สร้างแถว AVAILABLE ล่วงหน้า | Subnet ใหญ่จะทำให้ตารางบวม · ใช้ `fn_available_ips` คำนวณสด |
+| 9 | **Seat นับสด ไม่เก็บค่าซ้ำ** | ความถูกต้องสำคัญกว่าประสิทธิภาพที่ไม่มีใครรู้สึก |
+| 10 | **ไม่ใช้ `ON DELETE CASCADE` เลย** | บังคับ FR-MD-02 ห้ามลบข้อมูลที่ถูกอ้างอิง |
+| 11 | **Soft Delete ทุกตารางหลัก** | ทุก Query ของผู้ใช้ต้องกรอง `is_deleted = 0` |
+| 12 | **`DATETIMEOFFSET` ทุก Timestamp** | เก็บ Time Zone — จำเป็นต่อการเป็นหลักฐาน |
+| 13 | **`NVARCHAR` ทุกฟิลด์ข้อความที่ผู้ใช้กรอก** | ช่อง Notes อาจมีภาษาไทยแม้ UI เป็นอังกฤษ |
+| 14 | **ห้าม `FLOAT` กับข้อมูลการเงิน** | ใช้ `DECIMAL(18,2)` เท่านั้น |
+| 15 | **ค่าที่วัดได้ต้องมีวันที่วัดกำกับ** | `used_gb`+`last_measured_at` · `page_counter`+`counter_read_date` · `load_percent`+`load_measured_at` |
+| 16 | **แยกวันที่ในวงจรชีวิต 6 ค่า** | อายุการใช้งานนับจาก `service_start_date` ไม่ใช่ `purchase_date` |
+
+---
+
+## 7. ⚠️ สิ่งที่ต้องทำใน Phase 4 ห้ามลืม
+
+| # | เรื่อง | รายละเอียด |
+|:---:|---|---|
+| 1 | **บังคับ `updated_by` ที่ Middleware** | 🔴 **จุดตายของ Temporal Tables** — บันทึก "เมื่อไร" แต่ไม่บันทึก "ใคร" ต้องเติมอัตโนมัติผ่าน Prisma `$extends` หรือ EF Core `SaveChangesInterceptor` (โค้ดตัวอย่างอยู่ในไฟล์ 12 ส่วนที่ 8) |
+| 2 | **รันคำสั่งตรวจส่วน 7.1 ก่อนเปิด Temporal** | ระบบมี 7 คอลัมน์คำนวณ · วิธีแก้หากติดขัดอยู่ในไฟล์ 12 |
+| 3 | **Self-host ฟอนต์** | Inter + JetBrains Mono ผ่าน `next/font/local` — เซิร์ฟเวอร์ On-Premise อาจไม่มีทางออกอินเทอร์เน็ต |
+| 4 | **สคริปต์กันจอขาววาบ** | ใส่ใน `<head>` ก่อน React โหลด (โค้ดอยู่ใน Design System §10.3) |
+| 5 | **กรองข้อมูลลับก่อนเขียน Audit Log** | `password_hash` · `license_key_encrypted` · `smtp.password` ห้ามหลุดเข้า `before_json`/`after_json` |
+| 6 | **Server-side Pagination ตั้งแต่ Sprint แรก** | ห้ามดึงทั้งตารางมา render ฝั่ง Client |
+| 7 | **ตรวจสิทธิ์ที่ Server ทุก Endpoint** | การซ่อนปุ่มฝั่ง Client ไม่ใช่การรักษาความปลอดภัย |
+| 8 | **หน้าเว็บใช้คำว่า "DHCP Pool Size" ไม่ใช่ "Available"** | ระบบไม่ทราบจำนวน Lease จริง เพราะไม่ได้เชื่อม DHCP Server |
+
+---
+
+## 8. ❓ สิ่งที่ยังค้าง — ต้องถามผู้ใช้ก่อนเริ่ม Phase 4
+
+### 8.1 🔴 คำถามที่ต้องตอบก่อนเขียนโค้ด
+
+> **Backend จะใช้อะไร?** (ถามไปแล้ว 5 ครั้ง ยังไม่ได้คำตอบ)
+> - **Next.js Route Handlers + Prisma** — ติดตั้ง On-Premise เป็น Process เดียว ดูแลง่ายที่สุด (ที่เสนอไว้)
+> - **ASP.NET Core Web API + EF Core** — ถ้าทีมถนัด .NET จะเข้ากับ SQL Server และทีมมากกว่า
+>
+> ฝั่ง Frontend เป็น Next.js + TypeScript + Tailwind + shadcn/ui ทั้งสองทางเลือก
+
+### 8.2 🟡 ข้อมูลที่ยังไม่ได้รับ
+
+| ประเด็น | หมายเหตุ |
+|---|---|
+| รูปแบบ `fixed_asset_no` | ผู้ใช้ตอบแค่ว่า "กรอกเอง" ยังไม่ทราบรูปแบบ |
+| จำนวนตู้ Rack จริง | ใช้รูปแบบชื่อ `RACK-A2` ตามที่ตกลง |
+| ค่า SMTP ขององค์กร | ต้องใช้ตอนตั้งค่าระบบแจ้งเตือน |
+| โครงสร้างสถานที่จริง | Site / Building / Floor / Room / Rack |
+
+---
+
+## 9. ประวัติการตัดสินใจของผู้ใช้ (กันการถามซ้ำ)
+
+### ✅ ตกลงว่าทำ
+Asset Tracking · License/Warranty Alert · CMDB · Audit & Compliance · Dashboard + กราฟ ·
+ค้นหาขั้นสูง · แนบไฟล์ · Import/Export Excel · Email (SMTP) + In-app Notification ·
+นับ Seat · Light+Dark Mode · Temporal Tables · Contracts รองรับทั้งเครื่องเดียวและหลายเครื่อง ·
+Model Catalog + Auto-fill · Rack Elevation (U + ความสูง + หน้า/หลัง) · IPAM เต็มรูปแบบ ·
+Cascading Dropdown ครบ 4 ชุด · ผังประเภท 8 หมวด 44 Type 110 Subtype
+
+### ❌ ตัดออกชัดเจน (ห้ามเสนอซ้ำ)
+| รายการ | เหตุผล |
+|---|---|
+| Auto-Discovery (SNMP/WMI) | เลื่อนไป Phase 2 |
+| External API Integration | เลื่อนไป Phase 2 |
+| QR Code / Barcode | เลื่อนไป Phase 2 |
+| Approval Workflow | ใช้ Audit Log แทน |
+| Row-Level Security | ทุกคนเห็นข้อมูลทั้งหมด |
+| SSO (AD / Entra ID) | ใช้ Local Auth ก่อน |
+| ระบบยืม-คืน | ไม่อยู่ใน MVP |
+| Dynamic Custom Fields | กำหนดฟิลด์ครบตั้งแต่แรก |
+| `asset_components` | ผู้ใช้ปฏิเสธ |
+| `maintenance_records` | ผู้ใช้ปฏิเสธ |
+| ค่าเสื่อมราคา / Book Value | ผู้ใช้ปฏิเสธ |
+| Pre-seed รุ่นอุปกรณ์ | ใส่เฉพาะยี่ห้อ 54 รายการ |
+
+---
+
+## 10. Tech Stack ที่เสนอไว้ (รอยืนยัน Backend)
+
+| ชั้น | เทคโนโลยี |
+|---|---|
+| Frontend | Next.js (App Router) + TypeScript |
+| UI | Tailwind CSS + shadcn/ui · Inter + JetBrains Mono · Lucide Icons |
+| Table/State | TanStack Table + TanStack Query |
+| Chart | Recharts |
+| Backend | ⏳ **รอตัดสินใจ** |
+| ORM | Prisma หรือ EF Core |
+| Database | Microsoft SQL Server (On-Premise) |
+| Auth | Auth.js (Credentials) + Argon2id |
+| Scheduled Job | Worker Process แยก (node-cron) |
+| Excel | ExcelJS · Email: Nodemailer |
+| Deploy | Docker Compose (App + Worker) |
+
+**Design Token หลัก:** Primary Indigo `#4F46E5` (Light) / `#6366F1` (Dark) · Neutral Slate ·
+ฟอนต์ฐาน **14px** (ไม่ใช่ 16px เพราะเป็น UI ที่ข้อมูลหนาแน่น) · Spacing ฐาน 4px
+
+---
+
+## 11. แผนงาน Phase 4 (8 Sprint + งานที่เพิ่มจาก v1.1–v1.4 ~26 วัน)
+
+| Sprint | ขอบเขต |
+|:---:|---|
+| 0 | Setup · Migration · Seed Data |
+| 1 | Auth · RBAC · จัดการผู้ใช้ · Layout + Dark Mode |
+| 2 | Master Data · Asset CRUD (Server/Network) · ค้นหาและกรอง · Server Roles |
+| 3 | Asset หมวดที่เหลือ · Attachment · Audit Log · Storage/Cluster · Rack · VLAN Detail |
+| 4 | Software License · Seat · CMDB Relationship · Contracts |
+| 5 | Dashboard · Reports · Export · Backup Repositories |
+| 6 | Excel Import + Validation · Notification (Email + In-app) |
+| 7 | ทดสอบ · ปรับประสิทธิภาพ · คู่มือ · Deploy |
+
+---
+
+## 12. Git
+
+```
+Branch : claude/zealous-hamilton-hn3ggp
+Commits: 10 (ล่าสุด 1b4377e)
+สถานะ  : สะอาด · push ครบแล้ว
+```
+
+**รูปแบบ Commit Message:** Conventional Commits (`docs:` · `feat(database):`)
+บอดี้เป็นภาษาไทย ปิดท้ายด้วย `Co-Authored-By` และ `Claude-Session` ตามที่ระบบกำหนด
+
+---
+
+*เอกสารนี้ใช้สำหรับส่งต่อบริบทเมื่อ Context ถูกบีบอัด — อ่านไฟล์นี้ก่อนเริ่มงานต่อ*
