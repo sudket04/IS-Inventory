@@ -420,6 +420,10 @@ flowchart TD
 
 ## 12. แผนการพัฒนา (Development Roadmap)
 
+> รายละเอียดเต็ม Sprint 0–10 พร้อม Pre-Flight Checklist, งานคู่ขนาน, และ Go-Live Checklist
+> อยู่ใน **`docs/ROADMAP.md`** — ตารางด้านล่างคือขอบเขตงานหลักของระบบ Core (v1.0–v1.4) เท่านั้น
+> ยังไม่รวม Permission Control Module (v1.5) ซึ่งเพิ่ม Sprint 7–9 ต่อท้าย
+
 | Sprint | ขอบเขตงาน | ผลลัพธ์ที่ส่งมอบ |
 |:---:|---|---|
 | **0** | Setup โปรเจกต์, Database Schema, Migration, Seed Data | โครงสร้างพร้อมพัฒนา |
@@ -429,7 +433,7 @@ flowchart TD
 | **4** | Software License, Seat Counting, CMDB Relationship | บริหาร License และความสัมพันธ์ได้ |
 | **5** | Dashboard, Reports, Export | เห็นภาพรวมและออกรายงานได้ |
 | **6** | Excel Import + Validation, Notification (Email + In-app) | นำเข้าข้อมูลเดิมและแจ้งเตือนอัตโนมัติได้ |
-| **7** | ทดสอบ, ปรับประสิทธิภาพ, เอกสารคู่มือ, Deploy | ระบบพร้อมใช้งานจริง |
+| **7–10** | Permission Control (v1.5) · AD/FSRM Integration · Settings ที่เหลือ · ทดสอบ · Deploy | ระบบพร้อมใช้งานจริง — ดู `docs/ROADMAP.md` |
 
 ---
 

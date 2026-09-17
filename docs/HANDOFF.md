@@ -56,12 +56,13 @@
 
 ---
 
-## 4. รายการไฟล์ทั้งหมด (12,905 บรรทัด)
+## 4. รายการไฟล์ทั้งหมด (13,032 บรรทัด)
 
 ### 4.1 Requirement
 | ไฟล์ | บรรทัด | เนื้อหา |
 |---|---:|---|
-| `docs/PRD.md` | 490 | 60+ Functional Requirements · 15 NFR · Permission Matrix · Roadmap 8 Sprint |
+| `docs/PRD.md` | 494 | 60+ Functional Requirements · 15 NFR · Permission Matrix · Roadmap Sprint 0-6 |
+| `docs/ROADMAP.md` | 125 | Pre-Flight Checklist · Sprint 0–10 เต็มรูปแบบ · งานคู่ขนาน · Go-Live Checklist |
 
 ### 4.2 UI/UX Design
 | ไฟล์ | บรรทัด | เนื้อหา |
@@ -312,18 +313,15 @@ Server เชื่อม Internet ได้เฉพาะช่วงติด
 
 ---
 
-## 11. แผนงาน Phase 4 (8 Sprint + งานที่เพิ่มจาก v1.1–v1.4 ~26 วัน)
+## 11. แผนงานจนถึง Go-Live
 
-| Sprint | ขอบเขต |
-|:---:|---|
-| 0 | Setup · Migration · Seed Data |
-| 1 | Auth · RBAC · จัดการผู้ใช้ · Layout + Dark Mode |
-| 2 | Master Data · Asset CRUD (Server/Network) · ค้นหาและกรอง · Server Roles |
-| 3 | Asset หมวดที่เหลือ · Attachment · Audit Log · Storage/Cluster · Rack · VLAN Detail |
-| 4 | Software License · Seat · CMDB Relationship · Contracts |
-| 5 | Dashboard · Reports · Export · Backup Repositories |
-| 6 | Excel Import + Validation · Notification (Email + In-app) |
-| 7 | ทดสอบ · ปรับประสิทธิภาพ · คู่มือ · Deploy |
+> ย้ายรายละเอียดเต็มไปที่ **`docs/ROADMAP.md`** แล้ว (Sprint 0–10 รวม v1.5 Permission Control
+> และ Administration Settings 25 หน้า ที่ Roadmap เดิมยังไม่ครอบคลุม)
+>
+> สรุปย่อ: Phase 0 (Pre-Flight — ต้องมี SQL Server + Windows AD/FSRM ทดสอบก่อนเริ่ม) →
+> Sprint 0–6 (Core Asset System ตาม v1.0–v1.4) → Sprint 7–9 (Permission Control v1.5 +
+> Collector Agent + Settings ที่เหลือ) → Sprint 10 (Test + Deploy + Go-Live)
+> รวม ~48 วันทำงานคนเดียว หรือ ~30–34 วันถ้าทำคู่ขนานได้ 2 คน
 
 ---
 
