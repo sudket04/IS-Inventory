@@ -56,7 +56,7 @@
 
 ---
 
-## 4. รายการไฟล์ทั้งหมด (9,907 บรรทัด)
+## 4. รายการไฟล์ทั้งหมด (12,805 บรรทัด)
 
 ### 4.1 Requirement
 | ไฟล์ | บรรทัด | เนื้อหา |
@@ -69,6 +69,7 @@
 | `docs/design/01-user-flow.md` | 383 | IA · User Flow 8 เส้นทาง · UI State 5 สถานะ · กฎการยืนยัน |
 | `docs/design/02-wireframes.md` | 855 | Wireframe 9 หน้า + เวอร์ชันมือถือ + สถานะพิเศษ |
 | `docs/design/03-design-system.md` | 561 | Design Token · Component Spec 8 ตัว · ผลตรวจ WCAG AA |
+| `docs/design/04-settings-screens.md` | 513 | หน้าตั้งค่า 8 กลุ่ม 24 หน้า · รูปแบบร่วม · กฎการลบข้อมูลหลัก |
 
 ### 4.3 Database — เอกสารออกแบบ
 | ไฟล์ | บรรทัด | เนื้อหา |
@@ -79,6 +80,7 @@
 | `07-module-v1.2-design.md` | 454 | Server Roles · Storage/Cluster · DHCP Control |
 | `08-taxonomy-proposal.md` | 528 | ผังประเภท 110 Subtype · Cascading 4 ชุด |
 | `09-master-asset-contract-history.md` | 432 | Master Asset · MA History · Temporal Tables |
+| `13-permission-control-proposal.md` | 439 | สิทธิ์ File Server / Internet · Collector · ข้อจำกัดที่ต้องยอมรับ |
 
 ### 4.4 Database — SQL (⚠️ รันตามลำดับเลขไฟล์)
 | ลำดับ | ไฟล์ | บรรทัด | เนื้อหา |
@@ -89,6 +91,7 @@
 | 4 | `10-module-v1.3a-taxonomy.sql` | 855 | v1.3a — asset_types · device_models |
 | 5 | `11-module-v1.3b-details-rack-ipam.sql` | 705 | v1.3b — ตารางขยาย 4 หมวด · Rack · IPAM |
 | 6 | `12-module-v1.4-contracts-temporal.sql` | 731 | v1.4 — Master Asset · Contracts · Temporal |
+| 7 | `14-module-v1.5-permission-control.sql` | 1,671 | v1.5 — สิทธิ์ File Server / Internet · AD Sync · ประวัติสิทธิ์ |
 
 > ⚠️ **ยังไม่เคยรันจริง** — ไม่มี SQL Server ใน environment นี้
 > ตรวจ Syntax และลำดับ Dependency ด้วยตาแล้วเท่านั้น **ต้องทดสอบบน DB ทดสอบก่อนเสมอ**
@@ -97,7 +100,7 @@
 
 ## 5. โครงสร้างฐานข้อมูลปัจจุบัน
 
-**48 ตาราง · 31 ตารางประวัติ (Temporal) · ~30 View · 5 Function · 3 SP · 8 Trigger**
+**64 ตาราง · 46 ตารางประวัติ (Temporal) · 44 View · 5 Function · 3 SP · 10 Trigger**
 
 ### 5.1 หมวดทรัพย์สิน 8 หมวด (Prefix ของ Asset Tag)
 
@@ -193,6 +196,20 @@
 | จำนวนตู้ Rack จริง | ใช้รูปแบบชื่อ `RACK-A2` ตามที่ตกลง |
 | ค่า SMTP ขององค์กร | ต้องใช้ตอนตั้งค่าระบบแจ้งเตือน |
 | โครงสร้างสถานที่จริง | Site / Building / Floor / Room / Rack |
+| ชื่อ OU จริงที่จะ Sync | ผู้ใช้ตกลงว่าให้กรอกผ่านหน้าตั้งค่า (`sync_ou_scopes`) ไม่ต้องใส่ล่วงหน้า |
+
+### 8.3 🔵 งานที่ยังไม่ได้เริ่ม (v1.5)
+
+**Collector Agent** เป็นโปรแกรมแยกที่ต้องเขียนเพิ่ม ไม่ใช่ส่วนหนึ่งของเว็บ
+
+| หน้าที่ | วิธี |
+|---|---|
+| ดึงผู้ใช้และกลุ่มจาก AD | LDAP query ตาม OU ใน `sync_ou_scopes` + คลี่กลุ่มซ้อนด้วย OID `1.2.840.113556.1.4.1941` |
+| ดึง Quota / Usage | `Get-FsrmQuota` ผ่าน WinRM ไปยัง File Server แต่ละเครื่อง |
+| ส่งข้อมูลเข้าระบบ | HTTPS POST พร้อม API Key (ระบบเก็บเฉพาะ SHA-256) |
+
+ต้องรันบน Windows ในวง Domain ด้วย Service Account ที่มีสิทธิ์ **อ่านอย่างเดียว**
+ห้ามเป็น Domain Admin
 
 ---
 
@@ -220,6 +237,33 @@ Cascading Dropdown ครบ 4 ชุด · ผังประเภท 8 หม
 | `maintenance_records` | ผู้ใช้ปฏิเสธ |
 | ค่าเสื่อมราคา / Book Value | ผู้ใช้ปฏิเสธ |
 | Pre-seed รุ่นอุปกรณ์ | ใส่เฉพาะยี่ห้อ 54 รายการ |
+
+### 📌 เพิ่มเติมใน v1.5 (Permission Control)
+
+| ประเด็น | ที่ตกลง |
+|---|---|
+| สิทธิ์ AD Group ต่อโฟลเดอร์ | **กรอกมือ** ไม่สแกน NTFS ACL |
+| นโยบาย Internet | **กรอกมือ** ไม่ต่อ API ของ Proxy |
+| ข้อมูลจาก AD | ดึงเฉพาะ **ผู้ใช้และกลุ่ม** มาเทียบเท่านั้น |
+| Quota / Usage | ดึงอัตโนมัติจาก **FSRM** ผ่าน Collector |
+| ขอบเขตการเขียน | **Read-Only** ห้ามเขียนกลับไปที่ AD หรือ File Server |
+| ชั้นความลับ | ช่องเดียว 7 ค่า พร้อมลำดับ 1–7 |
+| ประวัติสิทธิ์ | แสดง **3 version ล่าสุด** บนหน้าจอ · เก็บในฐานข้อมูล 2 ปี |
+| ขอบเขต AD | เฉพาะ OU ที่กำหนดใน `sync_ou_scopes` |
+| เวลา Sync | AD 02:00 · FSRM 03:00 |
+
+> ⚠️ **หมายเหตุที่ดูขัดกับรายการตัดออกด้านบน** — v1.5 มีการจำกัดการมองเห็นตามชั้นความลับ
+> ซึ่ง **ไม่ใช่ Row-Level Security ของ SQL Server** ที่ตัดออกไป แต่เป็นการบังคับที่ชั้น API
+> โดยอ่านจากตาราง `classification_role_visibility` ฐานข้อมูลยังไม่มี RLS ตามเดิม
+
+### ❌ ตัดออกใน v1.5 (ห้ามเสนอซ้ำ)
+| รายการ | เหตุผล |
+|---|---|
+| สแกน NTFS ACL (`Get-Acl`) | ผู้ใช้เลือกกรอกมือ — ตัดงานที่ยากที่สุดออก |
+| Proxy / Firewall API Connector | ผู้ใช้เลือกกรอกมือ |
+| เขียนสิทธิ์กลับไปที่ AD หรือ NTFS | Read-Only เท่านั้น |
+| ช่วงเวลาที่ใช้ Internet ได้ | ผู้ใช้ไม่เลือก |
+| ตัดประวัติเหลือ 3 version จริงในฐานข้อมูล | เสี่ยงต่อการลบร่องรอย และ SQL Server ทำไม่ได้โดยตรง |
 
 ---
 
