@@ -56,7 +56,7 @@
 
 ---
 
-## 4. รายการไฟล์ทั้งหมด (12,805 บรรทัด)
+## 4. รายการไฟล์ทั้งหมด (12,877 บรรทัด)
 
 ### 4.1 Requirement
 | ไฟล์ | บรรทัด | เนื้อหา |
@@ -69,7 +69,7 @@
 | `docs/design/01-user-flow.md` | 383 | IA · User Flow 8 เส้นทาง · UI State 5 สถานะ · กฎการยืนยัน |
 | `docs/design/02-wireframes.md` | 855 | Wireframe 9 หน้า + เวอร์ชันมือถือ + สถานะพิเศษ |
 | `docs/design/03-design-system.md` | 561 | Design Token · Component Spec 8 ตัว · ผลตรวจ WCAG AA |
-| `docs/design/04-settings-screens.md` | 513 | หน้าตั้งค่า 8 กลุ่ม 24 หน้า · รูปแบบร่วม · กฎการลบข้อมูลหลัก |
+| `docs/design/04-settings-screens.md` | 515 | หน้าตั้งค่า 8 กลุ่ม 25 หน้า · รูปแบบร่วม · กฎการลบข้อมูลหลัก |
 
 ### 4.3 Database — เอกสารออกแบบ
 | ไฟล์ | บรรทัด | เนื้อหา |
@@ -86,7 +86,7 @@
 | ลำดับ | ไฟล์ | บรรทัด | เนื้อหา |
 |:---:|---|---:|---|
 | 1 | `02-schema-sqlserver.sql` | 1,047 | v1.0 — 25 ตารางหลัก · 5 View · 3 SP · Trigger Append-Only |
-| 2 | `04-vlan-module.sql` | 685 | v1.1 — VLAN/IPAM · Zone · IP Validation |
+| 2 | `04-vlan-module.sql` | 711 | v1.1 — VLAN/IPAM · Zone · IP Validation · Site (สาขา) |
 | 3 | `06-module-v1.2.sql` | 742 | v1.2 — Server Roles · Cluster · Storage Volume · DHCP Control |
 | 4 | `10-module-v1.3a-taxonomy.sql` | 855 | v1.3a — asset_types · device_models |
 | 5 | `11-module-v1.3b-details-rack-ipam.sql` | 705 | v1.3b — ตารางขยาย 4 หมวด · Rack · IPAM |
@@ -100,7 +100,7 @@
 
 ## 5. โครงสร้างฐานข้อมูลปัจจุบัน
 
-**64 ตาราง · 46 ตารางประวัติ (Temporal) · 44 View · 5 Function · 3 SP · 10 Trigger**
+**65 ตาราง · 46 ตารางประวัติ (Temporal) · 44 View · 5 Function · 3 SP · 10 Trigger**
 
 ### 5.1 หมวดทรัพย์สิน 8 หมวด (Prefix ของ Asset Tag)
 
@@ -133,7 +133,7 @@
 | Core Asset | `assets` + ตารางขยาย 8 ตาราง · `asset_tag_sequences` |
 | ความสัมพันธ์ | `software_installations` `asset_relationships` `server_role_assignments` |
 | Infrastructure | `clusters` `cluster_members` `storage_volumes` `racks` `rack_mounts` |
-| Network/IPAM | `vlans` `vlan_ip_ranges` `vlan_devices` `ip_addresses` `tally` |
+| Network/IPAM | `vlans` `vlan_sites` `vlan_ip_ranges` `vlan_devices` `ip_addresses` `tally` |
 | สัญญา | `contracts` `contract_assets` |
 | Support | `attachments` `notifications` `notification_history` `import_batches` |
 | Compliance | `audit_logs` `audit_logs_archive` `system_settings` |

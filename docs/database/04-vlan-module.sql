@@ -16,7 +16,7 @@
 
    สิ่งที่เพิ่มเข้ามา
    -----------------
-   Functions : 4    Tables : 4    Views : 4
+   Functions : 4    Tables : 5    Views : 4
    ========================================================================== */
 
 
@@ -124,6 +124,32 @@ GO
 
 
 /* ============================================================================
+   ส่วนที่ 2.5 — ตาราง Site สำหรับ VLAN (แยกจาก dbo.locations โดยเจตนา)
+
+   องค์กรมี 2 สาขาเท่านั้น (1st Site / 2nd Site) และ VLAN ต้องเลือกได้แค่ว่า
+   อยู่สาขาไหน — ไม่ต้องลงรายละเอียดระดับ Building/Floor/Room/Rack แบบที่
+   dbo.locations ใช้กับ Asset ทางกายภาพ จึงแยกเป็น Lookup ของตัวเองที่นี่
+   เพื่อไม่ให้หน้าจอ VLAN ต้องพา Location Tree ทั้งต้นมาให้เลือก
+   ========================================================================== */
+
+CREATE TABLE dbo.vlan_sites (
+    site_id      TINYINT        NOT NULL,
+    code         VARCHAR(20)    NOT NULL,
+    name         NVARCHAR(80)   NOT NULL,
+    sort_order   INT            NOT NULL CONSTRAINT DF_vlan_sites_sort DEFAULT (0),
+    is_active    BIT            NOT NULL CONSTRAINT DF_vlan_sites_active DEFAULT (1),
+    CONSTRAINT PK_vlan_sites PRIMARY KEY CLUSTERED (site_id),
+    CONSTRAINT UX_vlan_sites_code UNIQUE (code)
+);
+GO
+
+INSERT INTO dbo.vlan_sites (site_id, code, name, sort_order) VALUES
+    (1, 'SITE_1', N'สาขาที่ 1', 1),
+    (2, 'SITE_2', N'สาขาที่ 2', 2);
+GO
+
+
+/* ============================================================================
    ส่วนที่ 3 — ตาราง VLAN
    ========================================================================== */
 
@@ -158,7 +184,7 @@ CREATE TABLE dbo.vlans (
     domain_name             NVARCHAR(100)  NULL,
 
     /* ---------- อื่นๆ ---------- */
-    site_location_id        INT            NULL,
+    site_id                 TINYINT        NOT NULL,   -- สาขา — บังคับเลือก (ดู dbo.vlan_sites)
     is_active               BIT            NOT NULL CONSTRAINT DF_vlans_active DEFAULT (1),
     notes                   NVARCHAR(MAX)  NULL,
     created_at              DATETIMEOFFSET(3) NOT NULL CONSTRAINT DF_vlans_created DEFAULT (SYSDATETIMEOFFSET()),
@@ -173,7 +199,7 @@ CREATE TABLE dbo.vlans (
     CONSTRAINT FK_vlans_zone        FOREIGN KEY (zone_id)              REFERENCES dbo.network_zones(zone_id),
     CONSTRAINT FK_vlans_gateway     FOREIGN KEY (gateway_asset_id)     REFERENCES dbo.assets(asset_id),
     CONSTRAINT FK_vlans_dhcp_server FOREIGN KEY (dhcp_server_asset_id) REFERENCES dbo.assets(asset_id),
-    CONSTRAINT FK_vlans_site        FOREIGN KEY (site_location_id)     REFERENCES dbo.locations(location_id),
+    CONSTRAINT FK_vlans_site        FOREIGN KEY (site_id)              REFERENCES dbo.vlan_sites(site_id),
     CONSTRAINT FK_vlans_created_by  FOREIGN KEY (created_by)           REFERENCES dbo.users(user_id),
     CONSTRAINT FK_vlans_updated_by  FOREIGN KEY (updated_by)           REFERENCES dbo.users(user_id),
 
@@ -238,7 +264,7 @@ GO
 CREATE INDEX IX_vlans_zone        ON dbo.vlans(zone_id);
 CREATE INDEX IX_vlans_gateway     ON dbo.vlans(gateway_asset_id);
 CREATE INDEX IX_vlans_dhcp_server ON dbo.vlans(dhcp_server_asset_id);
-CREATE INDEX IX_vlans_site        ON dbo.vlans(site_location_id);
+CREATE INDEX IX_vlans_site        ON dbo.vlans(site_id);
 CREATE INDEX IX_vlans_numeric     ON dbo.vlans(network_numeric, prefix_length);
 GO
 
@@ -454,15 +480,15 @@ SELECT
     CAST(100.0 * ISNULL(u.static_ips_used, 0)
          / NULLIF(ISNULL(p.static_pool_size, 0), 0) AS DECIMAL(5,1)) AS static_utilization_percent,
 
-    v.site_location_id,
-    loc.name                                AS site_name,
+    v.site_id,
+    st.name                                 AS site_name,
     v.is_active,
     v.notes
 FROM dbo.vlans v
-    INNER JOIN dbo.network_zones z ON z.zone_id = v.zone_id
+    INNER JOIN dbo.network_zones z    ON z.zone_id  = v.zone_id
+    INNER JOIN dbo.vlan_sites   st    ON st.site_id = v.site_id
     LEFT  JOIN dbo.assets    gw  ON gw.asset_id    = v.gateway_asset_id
     LEFT  JOIN dbo.assets    dh  ON dh.asset_id    = v.dhcp_server_asset_id
-    LEFT  JOIN dbo.locations loc ON loc.location_id = v.site_location_id
 
     /* จำนวนที่อยู่ทั้งหมดของ Subnet = 2^(32 - prefix) */
     CROSS APPLY (
@@ -646,14 +672,14 @@ GO
    ส่วนที่ 9 — ตัวอย่างข้อมูล (ลบออกได้ ใช้เพื่อทดสอบการคำนวณ)
    ========================================================================== */
 /*
--- VLAN 20 : OA Network แบบผสมทั้ง Static และ DHCP
+-- VLAN 20 : OA Network แบบผสมทั้ง Static และ DHCP (สาขาที่ 1)
 INSERT INTO dbo.vlans
     (vlan_number, name, description, zone_id, network_address, prefix_length,
      gateway_ip, gateway_device_role, ip_assignment_mode, dhcp_source_type,
-     dns_primary, dns_secondary, domain_name)
+     dns_primary, dns_secondary, domain_name, site_id)
 SELECT 20, N'OA-USER-BKK', N'Office user network, HQ Bangkok', z.zone_id,
        '10.10.20.0', 24, '10.10.20.1', 'FIREWALL', 'MIXED', 'FIREWALL',
-       '10.10.10.10', '10.10.10.11', N'corp.local'
+       '10.10.10.10', '10.10.10.11', N'corp.local', 1
 FROM dbo.network_zones z WHERE z.code = 'OA_NETWORK';
 
 DECLARE @v INT = SCOPE_IDENTITY();
