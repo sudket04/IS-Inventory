@@ -267,8 +267,9 @@
 | NFR-10 | **Usability** | ภาษาในหน้าเว็บทั้งหมดเป็น **ภาษาอังกฤษ** |
 | NFR-11 | **Compatibility** | รองรับเบราว์เซอร์รุ่นล่าสุด: Chrome, Edge, Firefox, Safari |
 | NFR-12 | **Availability** | ระบบต้องพร้อมใช้งานในเวลาทำการ พร้อมแผนสำรองข้อมูลรายวัน |
-| NFR-13 | **Maintainability** | โค้ดใช้ TypeScript ทั้งระบบ พร้อม Lint และ Format Rule ที่บังคับใช้ |
+| NFR-13 | **Maintainability** | Frontend ใช้ TypeScript ทั้งหมด · Backend ใช้ C# (Nullable Reference Types เปิดใช้งาน) พร้อม Lint/Analyzer และ Format Rule ที่บังคับใช้ทั้งสองฝั่ง |
 | NFR-14 | **Deployment** | ติดตั้งแบบ On-Premise ภายในองค์กร ใช้ฐานข้อมูล Microsoft SQL Server |
+| NFR-15 | **Deployment** | Server **ออก Internet ได้เฉพาะช่วงติดตั้งระบบเท่านั้น** — หลังติดตั้งเสร็จถือเป็น Offline ถาวร ห้ามมี Dependency ใดที่ต้องพึ่ง Internet ขณะทำงานจริง (เช่น CDN Font, License Check Online, Package Restore อัตโนมัติ) ต้อง Lock เวอร์ชัน Dependency ทั้งหมดตั้งแต่ตอนติดตั้ง |
 
 ---
 
@@ -393,24 +394,27 @@ flowchart TD
 
 ---
 
-## 11. เทคโนโลยีที่เสนอ (Proposed Tech Stack)
+## 11. เทคโนโลยีที่ใช้ (Tech Stack — Backend ตัดสินใจแล้ว)
 
 | ชั้น | เทคโนโลยี | เหตุผล |
 |---|---|---|
-| **Frontend** | Next.js (App Router) + TypeScript | Full-stack ในโปรเจกต์เดียว ลดความซับซ้อนในการติดตั้ง On-Premise |
+| **Frontend** | Next.js (App Router) + TypeScript | Full-stack UI ที่คุ้นเคย แยก Process จาก Backend ผ่าน REST API |
 | **UI** | Tailwind CSS + shadcn/ui | รองรับ Dark Mode ด้วย Design Token โดยธรรมชาติ ปรับแต่งได้เต็มที่ ไม่ผูกกับ Vendor |
 | **Table & State** | TanStack Table + TanStack Query | รองรับ Server-side Pagination/Sorting ซึ่งจำเป็นสำหรับข้อมูล 2,000+ รายการ |
 | **Chart** | Recharts | น้ำหนักเบา ใช้งานร่วมกับ React ได้ดี รองรับการปรับสีตามธีม |
-| **Backend** | Next.js Route Handlers (REST) | ติดตั้งเป็น Process เดียว เหมาะกับ On-Premise ที่ต้องการความเรียบง่ายในการดูแล |
-| **ORM** | Prisma | รองรับ SQL Server อย่างเป็นทางการ, ป้องกัน SQL Injection โดยค่าเริ่มต้น, จัดการ Migration ได้ดี |
+| **Backend** | **ASP.NET Core Web API (.NET 8 LTS)** | EF Core รองรับ Temporal Tables แบบ Native · Collector Agent ต้องคุย LDAP/WinRM ซึ่ง .NET มี Library First-Party · องค์กรเป็น Windows/AD ล้วน |
+| **ORM** | **EF Core** | รองรับ System-Versioned Temporal Tables ผ่าน `.TemporalAsOf()` โดยตรง ไม่ต้องเขียน Raw SQL แยก |
 | **Database** | **Microsoft SQL Server** | ตามมาตรฐานที่องค์กรใช้อยู่ |
-| **Auth** | Auth.js (Credentials) + Argon2id | มาตรฐานอุตสาหกรรม และขยายไปรองรับ SSO ได้ในอนาคตโดยไม่ต้องรื้อ |
-| **Scheduled Job** | Worker Process แยก (node-cron) | แยกงานเบื้องหลังออกจาก Web Process เพื่อไม่ให้กระทบประสิทธิภาพหน้าเว็บ |
-| **Excel** | ExcelJS | รองรับทั้งการอ่านและเขียน พร้อมจัดรูปแบบ Template |
-| **Email** | Nodemailer | เชื่อมต่อ SMTP ขององค์กรได้โดยตรง |
-| **Deployment** | Docker Compose (App + Worker) | ติดตั้งและอัปเดตบนเซิร์ฟเวอร์ภายในได้ง่าย |
+| **Auth** | ASP.NET Core Identity + Argon2id | มาตรฐานอุตสาหกรรม และขยายไปรองรับ SSO ได้ในอนาคตโดยไม่ต้องรื้อ |
+| **Scheduled Job** | `IHostedService` / Quartz.NET | รันในโปรเซสเดียวกับ API ลดจำนวน Process ที่ต้องดูแลบน Windows Server |
+| **Collector Agent** | .NET Console App แยก | ภาษาเดียวกับ Backend ใช้ `System.DirectoryServices` (LDAP) + `Microsoft.PowerShell.SDK` (WinRM/FSRM) |
+| **Excel** | ClosedXML | รองรับทั้งการอ่านและเขียน พร้อมจัดรูปแบบ Template บน .NET โดยตรง |
+| **Email** | MailKit | เชื่อมต่อ SMTP ขององค์กรได้โดยตรง |
+| **Deployment** | ASP.NET Core Self-Contained Deployment บน Windows Server + IIS | ตรงกับ NFR-15 (Internet เฉพาะตอนติดตั้ง) — Publish เป็นไฟล์ก้อนเดียวรวม Runtime ไม่ต้องพึ่ง Internet หลังติดตั้ง |
 
-> 💬 **หมายเหตุ:** หากทีมมีความถนัดเป็น .NET อยู่แล้ว สามารถเปลี่ยนฝั่ง Backend เป็น **ASP.NET Core Web API + Entity Framework Core** โดยคงฝั่ง Frontend เดิมไว้ได้ แจ้งผมได้ในขั้นตอนอนุมัติครับ
+> ✅ **ตัดสินใจแล้ว:** เลือก ASP.NET Core + EF Core แทน Next.js Route Handlers + Prisma
+> เหตุผลหลักคือ Temporal Tables, การเชื่อม AD/FSRM ของ Collector Agent (v1.5),
+> และข้อจำกัด Internet เฉพาะตอนติดตั้ง (NFR-15) — รายละเอียดเต็มอยู่ใน `docs/HANDOFF.md` หัวข้อ 10.1–10.2
 
 ---
 

@@ -56,12 +56,12 @@
 
 ---
 
-## 4. รายการไฟล์ทั้งหมด (12,877 บรรทัด)
+## 4. รายการไฟล์ทั้งหมด (12,905 บรรทัด)
 
 ### 4.1 Requirement
 | ไฟล์ | บรรทัด | เนื้อหา |
 |---|---:|---|
-| `docs/PRD.md` | 486 | 60+ Functional Requirements · 14 NFR · Permission Matrix · Roadmap 8 Sprint |
+| `docs/PRD.md` | 490 | 60+ Functional Requirements · 15 NFR · Permission Matrix · Roadmap 8 Sprint |
 
 ### 4.2 UI/UX Design
 | ไฟล์ | บรรทัด | เนื้อหา |
@@ -167,7 +167,7 @@
 
 | # | เรื่อง | รายละเอียด |
 |:---:|---|---|
-| 1 | **บังคับ `updated_by` ที่ Middleware** | 🔴 **จุดตายของ Temporal Tables** — บันทึก "เมื่อไร" แต่ไม่บันทึก "ใคร" ต้องเติมอัตโนมัติผ่าน Prisma `$extends` หรือ EF Core `SaveChangesInterceptor` (โค้ดตัวอย่างอยู่ในไฟล์ 12 ส่วนที่ 8) |
+| 1 | **บังคับ `updated_by` ที่ Middleware** | 🔴 **จุดตายของ Temporal Tables** — บันทึก "เมื่อไร" แต่ไม่บันทึก "ใคร" ต้องเติมอัตโนมัติผ่าน EF Core `SaveChangesInterceptor` (โค้ดตัวอย่างอยู่ในไฟล์ 12 ส่วนที่ 8) |
 | 2 | **รันคำสั่งตรวจส่วน 7.1 ก่อนเปิด Temporal** | ระบบมี 7 คอลัมน์คำนวณ · วิธีแก้หากติดขัดอยู่ในไฟล์ 12 |
 | 3 | **Self-host ฟอนต์** | Inter + JetBrains Mono ผ่าน `next/font/local` — เซิร์ฟเวอร์ On-Premise อาจไม่มีทางออกอินเทอร์เน็ต |
 | 4 | **สคริปต์กันจอขาววาบ** | ใส่ใน `<head>` ก่อน React โหลด (โค้ดอยู่ใน Design System §10.3) |
@@ -180,15 +180,7 @@
 
 ## 8. ❓ สิ่งที่ยังค้าง — ต้องถามผู้ใช้ก่อนเริ่ม Phase 4
 
-### 8.1 🔴 คำถามที่ต้องตอบก่อนเขียนโค้ด
-
-> **Backend จะใช้อะไร?** (ถามไปแล้ว 5 ครั้ง ยังไม่ได้คำตอบ)
-> - **Next.js Route Handlers + Prisma** — ติดตั้ง On-Premise เป็น Process เดียว ดูแลง่ายที่สุด (ที่เสนอไว้)
-> - **ASP.NET Core Web API + EF Core** — ถ้าทีมถนัด .NET จะเข้ากับ SQL Server และทีมมากกว่า
->
-> ฝั่ง Frontend เป็น Next.js + TypeScript + Tailwind + shadcn/ui ทั้งสองทางเลือก
-
-### 8.2 🟡 ข้อมูลที่ยังไม่ได้รับ
+### 8.1 🟡 ข้อมูลที่ยังไม่ได้รับ
 
 | ประเด็น | หมายเหตุ |
 |---|---|
@@ -198,7 +190,7 @@
 | โครงสร้างสถานที่จริง | Site / Building / Floor / Room / Rack |
 | ชื่อ OU จริงที่จะ Sync | ผู้ใช้ตกลงว่าให้กรอกผ่านหน้าตั้งค่า (`sync_ou_scopes`) ไม่ต้องใส่ล่วงหน้า |
 
-### 8.3 🔵 งานที่ยังไม่ได้เริ่ม (v1.5)
+### 8.2 🔵 งานที่ยังไม่ได้เริ่ม (v1.5)
 
 **Collector Agent** เป็นโปรแกรมแยกที่ต้องเขียนเพิ่ม ไม่ใช่ส่วนหนึ่งของเว็บ
 
@@ -214,6 +206,15 @@
 ---
 
 ## 9. ประวัติการตัดสินใจของผู้ใช้ (กันการถามซ้ำ)
+
+### 🔒 ตัดสินใจปิดแล้ว — Backend & Deployment
+
+| ประเด็น | ที่ตกลง |
+|---|---|
+| Backend | **ASP.NET Core Web API (.NET 8 LTS) + EF Core** — เหตุผลเต็มดูหัวข้อ 10.1 |
+| Collector Agent | **.NET Console App** ภาษาเดียวกับ Backend |
+| Internet | **เฉพาะช่วงติดตั้งระบบเท่านั้น** — Production ห้ามพึ่ง Internet เด็ดขาด (NFR-15) แผน Deploy ดูหัวข้อ 10.2 |
+| Deploy | Self-Contained Deployment บน Windows Server + IIS ไม่ใช้ Docker (เว้นแต่มี Internal Registry) |
 
 ### ✅ ตกลงว่าทำ
 Asset Tracking · License/Warranty Alert · CMDB · Audit & Compliance · Dashboard + กราฟ ·
@@ -267,21 +268,44 @@ Cascading Dropdown ครบ 4 ชุด · ผังประเภท 8 หม
 
 ---
 
-## 10. Tech Stack ที่เสนอไว้ (รอยืนยัน Backend)
+## 10. Tech Stack (Backend ตัดสินใจแล้ว)
 
 | ชั้น | เทคโนโลยี |
 |---|---|
 | Frontend | Next.js (App Router) + TypeScript |
-| UI | Tailwind CSS + shadcn/ui · Inter + JetBrains Mono · Lucide Icons |
+| UI | Tailwind CSS + shadcn/ui · Inter + JetBrains Mono (Self-hosted Font ไฟล์ — ดู 10.2) · Lucide Icons |
 | Table/State | TanStack Table + TanStack Query |
 | Chart | Recharts |
-| Backend | ⏳ **รอตัดสินใจ** |
-| ORM | Prisma หรือ EF Core |
+| **Backend** | **ASP.NET Core Web API (.NET 8 LTS)** |
+| **ORM** | **EF Core** — รองรับ Temporal Tables (System-Versioned) แบบ Native ผ่าน `.TemporalAsOf()` |
 | Database | Microsoft SQL Server (On-Premise) |
-| Auth | Auth.js (Credentials) + Argon2id |
-| Scheduled Job | Worker Process แยก (node-cron) |
-| Excel | ExcelJS · Email: Nodemailer |
-| Deploy | Docker Compose (App + Worker) |
+| Auth | ASP.NET Core Identity + Cookie/JWT · Argon2id |
+| Scheduled Job | `IHostedService` / Quartz.NET (ในโปรเซสเดียวกับ API) |
+| Collector Agent | .NET Console App แยก — ใช้ `System.DirectoryServices` (LDAP/AD) + `Microsoft.PowerShell.SDK` (WinRM/FSRM) — ภาษาเดียวกับ Backend |
+| Excel | ClosedXML · Email: MailKit |
+| Deploy | ASP.NET Core **Self-Contained Deployment** บน Windows Server + IIS (ดู 10.2) |
+
+### 10.1 เหตุผลตัดสินใจ (ปิดคำถามที่ค้างมา 5 ครั้ง)
+
+1. **Temporal Tables** — EF Core รองรับ Native ตั้งแต่ v6 ส่วน Prisma ไม่รองรับเลย ต้องเขียน Raw SQL ทุกจุดที่แตะ 46 ตารางประวัติ
+2. **Collector Agent (v1.5)** ต้องคุย LDAP + WinRM/FSRM — .NET มี Library ในตัวเป็น First-Party ไม่ต้องพึ่ง 3rd-party ของ Node.js ที่เสี่ยงเลิก Maintain และเขียนเป็นภาษาเดียวกับ Backend ได้เลย
+3. **องค์กรเป็น Windows/AD ล้วน** (File Server, FSRM, AD, Proxy) — ทีม IT ที่ดูแลต่อคุ้นเคยกับ IIS/Windows Service มากกว่า
+4. **NFR-15 (Internet เฉพาะตอนติดตั้ง)** — .NET รองรับ Self-Contained Deployment โดยตรง เหมาะกับสถานการณ์นี้เป็นพิเศษ (ดู 10.2)
+
+### 10.2 แผน Deploy ภายใต้ NFR-15 (Internet เฉพาะตอนติดตั้ง)
+
+Server เชื่อม Internet ได้เฉพาะช่วงติดตั้งครั้งแรกเท่านั้น หลังจากนั้นถือเป็น Offline ถาวร
+จึงต้องดำเนินการทุกอย่างที่ต้องใช้ Internet **ในหน้าต่างการติดตั้งครั้งเดียว**:
+
+| ขั้นตอน | รายละเอียด |
+|---|---|
+| 1. Restore Dependency | `dotnet restore` (NuGet) + `npm install` บน Server โดยตรง ขณะยังต่อ Internet อยู่ |
+| 2. Build/Publish | `dotnet publish -c Release --self-contained -r win-x64` (รวม .NET Runtime ในตัว) + `next build` โหมด `output: 'standalone'` |
+| 3. Font | ใช้ `next/font` แบบ Self-host (ดาวน์โหลดมาฝังตอน Build) แทนการอ้าง Google Fonts CDN ตรง ๆ — กัน Runtime พึ่ง Internet |
+| 4. Lock เวอร์ชัน | Commit `packages.lock.json` (NuGet) และ `package-lock.json` (npm) เพื่อไม่ให้ Restore ครั้งถัดไปดึงเวอร์ชันใหม่จาก Internet โดยไม่ตั้งใจ |
+| 5. ปิด Internet | ตัดการเชื่อมต่อ Internet ของ Server ถาวรหลัง Publish สำเร็จและทดสอบระบบผ่านแล้ว |
+
+> ⚠️ Windows Update / NuGet Auto-Restore ต้องปิดบน Production Server เพื่อไม่ให้ระบบพยายามออก Internet เองภายหลัง
 
 **Design Token หลัก:** Primary Indigo `#4F46E5` (Light) / `#6366F1` (Dark) · Neutral Slate ·
 ฟอนต์ฐาน **14px** (ไม่ใช่ 16px เพราะเป็น UI ที่ข้อมูลหนาแน่น) · Spacing ฐาน 4px
