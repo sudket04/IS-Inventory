@@ -56,7 +56,7 @@
 
 ---
 
-## 4. รายการไฟล์ทั้งหมด (13,032 บรรทัด)
+## 4. รายการไฟล์ทั้งหมด (13,152 บรรทัด)
 
 ### 4.1 Requirement
 | ไฟล์ | บรรทัด | เนื้อหา |
@@ -86,22 +86,37 @@
 ### 4.4 Database — SQL (⚠️ รันตามลำดับเลขไฟล์)
 | ลำดับ | ไฟล์ | บรรทัด | เนื้อหา |
 |:---:|---|---:|---|
-| 1 | `02-schema-sqlserver.sql` | 1,047 | v1.0 — 25 ตารางหลัก · 5 View · 3 SP · Trigger Append-Only |
-| 2 | `04-vlan-module.sql` | 711 | v1.1 — VLAN/IPAM · Zone · IP Validation · Site (สาขา) |
-| 3 | `06-module-v1.2.sql` | 742 | v1.2 — Server Roles · Cluster · Storage Volume · DHCP Control |
-| 4 | `10-module-v1.3a-taxonomy.sql` | 855 | v1.3a — asset_types · device_models |
-| 5 | `11-module-v1.3b-details-rack-ipam.sql` | 705 | v1.3b — ตารางขยาย 4 หมวด · Rack · IPAM |
-| 6 | `12-module-v1.4-contracts-temporal.sql` | 731 | v1.4 — Master Asset · Contracts · Temporal |
-| 7 | `14-module-v1.5-permission-control.sql` | 1,671 | v1.5 — สิทธิ์ File Server / Internet · AD Sync · ประวัติสิทธิ์ |
+| 1 | `02-schema-sqlserver.sql` | 1,055 | v1.0 — 25 ตารางหลัก · 5 View · 3 SP · Trigger Append-Only |
+| 2 | `04-vlan-module.sql` | 740 | v1.1 — VLAN/IPAM · Zone · IP Validation · Site (สาขา) |
+| 3 | `06-module-v1.2.sql` | 750 | v1.2 — Server Roles · Cluster · Storage Volume · DHCP Control |
+| 4 | `10-module-v1.3a-taxonomy.sql` | 863 | v1.3a — asset_types · device_models |
+| 5 | `11-module-v1.3b-details-rack-ipam.sql` | 713 | v1.3b — ตารางขยาย 4 หมวด · Rack · IPAM |
+| 6 | `12-module-v1.4-contracts-temporal.sql` | 746 | v1.4 — Master Asset · Contracts · Temporal |
+| 7 | `14-module-v1.5-permission-control.sql` | 1,695 | v1.5 — สิทธิ์ File Server / Internet · AD Sync · ประวัติสิทธิ์ |
 
-> ⚠️ **ยังไม่เคยรันจริง** — ไม่มี SQL Server ใน environment นี้
-> ตรวจ Syntax และลำดับ Dependency ด้วยตาแล้วเท่านั้น **ต้องทดสอบบน DB ทดสอบก่อนเสมอ**
+> ✅ **ทดสอบรันจริงแล้ว** (17 ก.ย. 2569) บน SQL Server 2022 (Docker) ตามลำดับไฟล์ครบทั้ง 7 ไฟล์
+> ไม่มี Error เหลือ — เจอและแก้บั๊ก 6 จุดที่ Static Review จับไม่ได้ ดูรายละเอียดที่ §4.4.1
+
+### 4.4.1 บั๊ก 6 จุดที่พบจากการรันจริง (แก้แล้วทั้งหมด)
+
+| # | ไฟล์ | ปัญหา | อาการ | วิธีแก้ |
+|:---:|---|---|---|---|
+| 1 | ทั้ง 7 ไฟล์ | ไม่มี `SET QUOTED_IDENTIFIER ON` ต้นไฟล์ | `CREATE TABLE`/`INDEX` ที่มี Computed Column ล้มเหลว (SSMS ตั้งให้อัตโนมัติ แต่ sqlcmd/CI ไม่ตั้ง) | เพิ่ม `SET ANSI_NULLS ON; SET QUOTED_IDENTIFIER ON;` ต้นไฟล์ทั้ง 7 ไฟล์ |
+| 2 | `04-vlan-module.sql` | `fn_ipv4_to_bigint` ใช้ `PARSENAME()` ซึ่ง SQL Server จัดเป็น Non-Deterministic | `PERSISTED` Computed Column 3 คอลัมน์สร้างไม่ได้ (Msg 4936) | เขียนใหม่ด้วย `CHARINDEX`/`SUBSTRING` (Deterministic) |
+| 3 | `04-vlan-module.sql` | `vw_vlan_summary` มี `SUM(CASE WHEN EXISTS(...))` — Subquery อยู่ในอาร์กิวเมนต์ของ Aggregate โดยตรง | Msg 130 "Cannot perform an aggregate function..." | คำนวณ Flag ใน Derived Table ชั้นในก่อน แล้วค่อย `SUM` ที่ชั้นนอก |
+| 4 | `12-module-v1.4...sql` | `DROP INDEX IX_assets_list_covering` อยู่ **หลัง** `ALTER TABLE DROP COLUMN` ทั้งที่ Index นี้ก็ `INCLUDE coverage_end_date` | Msg 4922 Column ถูกอ้างถึงโดย Object อื่น | ย้าย `DROP INDEX` มาไว้ก่อน `DROP COLUMN` |
+| 5 | `12-` และ `14-...sql` | `DEFAULT SYSUTCDATETIME()` ตรงๆ ใน Loop ที่ ALTER หลายสิบตารางติดกัน | Msg 13542 "start of period set to a value in the future" (สุ่มตามจังหวะ) | ใช้ `DATEADD(SECOND, -2, SYSUTCDATETIME())` กันชนเวลา |
+| 6 | `14-...sql` | ก. ชื่อ Constraint `DF_ip_created`/`FK_ip_created_by` ชนกับ `ip_addresses` (ไฟล์ 11) และ `DF_ca_created` ชนกับ `contract_assets` (ไฟล์ 12) — SQL Server บังคับชื่อ Constraint ไม่ซ้ำทั้งฐานข้อมูล<br>ข. Unique Index บน `NVARCHAR(1000)` ยาวเกิน Limit 1700 byte<br>ค. `EXEC(N'...' + QUOTENAME(@db) + ...)` — รูปแบบ Execute String ไม่รับ Function Call ตรงๆ ในวงเล็บ | Msg 2714 / Warning Key ยาวเกิน / Msg 102 | ก. เปลี่ยน Prefix เป็น `intpol`/`cagt`<br>ข. Unique บน `HASHBYTES('SHA2_256', ...)` แทน (Deterministic เช่นกัน)<br>ค. ประกอบ String ใส่ตัวแปรก่อน ค่อย `EXEC sp_executesql` |
+
+**Object ที่ยืนยันแล้วว่าตรงกับที่ออกแบบไว้ (นับจาก DB จริงหลังรันครบ 7 ไฟล์):**
+65 ตาราง · 45 ตารางประวัติ (Temporal) · 45 ตารางประวัติเงา (History) · 44 View · 10 Trigger · 5 Function · 3 SP
+(ตัวเลข Temporal แก้จาก 46 เป็น 45 ตามที่นับได้จริง — ค่าก่อนหน้าเป็นการประมาณจากเอกสารก่อนทดสอบ)
 
 ---
 
 ## 5. โครงสร้างฐานข้อมูลปัจจุบัน
 
-**65 ตาราง · 46 ตารางประวัติ (Temporal) · 44 View · 5 Function · 3 SP · 10 Trigger**
+**65 ตาราง · 45 ตารางประวัติ (Temporal) · 44 View · 5 Function · 3 SP · 10 Trigger** (ยืนยันจากการรันจริง)
 
 ### 5.1 หมวดทรัพย์สิน 8 หมวด (Prefix ของ Asset Tag)
 
@@ -288,7 +303,7 @@ Cascading Dropdown ครบ 4 ชุด · ผังประเภท 8 หม
 
 ### 10.1 เหตุผลตัดสินใจ (ปิดคำถามที่ค้างมา 5 ครั้ง)
 
-1. **Temporal Tables** — EF Core รองรับ Native ตั้งแต่ v6 ส่วน Prisma ไม่รองรับเลย ต้องเขียน Raw SQL ทุกจุดที่แตะ 46 ตารางประวัติ
+1. **Temporal Tables** — EF Core รองรับ Native ตั้งแต่ v6 ส่วน Prisma ไม่รองรับเลย ต้องเขียน Raw SQL ทุกจุดที่แตะ 45 ตารางประวัติ
 2. **Collector Agent (v1.5)** ต้องคุย LDAP + WinRM/FSRM — .NET มี Library ในตัวเป็น First-Party ไม่ต้องพึ่ง 3rd-party ของ Node.js ที่เสี่ยงเลิก Maintain และเขียนเป็นภาษาเดียวกับ Backend ได้เลย
 3. **องค์กรเป็น Windows/AD ล้วน** (File Server, FSRM, AD, Proxy) — ทีม IT ที่ดูแลต่อคุ้นเคยกับ IIS/Windows Service มากกว่า
 4. **NFR-15 (Internet เฉพาะตอนติดตั้ง)** — .NET รองรับ Self-Contained Deployment โดยตรง เหมาะกับสถานการณ์นี้เป็นพิเศษ (ดู 10.2)

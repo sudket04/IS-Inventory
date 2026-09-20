@@ -19,6 +19,14 @@
    Functions : 4    Tables : 5    Views : 4
    ========================================================================== */
 
+/* บังคับ ON ทั้งคู่ — จำเป็นสำหรับ Computed Column / Filtered Index / Indexed View
+   ที่ใช้ในไฟล์นี้ SSMS ตั้งค่านี้ให้อัตโนมัติ แต่ sqlcmd/CI ไม่ตั้งให้ ถ้าไม่ระบุเอง
+   CREATE TABLE/INDEX จะ Fail แบบเงียบและ Object อื่นที่อ้างอิงจะพังตาม */
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
+GO
+
 
 /* ============================================================================
    ส่วนที่ 1 — ฟังก์ชันช่วยจัดการ IP Address
@@ -74,16 +82,29 @@ BEGIN
 END;
 GO
 
-/* -- 1.3 แปลง IPv4 เป็นตัวเลข เพื่อใช้เปรียบเทียบช่วงและทำ Index -- */
+/* -- 1.3 แปลง IPv4 เป็นตัวเลข เพื่อใช้เปรียบเทียบช่วงและทำ Index --
+   ห้ามใช้ PARSENAME ตรงนี้แม้จะดูเข้าท่าและพฤติกรรมคงที่ก็ตาม เพราะ SQL Server
+   จัดให้เป็นฟังก์ชัน Non-Deterministic เสมอ (ตรวจพบจากการรันจริง ไม่ใช่จากเอกสาร)
+   ทำให้ใช้เป็น PERSISTED Computed Column ไม่ได้ (Error 4936) — ใช้ CHARINDEX/SUBSTRING
+   แทน ซึ่ง SQL Server รับรองว่าเป็น Deterministic Function                        */
 CREATE FUNCTION dbo.fn_ipv4_to_bigint (@ip VARCHAR(45))
 RETURNS BIGINT
 WITH SCHEMABINDING
 AS
 BEGIN
-    RETURN  TRY_CAST(PARSENAME(@ip, 4) AS BIGINT) * 16777216
-          + TRY_CAST(PARSENAME(@ip, 3) AS BIGINT) * 65536
-          + TRY_CAST(PARSENAME(@ip, 2) AS BIGINT) * 256
-          + TRY_CAST(PARSENAME(@ip, 1) AS BIGINT);
+    DECLARE @d1 INT, @d2 INT, @d3 INT;
+
+    SET @d1 = CHARINDEX('.', @ip);
+    IF @d1 = 0 RETURN NULL;
+    SET @d2 = CHARINDEX('.', @ip, @d1 + 1);
+    IF @d2 = 0 RETURN NULL;
+    SET @d3 = CHARINDEX('.', @ip, @d2 + 1);
+    IF @d3 = 0 RETURN NULL;
+
+    RETURN  TRY_CAST(SUBSTRING(@ip, 1,       @d1 - 1)        AS BIGINT) * 16777216
+          + TRY_CAST(SUBSTRING(@ip, @d1 + 1, @d2 - @d1 - 1)  AS BIGINT) * 65536
+          + TRY_CAST(SUBSTRING(@ip, @d2 + 1, @d3 - @d2 - 1)  AS BIGINT) * 256
+          + TRY_CAST(SUBSTRING(@ip, @d3 + 1, LEN(@ip) - @d3) AS BIGINT);
 END;
 GO
 
@@ -513,23 +534,31 @@ FROM dbo.vlans v
         WHERE r.vlan_id = v.vlan_id AND r.is_active = 1
     ) p
 
-    /* IP ที่บันทึกไว้จริงในระบบ และอยู่ภายใน Subnet ของ VLAN นี้ */
+    /* IP ที่บันทึกไว้จริงในระบบ และอยู่ภายใน Subnet ของ VLAN นี้
+       ต้องคำนวณ EXISTS ต่อแถวในตารางย่อยชั้นใน (x) ก่อน แล้วค่อย SUM ที่ชั้นนอก
+       เพราะ SQL Server ไม่อนุญาตให้ Subquery (รวมถึง EXISTS) อยู่ในอาร์กิวเมนต์ของ
+       Aggregate Function โดยตรง (Msg 130) — ตรวจพบจากการรันจริง ไม่ใช่จากเอกสาร */
     OUTER APPLY (
         SELECT
-            COUNT(*) AS known_ips_total,
-            SUM(CASE WHEN EXISTS (
-                    SELECT 1 FROM dbo.vlan_ip_ranges rs
-                    WHERE rs.vlan_id = v.vlan_id AND rs.range_type = 'STATIC' AND rs.is_active = 1
-                      AND ip.ip_numeric BETWEEN rs.start_numeric AND rs.end_numeric)
-                THEN 1 ELSE 0 END) AS static_ips_used,
-            SUM(CASE WHEN NOT EXISTS (
-                    SELECT 1 FROM dbo.vlan_ip_ranges ra
-                    WHERE ra.vlan_id = v.vlan_id AND ra.is_active = 1
-                      AND ip.ip_numeric BETWEEN ra.start_numeric AND ra.end_numeric)
-                THEN 1 ELSE 0 END) AS ips_outside_pool
-        FROM dbo.vw_all_ip_addresses ip
-        WHERE ip.ip_numeric >= v.network_numeric
-          AND ip.ip_numeric <= v.network_numeric + t.total_addr - 1
+            COUNT(*)               AS known_ips_total,
+            SUM(x.is_static_used)  AS static_ips_used,
+            SUM(x.is_outside_pool) AS ips_outside_pool
+        FROM (
+            SELECT
+                CASE WHEN EXISTS (
+                        SELECT 1 FROM dbo.vlan_ip_ranges rs
+                        WHERE rs.vlan_id = v.vlan_id AND rs.range_type = 'STATIC' AND rs.is_active = 1
+                          AND ip.ip_numeric BETWEEN rs.start_numeric AND rs.end_numeric)
+                    THEN 1 ELSE 0 END AS is_static_used,
+                CASE WHEN NOT EXISTS (
+                        SELECT 1 FROM dbo.vlan_ip_ranges ra
+                        WHERE ra.vlan_id = v.vlan_id AND ra.is_active = 1
+                          AND ip.ip_numeric BETWEEN ra.start_numeric AND ra.end_numeric)
+                    THEN 1 ELSE 0 END AS is_outside_pool
+            FROM dbo.vw_all_ip_addresses ip
+            WHERE ip.ip_numeric >= v.network_numeric
+              AND ip.ip_numeric <= v.network_numeric + t.total_addr - 1
+        ) x
     ) u;
 GO
 

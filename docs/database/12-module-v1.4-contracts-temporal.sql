@@ -15,6 +15,14 @@
    สิ่งที่เพิ่ม : 2 ตาราง · 8 View · 1 Trigger · ตารางประวัติอัตโนมัติ 27 ตาราง
    ========================================================================== */
 
+/* บังคับ ON ทั้งคู่ — จำเป็นสำหรับ Computed Column / Filtered Index / Indexed View
+   ที่ใช้ในไฟล์นี้ SSMS ตั้งค่านี้ให้อัตโนมัติ แต่ sqlcmd/CI ไม่ตั้งให้ ถ้าไม่ระบุเอง
+   CREATE TABLE/INDEX จะ Fail แบบเงียบและ Object อื่นที่อ้างอิงจะพังตาม */
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
+GO
+
 
 /* ============================================================================
    ส่วนที่ 1 — ฟิลด์ Master Asset
@@ -232,8 +240,12 @@ DROP VIEW IF EXISTS dbo.vw_expiring_assets;
 DROP VIEW IF EXISTS dbo.vw_software_seat_usage;
 GO
 
-/* -- 5.3 ลบคอลัมน์เดิม -- */
+/* -- 5.3 ลบคอลัมน์เดิม --
+   IX_assets_list_covering ก็ INCLUDE coverage_end_date อยู่ด้วย (นอกเหนือจาก
+   IX_assets_coverage_end) ต้อง DROP INDEX นี้ก่อน ALTER TABLE DROP COLUMN เสมอ
+   ไม่งั้น SQL Server จะปฏิเสธเพราะยังมี Index อ้างถึงคอลัมน์อยู่ (พบจากการรันจริง) */
 DROP INDEX IX_assets_coverage_end ON dbo.assets;
+DROP INDEX IX_assets_list_covering ON dbo.assets;
 GO
 ALTER TABLE dbo.assets DROP CONSTRAINT CK_assets_coverage;
 GO
@@ -245,9 +257,7 @@ GO
 ALTER TABLE dbo.software_details DROP COLUMN seats_purchased;
 GO
 
-/* -- 5.4 อัปเดต Index ของ Covering Index หลัก (คอลัมน์ที่อ้างถูกลบไปแล้ว) -- */
-DROP INDEX IX_assets_list_covering ON dbo.assets;
-GO
+/* -- 5.4 สร้าง Covering Index หลักใหม่ (คอลัมน์ที่อ้างถูกลบไปแล้ว) -- */
 CREATE INDEX IX_assets_list_covering
     ON dbo.assets(is_deleted, category_id, status_id)
     INCLUDE (asset_tag, name, model, serial_number, asset_type_id, model_id,
@@ -630,11 +640,16 @@ FETCH NEXT FROM tbl_cursor INTO @tbl;
 
 WHILE @@FETCH_STATUS = 0
 BEGIN
+    /* ย้อน valid_from กลับ 2 วินาทีจาก SYSUTCDATETIME() โดยเจตนา — เวลาที่ผ่านมาแต่ละรอบ
+       ของ Loop นี้รัน ALTER TABLE + SYSTEM_VERSIONING ON ติดกันหลายสิบตาราง หากไม่เผื่อ
+       ระยะห่างไว้ อาจเจอ Msg 13542 "start of period set to a value in the future" ได้
+       เวลาที่ Backfill ของแถวเดิมชนกับเวลาที่ SQL Server ใช้ตรวจสอบภายใน (พบจากการรันจริง
+       ไม่ใช่จากเอกสาร) — 2 วินาทีมีผลแค่ตอน Migrate ครั้งแรกเท่านั้น ไม่กระทบข้อมูลจริง */
     SET @sql = N'
 ALTER TABLE dbo.' + QUOTENAME(@tbl) + N' ADD
     valid_from DATETIME2(3) GENERATED ALWAYS AS ROW START HIDDEN NOT NULL
         CONSTRAINT ' + QUOTENAME('DF_' + @tbl + '_valid_from') + N'
-        DEFAULT SYSUTCDATETIME(),
+        DEFAULT DATEADD(SECOND, -2, SYSUTCDATETIME()),
     valid_to   DATETIME2(3) GENERATED ALWAYS AS ROW END   HIDDEN NOT NULL
         CONSTRAINT ' + QUOTENAME('DF_' + @tbl + '_valid_to') + N'
         DEFAULT CONVERT(DATETIME2(3), ''9999-12-31 23:59:59.999''),

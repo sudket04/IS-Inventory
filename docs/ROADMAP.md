@@ -11,12 +11,14 @@
 | หัวข้อ | สถานะ |
 |---|---|
 | Requirement (PRD) | ✅ เสร็จ — 67 FR · 15 NFR |
-| Database Design | ✅ เสร็จ — 65 ตาราง · 46 Temporal · 44 View · 10 Trigger (**ยังไม่เคยรันจริงบน SQL Server**) |
+| Database Design | ✅ เสร็จ **และทดสอบรันจริงผ่านแล้ว** — 65 ตาราง · 45 Temporal · 44 View · 10 Trigger บน SQL Server 2022 จริง (17 ก.ย. 2569) |
 | UI/UX Design | ✅ เสร็จ — User Flow · Wireframe 9 หน้า · Design System · หน้าตั้งค่า 25 หน้า |
 | Tech Stack | ✅ ตัดสินใจแล้ว — ASP.NET Core (.NET 8) + EF Core + Next.js |
 | **โค้ดจริง** | ❌ **0 บรรทัด** — ยังไม่เริ่ม |
 
-**สรุป 1 บรรทัด:** Design เสร็จหมดแล้ว คอขวดตอนนี้คือ **ข้อมูลจริงที่ยังไม่ได้รับ** และ **การรันฐานข้อมูลจริงเป็นครั้งแรก** ไม่ใช่การตัดสินใจสถาปัตยกรรมอีกต่อไป
+**สรุป 1 บรรทัด:** Design เสร็จหมดแล้ว และฐานข้อมูลผ่านการทดสอบรันจริงแล้ว — คอขวดตอนนี้เหลือแค่
+**ข้อมูลจริงที่ยังไม่ได้รับ** (§1.2) กับ **Windows Server ทดสอบ AD/FSRM** (§1.1) ไม่ใช่การตัดสินใจ
+สถาปัตยกรรมหรือความเสี่ยงจาก Schema ที่ไม่เคยพิสูจน์แล้วอีกต่อไป
 
 ---
 
@@ -28,9 +30,12 @@
 
 | # | รายการ | เหตุผลที่บล็อก |
 |:---:|---|---|
-| 1 | **SQL Server Instance สำหรับทดสอบ** | 7 ไฟล์ SQL (3,835 บรรทัด) รวม Temporal Tables, Trigger, Recursive CTE **ไม่เคยรันจริงเลย** ต้องตรวจ Syntax/Dependency/Performance บนของจริงก่อนเขียนโค้ดต่อยอด |
-| 2 | **Windows Server ทดสอบที่มี AD + FSRM** | Collector Agent ต้องมีสภาพแวดล้อมทดสอบ LDAP Query และ `Get-FsrmQuota` จริง จำลองด้วย Mock ไม่ได้ทั้งหมด |
-| 3 | **Service Account สำหรับ Collector Agent** | ต้องเป็น Read-Only ใน AD (ไม่ใช่ Domain Admin) — ต้องขอสร้างล่วงหน้า เพราะปกติต้องผ่านขั้นตอนอนุมัติของทีม AD |
+| ~~1~~ | ~~SQL Server Instance สำหรับทดสอบ~~ | ✅ **เสร็จแล้ว (17 ก.ย. 2569)** — รันครบ 7 ไฟล์บน SQL Server 2022 (Docker) ผ่านสำเร็จ พบและแก้บั๊ก 6 จุด ดู `HANDOFF.md` §4.4.1 |
+| 1 | **Windows Server ทดสอบที่มี AD + FSRM** | Collector Agent ต้องมีสภาพแวดล้อมทดสอบ LDAP Query และ `Get-FsrmQuota` จริง จำลองด้วย Mock ไม่ได้ทั้งหมด |
+| 2 | **Service Account สำหรับ Collector Agent** | ต้องเป็น Read-Only ใน AD (ไม่ใช่ Domain Admin) — ต้องขอสร้างล่วงหน้า เพราะปกติต้องผ่านขั้นตอนอนุมัติของทีม AD |
+
+> **Sprint 0 เขียนโค้ดต่อยอดจาก Schema นี้ได้ทันที** — ไม่ต้องรอ SQL Server Instance แยกอีกต่อไป
+> (ยังต้องมี Instance จริงของโปรเจกต์ตอน Deploy แต่ไม่ใช่เงื่อนไขบล็อกการเริ่มเขียนโค้ดอีกแล้ว)
 
 ### 1.2 🟡 ข้อมูลที่ต้องได้ก่อนเขียนหน้าที่เกี่ยวข้อง (ไม่บล็อกทั้งหมด แต่บล็อกเฉพาะ Sprint)
 
@@ -104,7 +109,7 @@
 
 | ความเสี่ยง | ผลกระทบ | ทางรับมือ |
 |---|---|---|
-| SQL Temporal Tables รันจริงแล้วมี Syntax Error | บล็อก Sprint 0 ทั้งหมด | จัดลำดับความสำคัญสูงสุดใน Sprint 0 วันแรก ไม่รอจนวันสุดท้าย |
+| ~~SQL Temporal Tables รันจริงแล้วมี Syntax Error~~ | — | ✅ **ปิดความเสี่ยงแล้ว** — ทดสอบรันจริงผ่านครบ 7 ไฟล์แล้ว (17 ก.ย. 2569) |
 | Service Account ของ Collector Agent ขออนุมัติช้า | บล็อก Sprint 8 | ยื่นขอตั้งแต่ Phase 0 คู่ขนานกับ Sprint 0-7 |
 | ไม่มี Windows Server ทดสอบจริงที่มี AD+FSRM | Sprint 8 ทำได้แค่ Mock ทดสอบไม่ครบ | ต้องยืนยันเรื่องนี้กับ IT Infra ก่อนเข้า Sprint 8 |
 | `fixed_asset_no` เปลี่ยนรูปแบบหลัง Sprint 2 เสร็จแล้ว | ต้องแก้ Validation Layer | ออกแบบ Validation แยกเป็น Config ไม่ Hard-code ตั้งแต่แรก |

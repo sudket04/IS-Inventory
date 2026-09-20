@@ -28,6 +28,14 @@
        และมีการเปิด System-Versioning ในส่วนท้ายซึ่งต้องทำหลังสร้างตารางครบแล้ว
    ========================================================================================== */
 
+/* บังคับ ON ทั้งคู่ — จำเป็นสำหรับ Computed Column / Filtered Index / Indexed View
+   ที่ใช้ในไฟล์นี้ SSMS ตั้งค่านี้ให้อัตโนมัติ แต่ sqlcmd/CI ไม่ตั้งให้ ถ้าไม่ระบุเอง
+   CREATE TABLE/INDEX จะ Fail แบบเงียบและ Object อื่นที่อ้างอิงจะพังตาม */
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
+GO
+
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 GO
@@ -477,18 +485,22 @@ CREATE TABLE dbo.internet_policies (
     description         NVARCHAR(1000)  NULL,
     proxy_asset_id      INT             NULL,       -- ช่องเสริม อุปกรณ์ที่บังคับใช้นโยบายนี้
     external_policy_ref NVARCHAR(150)   NULL,       -- ชื่อ Policy ฝั่ง Proxy เพื่อให้เทียบกันได้ด้วยตา
-    is_default          BIT             NOT NULL CONSTRAINT DF_ip_default DEFAULT (0),
-    is_active           BIT             NOT NULL CONSTRAINT DF_ip_active  DEFAULT (1),
+    is_default          BIT             NOT NULL CONSTRAINT DF_intpol_default DEFAULT (0),
+    is_active           BIT             NOT NULL CONSTRAINT DF_intpol_active  DEFAULT (1),
     notes               NVARCHAR(1000)  NULL,
-    is_deleted          BIT             NOT NULL CONSTRAINT DF_ip_deleted DEFAULT (0),
-    created_at          DATETIMEOFFSET(3) NOT NULL CONSTRAINT DF_ip_created DEFAULT (SYSDATETIMEOFFSET()),
+    is_deleted          BIT             NOT NULL CONSTRAINT DF_intpol_deleted DEFAULT (0),
+    created_at          DATETIMEOFFSET(3) NOT NULL CONSTRAINT DF_intpol_created DEFAULT (SYSDATETIMEOFFSET()),
     created_by          INT             NULL,
     updated_at          DATETIMEOFFSET(3) NULL,
     updated_by          INT             NULL,
     CONSTRAINT PK_internet_policies PRIMARY KEY CLUSTERED (policy_id),
-    CONSTRAINT FK_ip_proxy      FOREIGN KEY (proxy_asset_id) REFERENCES dbo.assets(asset_id),
-    CONSTRAINT FK_ip_created_by FOREIGN KEY (created_by)     REFERENCES dbo.users(user_id),
-    CONSTRAINT FK_ip_updated_by FOREIGN KEY (updated_by)     REFERENCES dbo.users(user_id)
+    -- หมายเหตุ: ตั้งใจไม่ใช้ prefix "ip" (ย่อจาก internet_policies) เพราะ dbo.ip_addresses
+    -- (ไฟล์ 11) จองชื่อ Constraint prefix "ip" ไปแล้วก่อนหน้า — DEFAULT/FOREIGN KEY
+    -- ชื่อซ้ำกันไม่ได้แม้อยู่คนละตาราง เพราะ SQL Server บังคับให้ไม่ซ้ำทั้งฐานข้อมูล
+    -- (พบจากการรันจริง ไม่ใช่จากเอกสาร) จึงใช้ "intpol" แทนเพื่อกันชนในทุกไฟล์
+    CONSTRAINT FK_intpol_proxy      FOREIGN KEY (proxy_asset_id) REFERENCES dbo.assets(asset_id),
+    CONSTRAINT FK_intpol_created_by FOREIGN KEY (created_by)     REFERENCES dbo.users(user_id),
+    CONSTRAINT FK_intpol_updated_by FOREIGN KEY (updated_by)     REFERENCES dbo.users(user_id)
 );
 GO
 
@@ -564,13 +576,14 @@ CREATE TABLE dbo.collector_agents (
     hostname            NVARCHAR(150)   NULL,
     last_heartbeat_at   DATETIMEOFFSET(3) NULL,
     api_key_expires_at  DATETIMEOFFSET(3) NULL,
-    is_enabled          BIT             NOT NULL CONSTRAINT DF_ca_enabled DEFAULT (1),
-    created_at          DATETIMEOFFSET(3) NOT NULL CONSTRAINT DF_ca_created DEFAULT (SYSDATETIMEOFFSET()),
+    is_enabled          BIT             NOT NULL CONSTRAINT DF_cagt_enabled DEFAULT (1),
+    created_at          DATETIMEOFFSET(3) NOT NULL CONSTRAINT DF_cagt_created DEFAULT (SYSDATETIMEOFFSET()),
     created_by          INT             NULL,
     CONSTRAINT PK_collector_agents PRIMARY KEY CLUSTERED (agent_id),
     CONSTRAINT UX_collector_agents_code UNIQUE (agent_code),
     CONSTRAINT UX_collector_agents_hash UNIQUE (api_key_hash),
-    CONSTRAINT FK_ca_created_by FOREIGN KEY (created_by) REFERENCES dbo.users(user_id)
+    -- "cagt" แทน "ca" เพราะ dbo.contract_assets (ไฟล์ 12) จองชื่อ Constraint prefix "ca" ไปแล้ว
+    CONSTRAINT FK_cagt_created_by FOREIGN KEY (created_by) REFERENCES dbo.users(user_id)
 );
 GO
 
@@ -580,6 +593,10 @@ GO
 CREATE TABLE dbo.sync_ou_scopes (
     scope_id            INT             IDENTITY(1,1) NOT NULL,
     distinguished_name  NVARCHAR(1000)  NOT NULL,
+    -- Unique Index บน NVARCHAR(1000) ตรงๆ ยาวถึง 2000 byte เกิน Limit 1700 byte ของ
+    -- Nonclustered Index (พบเป็น Warning จากการรันจริง) จึงต้อง Unique ผ่าน Hash แทน
+    -- HASHBYTES เป็น Deterministic Function (ต่างจาก PARSENAME) จึงใช้ PERSISTED ได้ปกติ
+    dn_hash              AS (CONVERT(BINARY(32), HASHBYTES('SHA2_256', distinguished_name))) PERSISTED,
     scope_label         NVARCHAR(150)   NOT NULL,
     object_types        VARCHAR(20)     NOT NULL CONSTRAINT DF_sos_types DEFAULT ('BOTH'),  -- USER / GROUP / BOTH
     include_subtree     BIT             NOT NULL CONSTRAINT DF_sos_subtree DEFAULT (1),
@@ -587,7 +604,7 @@ CREATE TABLE dbo.sync_ou_scopes (
     is_enabled          BIT             NOT NULL CONSTRAINT DF_sos_enabled DEFAULT (1),
     notes               NVARCHAR(500)   NULL,
     CONSTRAINT PK_sync_ou_scopes PRIMARY KEY CLUSTERED (scope_id),
-    CONSTRAINT UX_sync_ou_scopes UNIQUE (distinguished_name),
+    CONSTRAINT UX_sync_ou_scopes UNIQUE (dn_hash),
     CONSTRAINT CK_sos_types CHECK (object_types IN ('USER','GROUP','BOTH'))
 );
 GO
@@ -1313,10 +1330,13 @@ FETCH NEXT FROM temporal_cur INTO @t;
 
 WHILE @@FETCH_STATUS = 0
 BEGIN
+    /* ย้อน valid_from กลับ 2 วินาทีจาก SYSUTCDATETIME() โดยเจตนา เหมือนที่แก้ไว้ในไฟล์ 12
+       ไม่งั้นเจอ Msg 13542 "start of period set to a value in the future" เพราะ Loop นี้รัน
+       ALTER TABLE ติดกันหลายสิบตาราง (พบจากการรันจริง ไม่ใช่จากเอกสาร) */
     SET @sql = N'
         ALTER TABLE dbo.' + QUOTENAME(@t) + N' ADD
             valid_from DATETIME2(3) GENERATED ALWAYS AS ROW START HIDDEN NOT NULL
-                CONSTRAINT ' + QUOTENAME('DF_' + @t + '_validfrom') + N' DEFAULT (SYSUTCDATETIME()),
+                CONSTRAINT ' + QUOTENAME('DF_' + @t + '_validfrom') + N' DEFAULT (DATEADD(SECOND, -2, SYSUTCDATETIME())),
             valid_to   DATETIME2(3) GENERATED ALWAYS AS ROW END   HIDDEN NOT NULL
                 CONSTRAINT ' + QUOTENAME('DF_' + @t + '_validto')   + N' DEFAULT (CONVERT(DATETIME2(3), ''9999-12-31 23:59:59.999'')),
             PERIOD FOR SYSTEM_TIME (valid_from, valid_to);';
@@ -1350,8 +1370,12 @@ GO
    ⚠️ ต้องเปิดที่ระดับฐานข้อมูลด้วย ไม่งั้นงานตัดข้อมูลจะไม่ทำงานเลยและตารางจะโตเรื่อย ๆ
    ------------------------------------------------------------------------------------------ */
 
+-- EXEC(<string>) (Execute String รูปแบบไม่มี sp_executesql) รับเฉพาะการต่อ String
+-- Literal/ตัวแปรเท่านั้น ใส่ Function Call อย่าง QUOTENAME() ตรงๆ ในวงเล็บไม่ได้
+-- (Msg 102 Incorrect syntax — พบจากการรันจริง) ต้องประกอบเป็นตัวแปรก่อนเหมือนจุดอื่นในไฟล์นี้
 DECLARE @db SYSNAME = DB_NAME();
-EXEC(N'ALTER DATABASE ' + QUOTENAME(@db) + N' SET TEMPORAL_HISTORY_RETENTION ON;');
+DECLARE @dbsql NVARCHAR(MAX) = N'ALTER DATABASE ' + QUOTENAME(@db) + N' SET TEMPORAL_HISTORY_RETENTION ON;';
+EXEC sp_executesql @dbsql;
 GO
 
 DECLARE @t2 SYSNAME, @sql2 NVARCHAR(MAX);
