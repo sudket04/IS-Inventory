@@ -5,7 +5,7 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-20 · commit `PENDING` (จะแก้เป็น Hash จริงหลัง Push) |
+| **อัปเดตล่าสุด** | 2569-09-20 · commit `32c1e51` |
 | **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ** |
 | **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD (Server/Network) พร้อม Pagination/Search ทำงานจริง** (ดู §4.5, §4.6) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Asset หมวดอื่นและ VLAN/Contract ยังไม่เริ่ม (Sprint 3+) |
 
