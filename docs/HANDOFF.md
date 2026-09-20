@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-20 · commit `a384051` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 (Auth/RBAC/Layout) เสร็จ** |
-| **โค้ดโปรแกรม** | 🟡 **Login + RBAC 4 บทบาท + จัดการผู้ใช้ + Layout (Sidebar/Topbar/Dark Mode) ทำงานจริง** (ดู §4.5) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Business Logic หน้าอื่นยังไม่เริ่ม |
+| **อัปเดตล่าสุด** | 2569-09-20 · commit `PENDING` (จะแก้เป็น Hash จริงหลัง Push) |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ** |
+| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD (Server/Network) พร้อม Pagination/Search ทำงานจริง** (ดู §4.5, §4.6) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Asset หมวดอื่นและ VLAN/Contract ยังไม่เริ่ม (Sprint 3+) |
 
 ---
 
@@ -52,7 +52,7 @@
 | **1. Requirement** | ✅ เสร็จ | `docs/PRD.md` |
 | **2. UI/UX Design** | ✅ เสร็จ | `docs/design/01` `02` `03` |
 | **3. Database** | ✅ เสร็จ (v1.0 → v1.6) — ทดสอบรันจริงบน SQL Server แล้ว | `docs/database/01`–`15` |
-| **4. Development** | 🟡 Sprint 0 + Sprint 1 (Auth/RBAC/Layout) เสร็จ | `docs/ROADMAP.md` §1.3, §1.4 |
+| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ | `docs/ROADMAP.md` §1.3–§1.5 |
 
 ---
 
@@ -167,6 +167,37 @@ Login ผิดรหัส/ผิด Username ได้ข้อความเ
 Audit Log บันทึกครบทุก Outcome · ทดสอบ UI ด้วย Playwright ครบ 6 ขั้นตอน (Redirect ไป Login →
 Error ข้อความ → Login สำเร็จเห็น Dashboard → สลับ Dark Mode → เข้าเมนู Admin > Users →
 Logout กลับไปหน้า Login)
+
+---
+
+### 4.6 Backend/Frontend — Sprint 2: Master Data CRUD + Asset CRUD (20 ก.ย. 2569)
+
+**Master Data (12 หน้ารูปแบบร่วม ตาม `docs/design/04-settings-screens.md` §4) — ทำ 11 จาก 12**
+
+| ส่วน | รายละเอียด |
+|---|---|
+| Backend | `LookupsControllerBase<TEntity,TDto>` ตัวเดียว ครอบคลุม List/Create/Update/Toggle-Active/Usage/Delete — Controller จริง 11 ตัว (แผนก, หมวดหมู่ทรัพย์สิน, ผู้ผลิต, ผู้ขาย, สถานะทรัพย์สิน, บทบาท Server, ประเภทความสัมพันธ์, โซนเครือข่าย, ชั้นความลับ, ระดับสิทธิ์, หมวดหมู่เว็บไซต์) เหลือแค่ Config + DTO ไม่ใช่ Logic ซ้ำ |
+| กฎการลบ (§5 ของเอกสารออกแบบ) | ลบไม่ได้ถ้ายังมีการอ้างอิง — คืนจำนวนที่อ้างอิงกลับไปให้ UI แสดงและเสนอ "ปิดใช้งานแทน" ยืนยันแล้วว่า DB ปฏิเสธการลบข้อมูลที่มี Audit Log อ้างถึงจริง (Constraint ทำงานถูกต้องตามที่ออกแบบ) |
+| **`device_models` ไม่ได้ทำรอบนี้** | ต้องมี UI เลือก `asset_type` แบบผังต้นไม้ก่อน (ยังไม่สร้าง) — ใส่ไว้ในหน้าที่ค้าง |
+| Frontend | Component เดียว (`LookupPage` + `LookupFormDialog`) Config-driven — แต่ละหน้าเหลือแค่ Wrapper ~10 บรรทัด ตามเจตนาเอกสารออกแบบ ("เขียนส่วนประกอบเดียว 400 บรรทัด แทน 12 หน้า") |
+
+**Asset CRUD — Server + Network Device**
+
+| ส่วน | รายละเอียด |
+|---|---|
+| `sp_generate_asset_tag` / `sp_soft_delete_asset` | เรียกใช้ Stored Procedure เดิมที่มีอยู่แล้วตรงๆ (ผ่าน ADO.NET Output Parameter และ `ExecuteSqlInterpolatedAsync`) แทนการเขียน Logic ซ้ำใน C# — ได้ Concurrency Safety (`UPDLOCK`/`HOLDLOCK`) และการคืน Seat Software ตอนลบ (FR-AS-10) มาฟรี |
+| Class Table Inheritance | `assets` + `server_details`/`network_details` ตามการตัดสินใจ #1 — Query เดียวด้วย EF Core Select Projection คำนวณ LEFT JOIN อัตโนมัติ ไม่ต้อง `Include()` ทุกจุด |
+| Server-side Pagination + Search | `GET /api/assets?search=&category=&statusId=&departmentId=&page=&pageSize=` ค้นข้าม Asset Tag/ชื่อ/Serial/Hostname (FR-SE-01) — **ยังไม่รวม IP/VLAN** (รอ Sprint 3) |
+| `PickersController` ใหม่ | Endpoint `/api/pickers/*` แยกจาก Lookups CRUD — คืนแค่ id+label ให้ทุก Role ใช้เติม Dropdown ในฟอร์ม (Lookups CRUD เป็น Admin-only แต่ทุกคนต้องสร้าง Asset ได้) |
+| **`asset_type_id`/`model_id` ไม่ได้ใส่ในฟอร์มรอบนี้** | เหตุผลเดียวกับ `device_models` — รอผังต้นไม้ `asset_type` |
+| **Parent Host / Uplink Asset** | ใส่เป็นช่องกรอก Asset ID ตรงๆ ก่อน (ยังไม่มี Autocomplete ค้นหา Asset) — ใช้งานได้จริงแต่ UX ยังพื้นฐาน |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** Master Data ทดสอบ List/Create/ปฏิเสธรหัสซ้ำ (409)/Usage Count/Deactivate/Delete
+ผ่าน API ตรงๆ ครบทุก Endpoint บนตาราง `departments` แล้วขยายผลไปหน้าอื่นด้วย Component เดียวกัน
+ทดสอบผ่าน UI จริงกับ `vendors`/`asset-statuses` ด้วย Playwright — Asset CRUD ทดสอบสร้าง Server
+(ได้ Tag `SRV-2026-0001` อัตโนมัติ) และ Network Device (`NET-2026-0001`) ผ่าน API แล้วทดสอบ
+List/Search/Filter/Update/Soft Delete ครบ จากนั้นทดสอบซ้ำผ่าน UI จริงด้วย Playwright
+(สร้าง → ค้นหา → แก้ไข → เห็นผลในตาราง) และลบข้อมูลทดสอบออกจากฐานข้อมูลหลังทดสอบเสร็จ
 
 ---
 

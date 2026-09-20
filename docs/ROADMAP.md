@@ -14,12 +14,13 @@
 | Database Design | ✅ เสร็จ **และทดสอบรันจริงผ่านแล้ว** — 66 ตาราง · 45 Temporal · 45 View · 10 Trigger บน SQL Server 2022 จริง (ล่าสุด 20 ก.ย. 2569 รวม VLAN Secondary Subnet + Application Module) |
 | UI/UX Design | ✅ เสร็จ — User Flow · Wireframe 9 หน้า · Design System · หน้าตั้งค่า 25 หน้า |
 | Tech Stack | ✅ ตัดสินใจแล้ว — ASP.NET Core (.NET 8) + EF Core + Next.js |
-| **โค้ดจริง** | 🟡 **Sprint 0 + Sprint 1 (Auth/RBAC/Layout) เสร็จ** — Login/RBAC/จัดการผู้ใช้ใช้งานได้จริง (§1.4) · หน้าจอ Business Logic อื่นยังไม่เริ่ม (Sprint 2+) |
+| **โค้ดจริง** | 🟡 **Sprint 0 + Sprint 1 + Sprint 2 เสร็จ** — Login/RBAC/จัดการผู้ใช้/Master Data/Asset CRUD (Server/Network) ใช้งานได้จริง (§1.4, §1.5) · Asset หมวดอื่น + VLAN/Contract ยังไม่เริ่ม (Sprint 3+) |
 
 **สรุป 1 บรรทัด:** Design เสร็จหมดแล้ว ฐานข้อมูลทดสอบผ่านแล้ว Backend/Frontend เชื่อมต่อกันจริง
-และตอนนี้ Login + RBAC 4 บทบาท + จัดการผู้ใช้ + Layout หลักใช้งานได้จริงแล้ว (Sprint 1 §1.4)
-— คอขวดตอนนี้เหลือแค่ **ข้อมูลจริงที่ยังไม่ได้รับ** (§1.2) กับ **Windows Server ทดสอบ AD/FSRM**
-(§1.1) ไม่ใช่การตัดสินใจสถาปัตยกรรมหรือความเสี่ยงจาก Schema/Stack ที่ไม่เคยพิสูจน์แล้วอีกต่อไป
+Login + RBAC + จัดการผู้ใช้ + Layout ใช้งานได้ (Sprint 1) และตอนนี้บันทึก/ค้นหา Master Data
+กับทรัพย์สิน Server/Network ได้จริงแล้วด้วย (Sprint 2 §1.5) — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริง
+ที่ยังไม่ได้รับ** (§1.2) กับ **Windows Server ทดสอบ AD/FSRM** (§1.1) ไม่ใช่การตัดสินใจสถาปัตยกรรม
+หรือความเสี่ยงจาก Schema/Stack ที่ไม่เคยพิสูจน์แล้วอีกต่อไป
 
 ---
 
@@ -90,8 +91,33 @@
 `users`/`roles`/`refresh_tokens` ที่ออกแบบไว้ตั้งแต่ Phase 3 ไม่ใช่รูปแบบตารางของ ASP.NET Core
 Identity — หลักการความปลอดภัย (Argon2id, RBAC, Refresh Token) ยังตรงตามที่ตกลงไว้ทุกข้อ
 
-**คงเหลือจาก Sprint 1 (ไม่บล็อก Sprint 2):** หน้าเปลี่ยนรหัสผ่านตนเอง (Self Change Password UI)
-มี API พร้อมแล้ว (`PUT /api/auth/password`) แต่ยังไม่ได้ทำหน้าจอ — จะทำพร้อมหน้า Profile ใน Sprint 2
+**คงเหลือจาก Sprint 1:** หน้าเปลี่ยนรหัสผ่านตนเอง (Self Change Password UI) มี API พร้อมแล้ว
+(`PUT /api/auth/password`) แต่ยังไม่ได้ทำหน้าจอ — ยังไม่ได้ทำใน Sprint 2 ด้วย (ไม่ใช่งานของ Sprint
+นี้) เลื่อนไปพร้อมหน้า Profile ที่ยังไม่ถึงคิว
+
+### 1.5 ✅ Sprint 2 — Master Data CRUD + Asset CRUD (20 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.6 — สรุปสั้น:
+
+| ส่วน | สถานะ |
+|---|---|
+| Master Data CRUD 11/12 หน้า (Config-driven Component เดียว ทั้ง Backend/Frontend) | ✅ ทดสอบกับ SQL Server จริง |
+| กฎห้ามลบข้อมูลที่มีการอ้างอิง + เสนอปิดใช้งานแทน | ✅ ยืนยันด้วยข้อมูลจริง |
+| Asset CRUD — Server/Network (ใช้ Stored Procedure เดิมสร้าง Asset Tag + Soft Delete) | ✅ ทดสอบผ่าน API และ UI จริง |
+| Server-side Pagination + Search (Asset Tag/ชื่อ/Serial/Hostname) | ✅ |
+| `PickersController` (Dropdown ให้ทุก Role ใช้ตอนสร้าง Asset) | ✅ |
+
+**ปรับจากแผนเดิม:**
+- `device_models` (1 ใน 12 หน้า Master Data) ยังไม่ทำ — ต้องมีผังต้นไม้ `asset_type` ก่อน ซึ่งเป็น
+  1 ใน 13 หน้าที่ต้องออกแบบเฉพาะ (`04-settings-screens.md` §4.2) ยังไม่ถึงคิว
+- ฟอร์ม Asset ยังไม่มีช่องเลือก `asset_type`/`model_id` ด้วยเหตุผลเดียวกัน — ใช้ `category`
+  (Server/Network) กับช่อง `model` แบบพิมพ์เองไปก่อน
+- ค้นหา Asset ยังไม่ครอบคลุม IP/VLAN (FR-SE-01 ระบุไว้ครบ) — รอ Sprint 3 ที่ทำ VLAN/IPAM UI
+- ช่อง Parent Host/Uplink Asset เป็นช่องกรอก ID ตรงๆ ยังไม่มี Autocomplete ค้นหาชื่อ Asset
+
+**คงเหลือจาก Sprint 2 (ไม่บล็อก Sprint 3):** `device_models`, Asset Type Tree Picker,
+Location Tree Picker, Autocomplete เลือก Asset — ทั้งหมดนี้ทำพร้อมกันได้เมื่อสร้างหน้า
+"ประเภทอุปกรณ์" (Asset Types ผังต้นไม้) ซึ่งเป็นหนึ่งใน 13 หน้าเฉพาะที่ยังไม่ได้ออกแบบ UI จริง
 
 ---
 
@@ -103,7 +129,7 @@ Identity — หลักการความปลอดภัย (Argon2id, R
 |:---:|---|---|:---:|
 | **0** | ~~รัน SQL 8 ไฟล์ · Setup .NET Solution + Next.js Project~~ ✅ เสร็จแล้ว (ดู §1.3) — เหลือ Seed Data ชุดจริง + Deploy Pipeline | Repo พร้อมพัฒนา · Backend↔DB↔Frontend ต่อกันจริงแล้ว | 1 |
 | **1** | ~~Auth (Argon2id+JWT ตาม Schema เดิม แทน ASP.NET Core Identity โดยตรง) · RBAC 4 บทบาท · จัดการผู้ใช้ · Layout + Dark Mode + กันจอขาววาบ~~ ✅ เสร็จแล้ว (ดู §1.4) | Login และควบคุมสิทธิ์ได้ | 4 |
-| **2** | Master Data CRUD (ใช้รูปแบบร่วม 12 หน้าจาก `04-settings-screens.md`) · Asset CRUD (Server/Network) · ค้นหา-กรอง | บันทึก/ค้นหาทรัพย์สินหลักได้ · หน้าตั้งค่าพื้นฐานครบ | 5 |
+| **2** | ~~Master Data CRUD (11/12 หน้า — เหลือ `device_models` รอผังต้นไม้ `asset_type`) · Asset CRUD (Server/Network) · ค้นหา-กรอง~~ ✅ เสร็จแล้ว (ดู §1.5) | บันทึก/ค้นหาทรัพย์สินหลักได้ · หน้าตั้งค่าพื้นฐานครบ | 5 |
 | **3** | Asset ประเภทที่เหลือ (8 หมวด) · Attachment · Audit Log · Storage/Cluster · Rack (พร้อมผังกราฟิก) · VLAN + Site (1st/2nd, รองรับ Secondary Subnet/Untagged) · Application บน Server (v1.6) | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
 | **4** | Software License · Seat Counting · CMDB Relationship · Contracts (เครื่องเดียว/หลายเครื่อง) | บริหาร License และความสัมพันธ์ได้ | 4 |
 | **5** | Dashboard · Reports · Export Excel | เห็นภาพรวมและออกรายงานได้ | 3 |
