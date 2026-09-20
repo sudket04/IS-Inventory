@@ -53,6 +53,40 @@ export interface NetworkDetailsForm {
   uplinkAssetId: string;
 }
 
+export interface ComputerDetailsForm {
+  hostname: string; macAddress: string; cpuModel: string; ramGb: string; storageConfig: string;
+  osName: string; osVersion: string; assignedDate: string; assignedToName: string; domainJoined: boolean;
+}
+
+export interface StorageDetailsForm {
+  hostname: string; mgmtUrl: string; controllerCount: string; diskBayTotal: string; diskBayUsed: string;
+  rawCapacityTb: string; usableCapacityTb: string; cacheGb: string; supportedProtocols: string;
+  expansionShelfCount: string; firmwareVersion: string; firmwareUpdatedAt: string;
+  hasDedup: boolean; hasCompression: boolean; hasSnapshot: boolean; hasReplication: boolean;
+}
+
+export interface PowerDetailsForm {
+  capacityKva: string; capacityKw: string; inputPhase: string; inputVoltage: string; outputVoltage: string;
+  outletCount: string; outletType: string; batteryCount: string; batteryModel: string;
+  batteryInstallDate: string; batteryReplaceDue: string; runtimeMinutesFullLoad: string;
+  currentLoadPercent: string; loadMeasuredAt: string; hasBypass: boolean; hasSnmpCard: boolean;
+  firmwareVersion: string; coolingCapacityBtu: string; refrigerantType: string; lastServiceDate: string;
+}
+
+export interface PeripheralDetailsForm {
+  connectionType: string; firmwareVersion: string; printTechnology: string; isColor: boolean; maxPaperSize: string;
+  hasDuplex: boolean; hasAdf: boolean; pageCounterMono: string; pageCounterColor: string; counterReadDate: string;
+  tonerModel: string; screenSizeInch: string; resolution: string; panelType: string; refreshRateHz: string;
+  hasSpeaker: boolean; mountType: string;
+}
+
+export interface MobileIotDetailsForm {
+  imei: string; phoneNumber: string; simProvider: string; osName: string; osVersion: string;
+  isMdmEnrolled: boolean; mdmPlatform: string; hostname: string; macAddress: string; firmwareVersion: string;
+  deviceProtocol: string; controllerModel: string; ioPointCount: string; resolution: string;
+  hasPtz: boolean; hasIr: boolean; storageType: string; assignedToName: string; assignedDate: string;
+}
+
 export interface AssetDetail {
   assetId: number;
   assetTag: string;
@@ -103,5 +137,41 @@ export interface AssetDetail {
     firmwareUpdatedAt: string | null;
     stackInfo: string | null;
     uplinkAssetId: number | null;
+  } | null;
+  computerDetails: {
+    hostname: string | null; macAddress: string | null; cpuModel: string | null; ramGb: number | null;
+    storageConfig: string | null; osName: string | null; osVersion: string | null;
+    assignedDate: string | null; assignedToName: string | null; domainJoined: boolean | null;
+  } | null;
+  storageDetails: {
+    hostname: string | null; mgmtUrl: string | null; controllerCount: number | null;
+    diskBayTotal: number | null; diskBayUsed: number | null; rawCapacityTb: number | null;
+    usableCapacityTb: number | null; cacheGb: number | null; supportedProtocols: string | null;
+    expansionShelfCount: number | null; firmwareVersion: string | null; firmwareUpdatedAt: string | null;
+    hasDedup: boolean | null; hasCompression: boolean | null; hasSnapshot: boolean | null; hasReplication: boolean | null;
+  } | null;
+  powerDetails: {
+    capacityKva: number | null; capacityKw: number | null; inputPhase: number | null;
+    inputVoltage: string | null; outputVoltage: string | null; outletCount: number | null;
+    outletType: string | null; batteryCount: number | null; batteryModel: string | null;
+    batteryInstallDate: string | null; batteryReplaceDue: string | null; runtimeMinutesFullLoad: number | null;
+    currentLoadPercent: number | null; loadMeasuredAt: string | null; hasBypass: boolean | null;
+    hasSnmpCard: boolean | null; firmwareVersion: string | null; coolingCapacityBtu: number | null;
+    refrigerantType: string | null; lastServiceDate: string | null;
+  } | null;
+  peripheralDetails: {
+    connectionType: string | null; firmwareVersion: string | null; printTechnology: string | null;
+    isColor: boolean | null; maxPaperSize: string | null; hasDuplex: boolean | null; hasAdf: boolean | null;
+    pageCounterMono: number | null; pageCounterColor: number | null; counterReadDate: string | null;
+    tonerModel: string | null; screenSizeInch: number | null; resolution: string | null;
+    panelType: string | null; refreshRateHz: number | null; hasSpeaker: boolean | null; mountType: string | null;
+  } | null;
+  mobileIotDetails: {
+    imei: string | null; phoneNumber: string | null; simProvider: string | null; osName: string | null;
+    osVersion: string | null; isMdmEnrolled: boolean | null; mdmPlatform: string | null;
+    hostname: string | null; macAddress: string | null; firmwareVersion: string | null;
+    deviceProtocol: string | null; controllerModel: string | null; ioPointCount: number | null;
+    resolution: string | null; hasPtz: boolean | null; hasIr: boolean | null; storageType: string | null;
+    assignedToName: string | null; assignedDate: string | null;
   } | null;
 }

@@ -45,6 +45,33 @@ export function SelectField({
   );
 }
 
+export function EnumSelectField({
+  id, label, value, onChange, options, required,
+}: {
+  id: string; label: string; value: string; onChange: (v: string) => void;
+  options: string[]; required?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <select
+        id={id}
+        required={required}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 w-full rounded-md border border-border-default bg-bg-surface px-3 text-sm text-text-primary"
+      >
+        <option value="">— None —</option>
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export function CheckboxField({
   id, label, checked, onChange,
 }: {

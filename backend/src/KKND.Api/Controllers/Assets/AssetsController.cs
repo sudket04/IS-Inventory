@@ -10,9 +10,12 @@ using Microsoft.EntityFrameworkCore;
 namespace KKND.Api.Controllers.Assets;
 
 /// <summary>
-/// Server and Network Device assets (Sprint 2 scope — the other 4 categories follow in
-/// Sprint 3). Uses the existing stored procedures for the two operations that need
-/// concurrency safety or cross-table cleanup rather than re-implementing them in C#:
+/// Covers 7 of the 8 asset categories (Server, Network Device, Computer, Storage,
+/// Power &amp; Cooling, Peripheral, Mobile &amp; IoT/OT). Software License (SFT) is
+/// deliberately excluded — it needs Sprint 4's seat-counting logic and a decision on
+/// how license_key_encrypted gets encrypted, so it isn't a same-shape extension.
+/// Uses the existing stored procedures for the two operations that need concurrency
+/// safety or cross-table cleanup rather than re-implementing them in C#:
 /// sp_generate_asset_tag (UPDLOCK-guarded sequence) and sp_soft_delete_asset (also
 /// releases software seats per FR-AS-10).
 /// </summary>
@@ -22,7 +25,7 @@ namespace KKND.Api.Controllers.Assets;
 public sealed class AssetsController : ControllerBase
 {
     private const int MaxPageSize = 100;
-    private static readonly string[] ServerAndNetworkCodes = ["SRV", "NET"];
+    private static readonly string[] SupportedCategoryCodes = ["SRV", "NET", "PC", "STG", "PWR", "PER", "IOT"];
 
     private readonly KkndDbContext _db;
 
@@ -70,7 +73,10 @@ public sealed class AssetsController : ControllerBase
                 EF.Functions.Like(a.Name, $"%{needle}%") ||
                 (a.SerialNumber != null && EF.Functions.Like(a.SerialNumber, $"%{needle}%")) ||
                 (a.ServerDetailAsset != null && a.ServerDetailAsset.Hostname != null && EF.Functions.Like(a.ServerDetailAsset.Hostname, $"%{needle}%")) ||
-                (a.NetworkDetailAsset != null && a.NetworkDetailAsset.Hostname != null && EF.Functions.Like(a.NetworkDetailAsset.Hostname, $"%{needle}%")));
+                (a.NetworkDetailAsset != null && a.NetworkDetailAsset.Hostname != null && EF.Functions.Like(a.NetworkDetailAsset.Hostname, $"%{needle}%")) ||
+                (a.ComputerDetail != null && a.ComputerDetail.Hostname != null && EF.Functions.Like(a.ComputerDetail.Hostname, $"%{needle}%")) ||
+                (a.StorageDetail != null && a.StorageDetail.Hostname != null && EF.Functions.Like(a.StorageDetail.Hostname, $"%{needle}%")) ||
+                (a.MobileIotDetail != null && a.MobileIotDetail.Hostname != null && EF.Functions.Like(a.MobileIotDetail.Hostname, $"%{needle}%")));
         }
 
         var totalCount = await query.CountAsync(ct);
@@ -85,7 +91,10 @@ public sealed class AssetsController : ControllerBase
                 a.Status.Code, a.Status.Name, a.Status.ColorToken,
                 a.Manufacturer != null ? a.Manufacturer.Name : null, a.Model, a.SerialNumber,
                 a.ServerDetailAsset != null ? a.ServerDetailAsset.Hostname
-                    : a.NetworkDetailAsset != null ? a.NetworkDetailAsset.Hostname : null,
+                    : a.NetworkDetailAsset != null ? a.NetworkDetailAsset.Hostname
+                    : a.ComputerDetail != null ? a.ComputerDetail.Hostname
+                    : a.StorageDetail != null ? a.StorageDetail.Hostname
+                    : a.MobileIotDetail != null ? a.MobileIotDetail.Hostname : null,
                 a.Location != null ? a.Location.Name : null,
                 a.Department != null ? a.Department.Name : null,
                 a.OwnerUser != null ? a.OwnerUser.FullName : null,
@@ -102,6 +111,11 @@ public sealed class AssetsController : ControllerBase
             .Include(a => a.Category)
             .Include(a => a.ServerDetailAsset)
             .Include(a => a.NetworkDetailAsset)
+            .Include(a => a.ComputerDetail)
+            .Include(a => a.StorageDetail)
+            .Include(a => a.PowerDetail)
+            .Include(a => a.PeripheralDetail)
+            .Include(a => a.MobileIotDetail)
             .SingleOrDefaultAsync(a => a.AssetId == id && !a.IsDeleted, ct);
 
         if (asset is null) return NotFound();
@@ -119,19 +133,25 @@ public sealed class AssetsController : ControllerBase
             return BadRequest(new { error = "invalid_category", message = "Category does not exist." });
         }
 
-        if (!ServerAndNetworkCodes.Contains(category.Code))
+        if (!SupportedCategoryCodes.Contains(category.Code))
         {
-            return BadRequest(new { error = "unsupported_category", message = "Only Server and Network Device assets can be created here for now." });
+            return BadRequest(new { error = "unsupported_category", message = "This asset category is not supported here yet." });
         }
 
-        if (category.Code == "SRV" && request.ServerDetails is null)
+        var detailsError = category.Code switch
         {
-            return BadRequest(new { error = "missing_server_details", message = "Server Details are required for a Server asset." });
-        }
-
-        if (category.Code == "NET" && request.NetworkDetails is null)
+            "SRV" when request.ServerDetails is null => "Server Details are required for a Server asset.",
+            "NET" when request.NetworkDetails is null => "Network Device Details are required for a Network Device asset.",
+            "PC" when request.ComputerDetails is null => "Computer Details are required for a Computer asset.",
+            "STG" when request.StorageDetails is null => "Storage Details are required for a Storage asset.",
+            "PWR" when request.PowerDetails is null => "Power & Cooling Details are required for a Power & Cooling asset.",
+            "PER" when request.PeripheralDetails is null => "Peripheral Details are required for a Peripheral asset.",
+            "IOT" when request.MobileIotDetails is null => "Mobile & IoT/OT Details are required for a Mobile & IoT/OT asset.",
+            _ => null,
+        };
+        if (detailsError is not null)
         {
-            return BadRequest(new { error = "missing_network_details", message = "Network Details are required for a Network Device asset." });
+            return BadRequest(new { error = "missing_details", message = detailsError });
         }
 
         var assetTag = await GenerateAssetTagAsync(request.CategoryId, ct);
@@ -165,35 +185,36 @@ public sealed class AssetsController : ControllerBase
             CreatedBy = userId,
         };
 
-        if (category.Code == "SRV" && request.ServerDetails is { } sd)
+        switch (category.Code)
         {
-            asset.ServerDetailAsset = new ServerDetail
-            {
-                Hostname = sd.Hostname,
-                MacAddress = sd.MacAddress,
-                CpuModel = sd.CpuModel,
-                CpuSocketCount = sd.CpuSocketCount,
-                RamGb = sd.RamGb,
-                OsName = sd.OsName,
-                OsVersion = sd.OsVersion,
-                OsInstallDate = sd.OsInstallDate,
-                LastPatchDate = sd.LastPatchDate,
-                ParentHostAssetId = sd.ParentHostAssetId,
-            };
-        }
-        else if (category.Code == "NET" && request.NetworkDetails is { } nd)
-        {
-            asset.NetworkDetailAsset = new NetworkDetail
-            {
-                Hostname = nd.Hostname,
-                MacAddress = nd.MacAddress,
-                PortSpeed = nd.PortSpeed,
-                PoeSupport = nd.PoeSupport,
-                FirmwareVersion = nd.FirmwareVersion,
-                FirmwareUpdatedAt = nd.FirmwareUpdatedAt,
-                StackInfo = nd.StackInfo,
-                UplinkAssetId = nd.UplinkAssetId,
-            };
+            case "SRV" when request.ServerDetails is { } sd:
+                asset.ServerDetailAsset = new ServerDetail();
+                Apply(asset.ServerDetailAsset, sd);
+                break;
+            case "NET" when request.NetworkDetails is { } nd:
+                asset.NetworkDetailAsset = new NetworkDetail();
+                Apply(asset.NetworkDetailAsset, nd);
+                break;
+            case "PC" when request.ComputerDetails is { } cd:
+                asset.ComputerDetail = new ComputerDetail();
+                Apply(asset.ComputerDetail, cd);
+                break;
+            case "STG" when request.StorageDetails is { } gd:
+                asset.StorageDetail = new StorageDetail();
+                Apply(asset.StorageDetail, gd);
+                break;
+            case "PWR" when request.PowerDetails is { } pd:
+                asset.PowerDetail = new PowerDetail();
+                Apply(asset.PowerDetail, pd);
+                break;
+            case "PER" when request.PeripheralDetails is { } rd:
+                asset.PeripheralDetail = new PeripheralDetail();
+                Apply(asset.PeripheralDetail, rd);
+                break;
+            case "IOT" when request.MobileIotDetails is { } id_:
+                asset.MobileIotDetail = new MobileIotDetail();
+                Apply(asset.MobileIotDetail, id_);
+                break;
         }
 
         _db.Assets.Add(asset);
@@ -214,6 +235,11 @@ public sealed class AssetsController : ControllerBase
             .Include(a => a.Category)
             .Include(a => a.ServerDetailAsset)
             .Include(a => a.NetworkDetailAsset)
+            .Include(a => a.ComputerDetail)
+            .Include(a => a.StorageDetail)
+            .Include(a => a.PowerDetail)
+            .Include(a => a.PeripheralDetail)
+            .Include(a => a.MobileIotDetail)
             .SingleAsync(a => a.AssetId == asset.AssetId, ct);
 
         return CreatedAtAction(nameof(Get), new { id = asset.AssetId }, ToDetail(created));
@@ -227,6 +253,11 @@ public sealed class AssetsController : ControllerBase
             .Include(a => a.Category)
             .Include(a => a.ServerDetailAsset)
             .Include(a => a.NetworkDetailAsset)
+            .Include(a => a.ComputerDetail)
+            .Include(a => a.StorageDetail)
+            .Include(a => a.PowerDetail)
+            .Include(a => a.PeripheralDetail)
+            .Include(a => a.MobileIotDetail)
             .SingleOrDefaultAsync(a => a.AssetId == id && !a.IsDeleted, ct);
 
         if (asset is null) return NotFound();
@@ -257,31 +288,36 @@ public sealed class AssetsController : ControllerBase
         asset.UpdatedAt = DateTimeOffset.UtcNow;
         asset.UpdatedBy = userId;
 
-        if (asset.Category.Code == "SRV" && request.ServerDetails is { } sd)
+        switch (asset.Category.Code)
         {
-            asset.ServerDetailAsset ??= new ServerDetail { AssetId = asset.AssetId };
-            asset.ServerDetailAsset.Hostname = sd.Hostname;
-            asset.ServerDetailAsset.MacAddress = sd.MacAddress;
-            asset.ServerDetailAsset.CpuModel = sd.CpuModel;
-            asset.ServerDetailAsset.CpuSocketCount = sd.CpuSocketCount;
-            asset.ServerDetailAsset.RamGb = sd.RamGb;
-            asset.ServerDetailAsset.OsName = sd.OsName;
-            asset.ServerDetailAsset.OsVersion = sd.OsVersion;
-            asset.ServerDetailAsset.OsInstallDate = sd.OsInstallDate;
-            asset.ServerDetailAsset.LastPatchDate = sd.LastPatchDate;
-            asset.ServerDetailAsset.ParentHostAssetId = sd.ParentHostAssetId;
-        }
-        else if (asset.Category.Code == "NET" && request.NetworkDetails is { } nd)
-        {
-            asset.NetworkDetailAsset ??= new NetworkDetail { AssetId = asset.AssetId };
-            asset.NetworkDetailAsset.Hostname = nd.Hostname;
-            asset.NetworkDetailAsset.MacAddress = nd.MacAddress;
-            asset.NetworkDetailAsset.PortSpeed = nd.PortSpeed;
-            asset.NetworkDetailAsset.PoeSupport = nd.PoeSupport;
-            asset.NetworkDetailAsset.FirmwareVersion = nd.FirmwareVersion;
-            asset.NetworkDetailAsset.FirmwareUpdatedAt = nd.FirmwareUpdatedAt;
-            asset.NetworkDetailAsset.StackInfo = nd.StackInfo;
-            asset.NetworkDetailAsset.UplinkAssetId = nd.UplinkAssetId;
+            case "SRV" when request.ServerDetails is { } sd:
+                asset.ServerDetailAsset ??= new ServerDetail { AssetId = asset.AssetId };
+                Apply(asset.ServerDetailAsset, sd);
+                break;
+            case "NET" when request.NetworkDetails is { } nd:
+                asset.NetworkDetailAsset ??= new NetworkDetail { AssetId = asset.AssetId };
+                Apply(asset.NetworkDetailAsset, nd);
+                break;
+            case "PC" when request.ComputerDetails is { } cd:
+                asset.ComputerDetail ??= new ComputerDetail { AssetId = asset.AssetId };
+                Apply(asset.ComputerDetail, cd);
+                break;
+            case "STG" when request.StorageDetails is { } gd:
+                asset.StorageDetail ??= new StorageDetail { AssetId = asset.AssetId };
+                Apply(asset.StorageDetail, gd);
+                break;
+            case "PWR" when request.PowerDetails is { } pd:
+                asset.PowerDetail ??= new PowerDetail { AssetId = asset.AssetId };
+                Apply(asset.PowerDetail, pd);
+                break;
+            case "PER" when request.PeripheralDetails is { } rd:
+                asset.PeripheralDetail ??= new PeripheralDetail { AssetId = asset.AssetId };
+                Apply(asset.PeripheralDetail, rd);
+                break;
+            case "IOT" when request.MobileIotDetails is { } id_:
+                asset.MobileIotDetail ??= new MobileIotDetail { AssetId = asset.AssetId };
+                Apply(asset.MobileIotDetail, id_);
+                break;
         }
 
         _db.AuditLogs.Add(new AuditLog
@@ -323,6 +359,134 @@ public sealed class AssetsController : ControllerBase
         await _db.SaveChangesAsync(ct);
 
         return NoContent();
+    }
+
+    private static void Apply(ServerDetail e, ServerDetailsDto d)
+    {
+        e.Hostname = d.Hostname;
+        e.MacAddress = d.MacAddress;
+        e.CpuModel = d.CpuModel;
+        e.CpuSocketCount = d.CpuSocketCount;
+        e.RamGb = d.RamGb;
+        e.OsName = d.OsName;
+        e.OsVersion = d.OsVersion;
+        e.OsInstallDate = d.OsInstallDate;
+        e.LastPatchDate = d.LastPatchDate;
+        e.ParentHostAssetId = d.ParentHostAssetId;
+    }
+
+    private static void Apply(NetworkDetail e, NetworkDetailsDto d)
+    {
+        e.Hostname = d.Hostname;
+        e.MacAddress = d.MacAddress;
+        e.PortSpeed = d.PortSpeed;
+        e.PoeSupport = d.PoeSupport;
+        e.FirmwareVersion = d.FirmwareVersion;
+        e.FirmwareUpdatedAt = d.FirmwareUpdatedAt;
+        e.StackInfo = d.StackInfo;
+        e.UplinkAssetId = d.UplinkAssetId;
+    }
+
+    private static void Apply(ComputerDetail e, ComputerDetailsDto d)
+    {
+        e.Hostname = d.Hostname;
+        e.MacAddress = d.MacAddress;
+        e.CpuModel = d.CpuModel;
+        e.RamGb = d.RamGb;
+        e.StorageConfig = d.StorageConfig;
+        e.OsName = d.OsName;
+        e.OsVersion = d.OsVersion;
+        e.AssignedDate = d.AssignedDate;
+        e.AssignedToName = d.AssignedToName;
+        e.DomainJoined = d.DomainJoined;
+    }
+
+    private static void Apply(StorageDetail e, StorageDetailsDto d)
+    {
+        e.Hostname = d.Hostname;
+        e.MgmtUrl = d.MgmtUrl;
+        e.ControllerCount = d.ControllerCount;
+        e.DiskBayTotal = d.DiskBayTotal;
+        e.DiskBayUsed = d.DiskBayUsed;
+        e.RawCapacityTb = d.RawCapacityTb;
+        e.UsableCapacityTb = d.UsableCapacityTb;
+        e.CacheGb = d.CacheGb;
+        e.SupportedProtocols = d.SupportedProtocols;
+        e.ExpansionShelfCount = d.ExpansionShelfCount;
+        e.FirmwareVersion = d.FirmwareVersion;
+        e.FirmwareUpdatedAt = d.FirmwareUpdatedAt;
+        e.HasDedup = d.HasDedup;
+        e.HasCompression = d.HasCompression;
+        e.HasSnapshot = d.HasSnapshot;
+        e.HasReplication = d.HasReplication;
+    }
+
+    private static void Apply(PowerDetail e, PowerDetailsDto d)
+    {
+        e.CapacityKva = d.CapacityKva;
+        e.CapacityKw = d.CapacityKw;
+        e.InputPhase = d.InputPhase;
+        e.InputVoltage = d.InputVoltage;
+        e.OutputVoltage = d.OutputVoltage;
+        e.OutletCount = d.OutletCount;
+        e.OutletType = d.OutletType;
+        e.BatteryCount = d.BatteryCount;
+        e.BatteryModel = d.BatteryModel;
+        e.BatteryInstallDate = d.BatteryInstallDate;
+        e.BatteryReplaceDue = d.BatteryReplaceDue;
+        e.RuntimeMinutesFullLoad = d.RuntimeMinutesFullLoad;
+        e.CurrentLoadPercent = d.CurrentLoadPercent;
+        e.LoadMeasuredAt = d.LoadMeasuredAt;
+        e.HasBypass = d.HasBypass;
+        e.HasSnmpCard = d.HasSnmpCard;
+        e.FirmwareVersion = d.FirmwareVersion;
+        e.CoolingCapacityBtu = d.CoolingCapacityBtu;
+        e.RefrigerantType = d.RefrigerantType;
+        e.LastServiceDate = d.LastServiceDate;
+    }
+
+    private static void Apply(PeripheralDetail e, PeripheralDetailsDto d)
+    {
+        e.ConnectionType = d.ConnectionType;
+        e.FirmwareVersion = d.FirmwareVersion;
+        e.PrintTechnology = d.PrintTechnology;
+        e.IsColor = d.IsColor;
+        e.MaxPaperSize = d.MaxPaperSize;
+        e.HasDuplex = d.HasDuplex;
+        e.HasAdf = d.HasAdf;
+        e.PageCounterMono = d.PageCounterMono;
+        e.PageCounterColor = d.PageCounterColor;
+        e.CounterReadDate = d.CounterReadDate;
+        e.TonerModel = d.TonerModel;
+        e.ScreenSizeInch = d.ScreenSizeInch;
+        e.Resolution = d.Resolution;
+        e.PanelType = d.PanelType;
+        e.RefreshRateHz = d.RefreshRateHz;
+        e.HasSpeaker = d.HasSpeaker;
+        e.MountType = d.MountType;
+    }
+
+    private static void Apply(MobileIotDetail e, MobileIotDetailsDto d)
+    {
+        e.Imei = d.Imei;
+        e.PhoneNumber = d.PhoneNumber;
+        e.SimProvider = d.SimProvider;
+        e.OsName = d.OsName;
+        e.OsVersion = d.OsVersion;
+        e.IsMdmEnrolled = d.IsMdmEnrolled;
+        e.MdmPlatform = d.MdmPlatform;
+        e.Hostname = d.Hostname;
+        e.MacAddress = d.MacAddress;
+        e.FirmwareVersion = d.FirmwareVersion;
+        e.DeviceProtocol = d.DeviceProtocol;
+        e.ControllerModel = d.ControllerModel;
+        e.IoPointCount = d.IoPointCount;
+        e.Resolution = d.Resolution;
+        e.HasPtz = d.HasPtz;
+        e.HasIr = d.HasIr;
+        e.StorageType = d.StorageType;
+        e.AssignedToName = d.AssignedToName;
+        e.AssignedDate = d.AssignedDate;
     }
 
     private async Task<string> GenerateAssetTagAsync(int categoryId, CancellationToken ct)
@@ -370,5 +534,29 @@ public sealed class AssetsController : ControllerBase
             sd.OsName, sd.OsVersion, sd.OsInstallDate, sd.LastPatchDate, sd.ParentHostAssetId) : null,
         a.NetworkDetailAsset is { } nd ? new NetworkDetailsDto(
             nd.Hostname, nd.MacAddress, nd.PortSpeed, nd.PoeSupport,
-            nd.FirmwareVersion, nd.FirmwareUpdatedAt, nd.StackInfo, nd.UplinkAssetId) : null);
+            nd.FirmwareVersion, nd.FirmwareUpdatedAt, nd.StackInfo, nd.UplinkAssetId) : null,
+        a.ComputerDetail is { } cd ? new ComputerDetailsDto(
+            cd.Hostname, cd.MacAddress, cd.CpuModel, cd.RamGb, cd.StorageConfig,
+            cd.OsName, cd.OsVersion, cd.AssignedDate, cd.AssignedToName, cd.DomainJoined) : null,
+        a.StorageDetail is { } gd ? new StorageDetailsDto(
+            gd.Hostname, gd.MgmtUrl, gd.ControllerCount, gd.DiskBayTotal, gd.DiskBayUsed,
+            gd.RawCapacityTb, gd.UsableCapacityTb, gd.CacheGb, gd.SupportedProtocols,
+            gd.ExpansionShelfCount, gd.FirmwareVersion, gd.FirmwareUpdatedAt,
+            gd.HasDedup, gd.HasCompression, gd.HasSnapshot, gd.HasReplication) : null,
+        a.PowerDetail is { } pd ? new PowerDetailsDto(
+            pd.CapacityKva, pd.CapacityKw, pd.InputPhase, pd.InputVoltage, pd.OutputVoltage,
+            pd.OutletCount, pd.OutletType, pd.BatteryCount, pd.BatteryModel,
+            pd.BatteryInstallDate, pd.BatteryReplaceDue, pd.RuntimeMinutesFullLoad,
+            pd.CurrentLoadPercent, pd.LoadMeasuredAt, pd.HasBypass, pd.HasSnmpCard,
+            pd.FirmwareVersion, pd.CoolingCapacityBtu, pd.RefrigerantType, pd.LastServiceDate) : null,
+        a.PeripheralDetail is { } rd ? new PeripheralDetailsDto(
+            rd.ConnectionType, rd.FirmwareVersion, rd.PrintTechnology, rd.IsColor, rd.MaxPaperSize,
+            rd.HasDuplex, rd.HasAdf, rd.PageCounterMono, rd.PageCounterColor, rd.CounterReadDate,
+            rd.TonerModel, rd.ScreenSizeInch, rd.Resolution, rd.PanelType, rd.RefreshRateHz,
+            rd.HasSpeaker, rd.MountType) : null,
+        a.MobileIotDetail is { } id_ ? new MobileIotDetailsDto(
+            id_.Imei, id_.PhoneNumber, id_.SimProvider, id_.OsName, id_.OsVersion,
+            id_.IsMdmEnrolled, id_.MdmPlatform, id_.Hostname, id_.MacAddress, id_.FirmwareVersion,
+            id_.DeviceProtocol, id_.ControllerModel, id_.IoPointCount, id_.Resolution,
+            id_.HasPtz, id_.HasIr, id_.StorageType, id_.AssignedToName, id_.AssignedDate) : null);
 }

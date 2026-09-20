@@ -14,11 +14,11 @@
 | Database Design | ✅ เสร็จ **และทดสอบรันจริงผ่านแล้ว** — 66 ตาราง · 45 Temporal · 45 View · 10 Trigger บน SQL Server 2022 จริง (ล่าสุด 20 ก.ย. 2569 รวม VLAN Secondary Subnet + Application Module) |
 | UI/UX Design | ✅ เสร็จ — User Flow · Wireframe 9 หน้า · Design System · หน้าตั้งค่า 25 หน้า |
 | Tech Stack | ✅ ตัดสินใจแล้ว — ASP.NET Core (.NET 8) + EF Core + Next.js |
-| **โค้ดจริง** | 🟡 **Sprint 0 + Sprint 1 + Sprint 2 เสร็จ** — Login/RBAC/จัดการผู้ใช้/Master Data/Asset CRUD (Server/Network) ใช้งานได้จริง (§1.4, §1.5) · Asset หมวดอื่น + VLAN/Contract ยังไม่เริ่ม (Sprint 3+) |
+| **โค้ดจริง** | 🟡 **Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 เริ่มแล้ว** — Login/RBAC/จัดการผู้ใช้/Master Data/Asset CRUD ครบ 7/8 หมวด ใช้งานได้จริง (§1.4, §1.5, §1.6) · Software License + Attachment/Audit Log UI/Rack/VLAN/Application ยังไม่เริ่ม (ส่วนที่เหลือของ Sprint 3 + Sprint 4) |
 
 **สรุป 1 บรรทัด:** Design เสร็จหมดแล้ว ฐานข้อมูลทดสอบผ่านแล้ว Backend/Frontend เชื่อมต่อกันจริง
-Login + RBAC + จัดการผู้ใช้ + Layout ใช้งานได้ (Sprint 1) และตอนนี้บันทึก/ค้นหา Master Data
-กับทรัพย์สิน Server/Network ได้จริงแล้วด้วย (Sprint 2 §1.5) — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริง
+Login + RBAC + จัดการผู้ใช้ + Layout ใช้งานได้ (Sprint 1) บันทึก/ค้นหา Master Data ได้จริง (Sprint 2)
+และตอนนี้ Asset CRUD ครบ 7 ใน 8 หมวดแล้วด้วย (Sprint 3 บางส่วน §1.6) — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริง
 ที่ยังไม่ได้รับ** (§1.2) กับ **Windows Server ทดสอบ AD/FSRM** (§1.1) ไม่ใช่การตัดสินใจสถาปัตยกรรม
 หรือความเสี่ยงจาก Schema/Stack ที่ไม่เคยพิสูจน์แล้วอีกต่อไป
 
@@ -119,6 +119,32 @@ Identity — หลักการความปลอดภัย (Argon2id, R
 Location Tree Picker, Autocomplete เลือก Asset — ทั้งหมดนี้ทำพร้อมกันได้เมื่อสร้างหน้า
 "ประเภทอุปกรณ์" (Asset Types ผังต้นไม้) ซึ่งเป็นหนึ่งใน 13 หน้าเฉพาะที่ยังไม่ได้ออกแบบ UI จริง
 
+### 1.6 🟡 Sprint 3 (บางส่วน) — Asset CRUD ขยายครบ 7/8 หมวด (20 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.7 — สรุปสั้น:
+
+| ส่วน | สถานะ |
+|---|---|
+| Asset CRUD ขยายจาก Server/Network เป็น 7 หมวด (+ Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT) | ✅ ทดสอบกับ SQL Server จริง |
+| ค้นหาขยายให้ครอบ Hostname ของ Computer/Storage/Mobile IoT | ✅ |
+| `EnumSelectField` — Dropdown ปิดตายตัวสำหรับคอลัมน์ที่มี DB CHECK Constraint เป็น Enum | ✅ กันข้อมูลผิดตั้งแต่ต้นทาง ไม่ต้องพึ่ง Error จากฐานข้อมูล |
+
+**ปรับจากแผนเดิม:** Sprint Plan เดิมเขียนว่า Sprint 3 มี "Asset ประเภทที่เหลือ (8 หมวด)" ซึ่งคลาดเคลื่อน
+(มีแค่ 8 หมวดทั้งหมด ทำไปแล้ว 2 ใน Sprint 2) — รอบนี้ทำ 5 หมวดที่เหลือที่มีโครงสร้างแบบเดียวกับ
+Server/Network (Extension Table 1:1 ธรรมดา) และ **ตั้งใจข้าม Software License (`SFT`)** เพราะ Sprint
+Plan เดิมเองแยกมันไว้ที่ Sprint 4 (ต้องมี Seat Counting) และมีคอลัมน์ `license_key_encrypted` ที่ต้อง
+ตัดสินใจเรื่องการเข้ารหัสก่อน ไม่ใช่แค่ Extension Table รูปแบบเดียวกับหมวดอื่น
+
+**พบระหว่างทดสอบจริง (ไม่ใช่ Bug แต่เป็นวินัยข้อมูลที่ออกแบบไว้แล้ว):** `power_details` มี Constraint
+บังคับว่าถ้าบันทึก `current_load_percent` ต้องมี `load_measured_at` กำกับด้วย (decision #15) และ
+`mobile_iot_details.device_protocol`/`storage_type` ต้องเป็นค่าใน Enum ที่กำหนดเท่านั้น — แก้ด้วยการ
+เปลี่ยนช่องกรอกอิสระเป็น Dropdown ปิดตายตัวในฟอร์ม แทนที่จะปล่อยให้ผู้ใช้เจอ Error จากฐานข้อมูลตรงๆ
+
+**คงเหลือใน Sprint 3 (ยังไม่ทำรอบนี้):** Attachment · Audit Log UI (มี Backend Audit Log ทำงานอยู่
+แล้วตั้งแต่ Sprint 2 แต่ยังไม่มีหน้าดู) · Storage/Cluster · Rack พร้อมผังกราฟิก · VLAN + Site
+(รองรับ Secondary Subnet/Untagged) · Application บน Server (v1.6) — Software License เลื่อนไป
+Sprint 4 ตามแผนเดิม
+
 ---
 
 ## 2. Sprint Plan (Sprint 0–10, รวม ~49 วันทำงาน)
@@ -130,7 +156,7 @@ Location Tree Picker, Autocomplete เลือก Asset — ทั้งหม�
 | **0** | ~~รัน SQL 8 ไฟล์ · Setup .NET Solution + Next.js Project~~ ✅ เสร็จแล้ว (ดู §1.3) — เหลือ Seed Data ชุดจริง + Deploy Pipeline | Repo พร้อมพัฒนา · Backend↔DB↔Frontend ต่อกันจริงแล้ว | 1 |
 | **1** | ~~Auth (Argon2id+JWT ตาม Schema เดิม แทน ASP.NET Core Identity โดยตรง) · RBAC 4 บทบาท · จัดการผู้ใช้ · Layout + Dark Mode + กันจอขาววาบ~~ ✅ เสร็จแล้ว (ดู §1.4) | Login และควบคุมสิทธิ์ได้ | 4 |
 | **2** | ~~Master Data CRUD (11/12 หน้า — เหลือ `device_models` รอผังต้นไม้ `asset_type`) · Asset CRUD (Server/Network) · ค้นหา-กรอง~~ ✅ เสร็จแล้ว (ดู §1.5) | บันทึก/ค้นหาทรัพย์สินหลักได้ · หน้าตั้งค่าพื้นฐานครบ | 5 |
-| **3** | Asset ประเภทที่เหลือ (8 หมวด) · Attachment · Audit Log · Storage/Cluster · Rack (พร้อมผังกราฟิก) · VLAN + Site (1st/2nd, รองรับ Secondary Subnet/Untagged) · Application บน Server (v1.6) | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
+| **3** | ~~Asset ประเภทที่เหลือ 5 หมวด (Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT)~~ ✅ เสร็จแล้ว (ดู §1.6) — เหลือ Software License (เลื่อนไป Sprint 4) · Attachment · Audit Log UI · Storage/Cluster · Rack (พร้อมผังกราฟิก) · VLAN + Site (1st/2nd, รองรับ Secondary Subnet/Untagged) · Application บน Server (v1.6) | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
 | **4** | Software License · Seat Counting · CMDB Relationship · Contracts (เครื่องเดียว/หลายเครื่อง) | บริหาร License และความสัมพันธ์ได้ | 4 |
 | **5** | Dashboard · Reports · Export Excel | เห็นภาพรวมและออกรายงานได้ | 3 |
 | **6** | Excel Import + Validation · Notification (Email + In-app) · Settings หน้า SMTP/เกณฑ์แจ้งเตือน | นำเข้าข้อมูลเดิมและแจ้งเตือนอัตโนมัติได้ | 3 |

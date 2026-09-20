@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-20 · commit `32c1e51` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ** |
-| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD (Server/Network) พร้อม Pagination/Search ทำงานจริง** (ดู §4.5, §4.6) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Asset หมวดอื่นและ VLAN/Contract ยังไม่เริ่ม (Sprint 3+) |
+| **อัปเดตล่าสุด** | 2569-09-20 · commit (จะบันทึกหลัง push) |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 เริ่มแล้ว (Asset CRUD ครบ 7/8 หมวด)** |
+| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด (Server/Network/Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT) พร้อม Pagination/Search ทำงานจริง** (ดู §4.5, §4.6, §4.7) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, Attachment, Audit Log UI, Rack, VLAN/Site, Application ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) |
 
 ---
 
@@ -52,7 +52,7 @@
 | **1. Requirement** | ✅ เสร็จ | `docs/PRD.md` |
 | **2. UI/UX Design** | ✅ เสร็จ | `docs/design/01` `02` `03` |
 | **3. Database** | ✅ เสร็จ (v1.0 → v1.6) — ทดสอบรันจริงบน SQL Server แล้ว | `docs/database/01`–`15` |
-| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ | `docs/ROADMAP.md` §1.3–§1.5 |
+| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 เริ่มแล้ว | `docs/ROADMAP.md` §1.3–§1.6 |
 
 ---
 
@@ -198,6 +198,35 @@ Logout กลับไปหน้า Login)
 (ได้ Tag `SRV-2026-0001` อัตโนมัติ) และ Network Device (`NET-2026-0001`) ผ่าน API แล้วทดสอบ
 List/Search/Filter/Update/Soft Delete ครบ จากนั้นทดสอบซ้ำผ่าน UI จริงด้วย Playwright
 (สร้าง → ค้นหา → แก้ไข → เห็นผลในตาราง) และลบข้อมูลทดสอบออกจากฐานข้อมูลหลังทดสอบเสร็จ
+
+### 4.7 Backend/Frontend — Sprint 3 (บางส่วน): Asset CRUD ขยายครบ 7/8 หมวด (20 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** เพิ่ม Computer, Storage, Power & Cooling, Peripheral, Mobile & IoT/OT
+เข้าไปในกลไก Asset CRUD เดิมของ Sprint 2 — **Software License (`SFT`) ยังไม่ทำ** เพราะ Sprint Plan
+เดิมแยกไว้เป็น Sprint 4 (ต้องมี Seat Counting) และต้องตัดสินใจก่อนว่าจะเข้ารหัส `license_key_encrypted`
+อย่างไร ไม่ใช่แค่ Extension Table รูปแบบเดียวกับหมวดอื่น จึงตั้งใจข้ามไปก่อนแทนที่จะทำครึ่งๆ กลางๆ
+
+| ส่วน | รายละเอียด |
+|---|---|
+| Backend — DTO | เพิ่ม `ComputerDetailsDto` / `StorageDetailsDto` / `PowerDetailsDto` / `PeripheralDetailsDto` / `MobileIotDetailsDto` ใน `AssetDtos.cs` — คงรูปแบบเดิมจาก Sprint 2 (Nested DTO ต่อหมวด ไม่ใช่ Flat DTO รวม) เพื่อไม่ต้องรื้อโค้ด Server/Network ที่ทดสอบผ่านแล้ว |
+| Backend — Controller | `AssetsController` ขยาย `switch` ตาม `category.Code` ครบ 7 หมวด ทั้ง Create/Update/ToDetail แยกฟังก์ชัน `Apply(entity, dto)` ต่อหมวดเพื่อลดโค้ดซ้ำระหว่าง Create กับ Update |
+| Search | `GET /api/assets?search=` ขยายให้ค้น Hostname ของ Computer/Storage/Mobile IoT ด้วย (Power/Peripheral ไม่มี Hostname ในตาราง) |
+| **พบ CHECK Constraint ที่ไม่รู้มาก่อนตอนออกแบบฟอร์ม** | `power_details.CK_pwr_measured` (มี `current_load_percent` ต้องมี `load_measured_at`), `mobile_iot_details.CK_iot_protocol`/`CK_iot_storage` (ค่าต้องอยู่ใน Enum ที่กำหนด) — พบตอนทดสอบจริงผ่าน curl (500 error) ไม่ใช่ Bug แต่เป็นวินัยข้อมูลที่ออกแบบไว้ตั้งแต่ Schema (decision #15) |
+| Frontend — Enum Field ใหม่ | เพิ่ม `EnumSelectField` ใน `form-fields.tsx` — Dropdown ปิดตายตัวสำหรับคอลัมน์ที่มี DB CHECK Constraint เป็น Enum (Connection Type, Print Technology, Panel Type, Mount Type, Max Paper Size, Device Protocol, Storage Type) กันไม่ให้ผู้ใช้กรอกค่าที่ฐานข้อมูลจะปฏิเสธ |
+| Frontend — Asset Form | `AssetForm` ขยายรองรับ 7 หมวด — เพิ่ม State/Section ต่อหมวด, Category Dropdown ตอนสร้างเปิดครบ 7 ตัวเลือก |
+| **ข้อจำกัดที่รู้ตัว** | Error จาก CHECK Constraint อื่นที่ยังไม่ครอบ (เช่น `CK_iot_imei` ความยาว IMEI) จะขึ้นเป็น Error กลางๆ "Could not save the asset." ไม่ใช่ข้อความเจาะจง เพราะยังไม่ได้ทำ Server-side Validation สะท้อนทุก Constraint กลับเป็นข้อความที่อ่านง่าย |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** สร้างทรัพย์สินจริงครบทั้ง 5 หมวดใหม่ผ่าน API
+(`PC-2026-0001`, `STG-2026-0001`, `PWR-2026-0003`, `PER-2026-0002`, `IOT-2026-0003`) ทดสอบ Update/List
+แบบผสมหมวด/Search ตาม Hostname/Delete (ยืนยัน Audit Log บันทึก CREATE/UPDATE/DELETE ครบ) แล้วทดสอบ
+ซ้ำผ่าน UI จริงด้วย Playwright — สร้าง Peripheral ผ่านฟอร์มจริง (ใช้ Enum Dropdown ที่เพิ่มใหม่)
+และเปิดฟอร์มแก้ไข Computer ที่มีข้อมูลอยู่แล้วเพื่อยืนยันว่าค่าที่บันทึกไว้โหลดกลับมาแสดงถูกต้อง
+ลบข้อมูลทดสอบออกหลังทดสอบเสร็จเช่นเดิม
+
+**ยังไม่ทำใน Sprint 3:** Software License CRUD (รอ Sprint 4), Attachment, Audit Log UI (มี Backend
+Audit Log อยู่แล้วแต่ยังไม่มีหน้าดู), Storage/Cluster, Rack พร้อมผังกราฟิก, VLAN + Site, Application
+บน Server (v1.6), Asset Type/Location Tree Picker (บล็อก `device_models`, `asset_type_id`/`model_id`,
+Autocomplete เลือก Parent Host/Uplink Asset), Self Change Password UI
 
 ---
 
