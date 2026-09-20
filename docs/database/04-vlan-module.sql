@@ -2,7 +2,7 @@
    KKND — IT Inventory Management System
    VLAN & IP Address Management (IPAM) Module
 
-   Version : 1.1 (Draft)
+   Version : 1.1.1
    Requires: 02-schema-sqlserver.sql ต้องรันสำเร็จก่อน
 
    ขอบเขตของโมดูลนี้
@@ -13,6 +13,9 @@
       และหากเป็น DHCP มาจากอุปกรณ์ตัวใด
    4. คำนวณจำนวน IP ทั้งหมด ที่ใช้ไป และคงเหลือ แยกระหว่างช่วง Static กับ DHCP
    5. บังคับให้ทุกฟิลด์ที่เป็น IP กรอกในรูปแบบ IP ที่ถูกต้องเท่านั้น
+   6. ⭐ VLAN เดียวมีได้หลาย Subnet (Primary + Secondary หลายชุด) — ตรงกับการตั้งค่า
+      Secondary IP จริงบน Core Switch/Firewall ไม่ใช่บังคับ 1 VLAN = 1 Subnet แบบเดิม
+   7. ⭐ รองรับ Interface แบบ Untagged (ไม่มีเลข VLAN) แยกจากกรณีมีเลข 802.1Q
 
    สิ่งที่เพิ่มเข้ามา
    -----------------
@@ -176,10 +179,23 @@ GO
 
 CREATE TABLE dbo.vlans (
     vlan_id                 INT            IDENTITY(1,1) NOT NULL,
-    vlan_number             SMALLINT       NOT NULL,   -- หมายเลข 802.1Q (1–4094)
+
+    /* ---------- หมายเลข VLAN ----------
+       vlan_number เป็น NULL ได้เมื่อ is_untagged = 1 — บาง Interface บน Firewall/Switch
+       ตั้งค่าแบบ Native/Untagged (ไม่ติด 802.1Q Tag) ไม่ได้ผูกกับหมายเลข VLAN ใดเลย     */
+    vlan_number             SMALLINT       NULL,       -- หมายเลข 802.1Q (1–4094) หรือ NULL ถ้า Untagged
+    is_untagged             BIT            NOT NULL CONSTRAINT DF_vlans_untagged DEFAULT (0),
     name                    NVARCHAR(100)  NOT NULL,
     description             NVARCHAR(400)  NULL,
     zone_id                 INT            NOT NULL,   -- Trust / DMZ / OA / OT ฯลฯ
+
+    /* ---------- VLAN เดียวกันมีได้หลาย Subnet ----------
+       Core Switch/Firewall จริงมักตั้ง Secondary IP เพิ่มบน Interface เดิมของ VLAN
+       เพื่อขยายพื้นที่ Address โดยไม่ต้องแยก VLAN ใหม่ — แต่ละแถวในตารางนี้คือ 1 Subnet
+       ที่ผูกกับ VLAN นั้น จึง vlan_number ซ้ำกันได้ระหว่างหลายแถว (Primary + Secondary
+       หลายชุด) ต่างจากที่ออกแบบไว้เดิมที่บังคับ 1 VLAN = 1 Subnet เท่านั้น
+       (พบจากข้อมูลจริงที่ผู้ใช้ให้มา ไม่ใช่จากการออกแบบเดิม)                              */
+    network_level           VARCHAR(10)    NOT NULL CONSTRAINT DF_vlans_level DEFAULT ('PRIMARY'),
 
     /* ---------- Subnet ---------- */
     network_address         VARCHAR(15)    NOT NULL,   -- เช่น 10.10.20.0
@@ -195,7 +211,8 @@ CREATE TABLE dbo.vlans (
     /* ---------- รูปแบบการจ่าย IP ---------- */
     ip_assignment_mode      VARCHAR(12)    NOT NULL,   -- STATIC_ONLY / DHCP_ONLY / MIXED
     dhcp_source_type        VARCHAR(20)    NULL,       -- FIREWALL / CORE_SWITCH / L3_SWITCH / ROUTER / DHCP_SERVER / EXTERNAL
-    dhcp_server_asset_id    INT            NULL,       -- อุปกรณ์ที่ทำหน้าที่จ่าย DHCP
+    dhcp_server_asset_id    INT            NULL,       -- อุปกรณ์ที่ทำหน้าที่จ่าย DHCP ถ้าติดตามเป็น Asset อยู่แล้ว
+    dhcp_server_name_raw    NVARCHAR(150)  NULL,       -- ชื่อ/Hostname กรอกมือ เผื่อยังไม่มีใน Asset (เช่น "EIEISVR")
     dhcp_relay_ip           VARCHAR(15)    NULL,       -- IP Helper Address
     dhcp_lease_hours        INT            NULL,
 
@@ -214,7 +231,8 @@ CREATE TABLE dbo.vlans (
     updated_by              INT            NULL,
 
     CONSTRAINT PK_vlans PRIMARY KEY CLUSTERED (vlan_id),
-    CONSTRAINT UX_vlans_number  UNIQUE (vlan_number),
+    -- ไม่ใช้ UNIQUE (vlan_number) อีกต่อไป — VLAN เดียวมีได้หลาย Subnet (Primary/Secondary)
+    -- จึง vlan_number ซ้ำกันได้ระหว่างแถว ความเป็นหนึ่งเดียวจริงอยู่ที่ระดับ Subnet แทน
     CONSTRAINT UX_vlans_network UNIQUE (network_address, prefix_length),
 
     CONSTRAINT FK_vlans_zone        FOREIGN KEY (zone_id)              REFERENCES dbo.network_zones(zone_id),
@@ -232,8 +250,16 @@ CREATE TABLE dbo.vlans (
     CONSTRAINT CK_vlans_dns2_ip      CHECK (dns_secondary IS NULL OR dbo.fn_is_valid_ipv4(dns_secondary) = 1),
 
     /* ---------- กติกาทางเครือข่าย ---------- */
-    CONSTRAINT CK_vlans_number_range CHECK (vlan_number BETWEEN 1 AND 4094),
+    CONSTRAINT CK_vlans_number_range CHECK (vlan_number IS NULL OR vlan_number BETWEEN 1 AND 4094),
     CONSTRAINT CK_vlans_prefix       CHECK (prefix_length BETWEEN 8 AND 32),
+    CONSTRAINT CK_vlans_level        CHECK (network_level IN ('PRIMARY','SECONDARY')),
+
+    -- Untagged ต้องไม่มีหมายเลข VLAN ผูกอยู่ และ VLAN ที่มีหมายเลขต้องไม่ใช่ Untagged
+    CONSTRAINT CK_vlans_untagged_consistency CHECK (
+        (is_untagged = 1 AND vlan_number IS NULL)
+        OR
+        (is_untagged = 0 AND vlan_number IS NOT NULL)
+    ),
 
     -- network_address ต้องเป็นเลขที่อยู่เครือข่ายจริง ไม่ใช่ IP ของโฮสต์
     -- เช่น 10.10.20.5/24 จะถูกปฏิเสธ เพราะที่ถูกต้องคือ 10.10.20.0/24
@@ -272,6 +298,7 @@ CREATE TABLE dbo.vlans (
         (ip_assignment_mode = 'STATIC_ONLY'
             AND dhcp_source_type IS NULL
             AND dhcp_server_asset_id IS NULL
+            AND dhcp_server_name_raw IS NULL
             AND dhcp_relay_ip IS NULL)
         OR
         (ip_assignment_mode IN ('DHCP_ONLY','MIXED')
@@ -287,6 +314,14 @@ CREATE INDEX IX_vlans_gateway     ON dbo.vlans(gateway_asset_id);
 CREATE INDEX IX_vlans_dhcp_server ON dbo.vlans(dhcp_server_asset_id);
 CREATE INDEX IX_vlans_site        ON dbo.vlans(site_id);
 CREATE INDEX IX_vlans_numeric     ON dbo.vlans(network_numeric, prefix_length);
+CREATE INDEX IX_vlans_number      ON dbo.vlans(vlan_number) WHERE vlan_number IS NOT NULL;
+GO
+
+-- กันสร้าง Subnet ซ้ำเป็น "Primary" มากกว่า 1 รายการให้กับ VLAN+อุปกรณ์เดียวกัน
+-- (Secondary ซ้ำได้ตามจริง — VLAN ขยาย Address ได้หลาย Secondary Subnet)
+CREATE UNIQUE INDEX UX_vlans_primary_per_device
+    ON dbo.vlans(vlan_number, gateway_asset_id)
+    WHERE network_level = 'PRIMARY' AND is_untagged = 0 AND gateway_asset_id IS NOT NULL;
 GO
 
 
@@ -432,6 +467,8 @@ AS
 SELECT
     v.vlan_id,
     v.vlan_number,
+    v.is_untagged,
+    v.network_level,
     v.name                                  AS vlan_name,
     v.description,
 
@@ -467,6 +504,8 @@ SELECT
     v.dhcp_source_type,
     dh.asset_tag                            AS dhcp_server_asset_tag,
     dh.name                                 AS dhcp_server_asset_name,
+    v.dhcp_server_name_raw,
+    COALESCE(dh.name, v.dhcp_server_name_raw) AS dhcp_server_display_name,
     v.dhcp_relay_ip,
     v.dhcp_lease_hours,
 
@@ -569,6 +608,7 @@ AS
 SELECT
     v.vlan_id,
     v.vlan_number,
+    v.network_level,
     v.name              AS vlan_name,
     z.code              AS zone_code,
     ip.asset_id,
@@ -673,13 +713,36 @@ WHERE v.gateway_ip IS NOT NULL AND v.gateway_asset_id IS NULL
 
 UNION ALL
 
-/* (7) ระบุว่า DHCP มาจากอุปกรณ์ภายใน แต่ยังไม่ได้ผูกกับอุปกรณ์จริง */
+/* (7) ระบุว่า DHCP มาจากอุปกรณ์ภายใน แต่ยังไม่ได้ผูกกับอุปกรณ์จริงหรือกรอกชื่อไว้เลย
+   ถ้ากรอก dhcp_server_name_raw ไว้แล้ว (เช่น "EIEISVR") ถือว่าระบุตัวตนแล้ว ไม่ต้องเตือน */
 SELECT v.vlan_id, v.vlan_number, v.name,
        'DHCP_DEVICE_UNLINKED', 'WARNING',
-       'DHCP source is ' + v.dhcp_source_type + ' but no asset is linked'
+       'DHCP source is ' + v.dhcp_source_type + ' but no asset or name is linked'
 FROM dbo.vlans v
 WHERE v.dhcp_source_type IN ('FIREWALL','CORE_SWITCH','L3_SWITCH','ROUTER','DHCP_SERVER')
-  AND v.dhcp_server_asset_id IS NULL;
+  AND v.dhcp_server_asset_id IS NULL
+  AND v.dhcp_server_name_raw IS NULL
+
+UNION ALL
+
+/* (8) มี Secondary Subnet แต่ไม่มี Primary คู่กันสำหรับอุปกรณ์เดียวกัน
+   จับคู่ Primary/Secondary ด้วย "ชื่อ VLAN" (name) ไม่ใช่ vlan_number — เพราะข้อมูลจริง
+   พบว่า Secondary ที่มีเลข VLAN สามารถจับคู่กับ Primary แบบ Untagged (ไม่มีเลข) ได้
+   ถ้าอยู่ในกลุ่มเดียวกันตามชื่อ (เช่น "ThinServer" ที่ Primary เป็น Untagged แต่
+   Secondary เป็น VLAN 5) — จับคู่ด้วย vlan_number จะเตือนผิดพลาดในกรณีนี้
+   เกิดได้ถ้าลบแถว Primary ทิ้งแล้วเหลือแต่ Secondary ค้างอยู่ */
+SELECT v.vlan_id, v.vlan_number, v.name,
+       'SECONDARY_WITHOUT_PRIMARY', 'WARNING',
+       'VLAN Name "' + v.name + '" has a Secondary subnet but no Primary subnet on the same device'
+FROM dbo.vlans v
+WHERE v.network_level = 'SECONDARY'
+  AND v.gateway_asset_id IS NOT NULL
+  AND NOT EXISTS (
+        SELECT 1 FROM dbo.vlans p
+        WHERE p.network_level = 'PRIMARY'
+          AND p.gateway_asset_id = v.gateway_asset_id
+          AND p.name = v.name
+      );
 GO
 
 

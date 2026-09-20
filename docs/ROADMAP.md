@@ -2,7 +2,7 @@
 
 > เอกสารนี้เป็น Master Plan ต่อจาก `HANDOFF.md` §11 เดิม (ซึ่งครอบคลุมแค่ v1.0–v1.4)
 > ขยายให้ครบทั้ง v1.5 Permission Control และ Administration Settings ที่เพิ่งออกแบบเสร็จ
-> อัปเดตวันที่: 2569-09-17
+> อัปเดตล่าสุด: 2569-09-20 — เพิ่ม VLAN Secondary Subnet/Untagged + Application Module (v1.6)
 
 ---
 
@@ -11,7 +11,7 @@
 | หัวข้อ | สถานะ |
 |---|---|
 | Requirement (PRD) | ✅ เสร็จ — 67 FR · 15 NFR |
-| Database Design | ✅ เสร็จ **และทดสอบรันจริงผ่านแล้ว** — 65 ตาราง · 45 Temporal · 44 View · 10 Trigger บน SQL Server 2022 จริง (17 ก.ย. 2569) |
+| Database Design | ✅ เสร็จ **และทดสอบรันจริงผ่านแล้ว** — 66 ตาราง · 45 Temporal · 45 View · 10 Trigger บน SQL Server 2022 จริง (ล่าสุด 20 ก.ย. 2569 รวม VLAN Secondary Subnet + Application Module) |
 | UI/UX Design | ✅ เสร็จ — User Flow · Wireframe 9 หน้า · Design System · หน้าตั้งค่า 25 หน้า |
 | Tech Stack | ✅ ตัดสินใจแล้ว — ASP.NET Core (.NET 8) + EF Core + Next.js |
 | **โค้ดจริง** | ❌ **0 บรรทัด** — ยังไม่เริ่ม |
@@ -30,7 +30,7 @@
 
 | # | รายการ | เหตุผลที่บล็อก |
 |:---:|---|---|
-| ~~1~~ | ~~SQL Server Instance สำหรับทดสอบ~~ | ✅ **เสร็จแล้ว (17 ก.ย. 2569)** — รันครบ 7 ไฟล์บน SQL Server 2022 (Docker) ผ่านสำเร็จ พบและแก้บั๊ก 6 จุด ดู `HANDOFF.md` §4.4.1 |
+| ~~1~~ | ~~SQL Server Instance สำหรับทดสอบ~~ | ✅ **เสร็จแล้ว (ล่าสุด 20 ก.ย. 2569)** — รันครบ 8 ไฟล์บน SQL Server 2022 (Docker) ผ่านสำเร็จ พบและแก้บั๊ก 6 จุดจากการรันจริง ดู `HANDOFF.md` §4.4.1 · ปรับ VLAN รองรับ Secondary Subnet + เพิ่ม Application Module ตามข้อมูลจริง ดู §4.4.2 |
 | 1 | **Windows Server ทดสอบที่มี AD + FSRM** | Collector Agent ต้องมีสภาพแวดล้อมทดสอบ LDAP Query และ `Get-FsrmQuota` จริง จำลองด้วย Mock ไม่ได้ทั้งหมด |
 | 2 | **Service Account สำหรับ Collector Agent** | ต้องเป็น Read-Only ใน AD (ไม่ใช่ Domain Admin) — ต้องขอสร้างล่วงหน้า เพราะปกติต้องผ่านขั้นตอนอนุมัติของทีม AD |
 
@@ -50,16 +50,16 @@
 
 ---
 
-## 2. Sprint Plan (Sprint 0–10, รวม ~46 วันทำงาน)
+## 2. Sprint Plan (Sprint 0–10, รวม ~51 วันทำงาน)
 
 > เรียงตามลำดับ Dependency จริง ไม่ใช่ลำดับความสำคัญ — บาง Sprint ทำคู่ขนานได้ถ้ามีมากกว่า 1 คน (ดู §3)
 
 | Sprint | ขอบเขต | Deliverable | วัน |
 |:---:|---|---|:---:|
-| **0** | Setup .NET Solution + Next.js Project · รัน SQL ทั้ง 7 ไฟล์จริงครั้งแรก · แก้ Syntax/Bug ที่เจอ · Seed Data | Repo พร้อมพัฒนา · DB รันได้จริงบน SQL Server | 4 |
+| **0** | ~~รัน SQL ทั้ง 8 ไฟล์จริงครั้งแรก~~ ✅ เสร็จแล้ว — เหลือแค่ Setup .NET Solution + Next.js Project · Seed Data | Repo พร้อมพัฒนา · DB รันได้จริงบน SQL Server | 3 |
 | **1** | Auth (ASP.NET Core Identity) · RBAC 4 บทบาท · จัดการผู้ใช้ · Layout + Dark Mode + กันจอขาววาบ | Login และควบคุมสิทธิ์ได้ | 4 |
 | **2** | Master Data CRUD (ใช้รูปแบบร่วม 12 หน้าจาก `04-settings-screens.md`) · Asset CRUD (Server/Network) · ค้นหา-กรอง | บันทึก/ค้นหาทรัพย์สินหลักได้ · หน้าตั้งค่าพื้นฐานครบ | 5 |
-| **3** | Asset ประเภทที่เหลือ (8 หมวด) · Attachment · Audit Log · Storage/Cluster · Rack (พร้อมผังกราฟิก) · VLAN + Site (1st/2nd) | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 6 |
+| **3** | Asset ประเภทที่เหลือ (8 หมวด) · Attachment · Audit Log · Storage/Cluster · Rack (พร้อมผังกราฟิก) · VLAN + Site (1st/2nd, รองรับ Secondary Subnet/Untagged) · Application บน Server (v1.6) | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
 | **4** | Software License · Seat Counting · CMDB Relationship · Contracts (เครื่องเดียว/หลายเครื่อง) | บริหาร License และความสัมพันธ์ได้ | 4 |
 | **5** | Dashboard · Reports · Export Excel | เห็นภาพรวมและออกรายงานได้ | 3 |
 | **6** | Excel Import + Validation · Notification (Email + In-app) · Settings หน้า SMTP/เกณฑ์แจ้งเตือน | นำเข้าข้อมูลเดิมและแจ้งเตือนอัตโนมัติได้ | 3 |
@@ -68,7 +68,7 @@
 | **9** | หน้าตั้งค่าที่เหลือ (System, Retention, Audit) · หน้าแรก Settings (Status Panel) · ปิดช่องโหว่จาก Code Review | หน้าตั้งค่าครบ 25 หน้าตามที่ออกแบบ | 3 |
 | **10** | Integration Test · Performance Test (2,000+ รายการ < 2 วิ) · Security Review · คู่มือผู้ใช้ · Deploy จริง (§4) | **ระบบพร้อมใช้งานจริง (Go-Live)** | 6 |
 
-**รวม 48 วันทำงาน** (~9–10 สัปดาห์ ถ้า 1 คนทำเต็มเวลา ไม่รวม Phase 0)
+**รวม 51 วันทำงาน** (~10 สัปดาห์ ถ้า 1 คนทำเต็มเวลา ไม่รวม Phase 0)
 
 ---
 
@@ -80,7 +80,7 @@
 | Sprint 7 (Permission Control UI) | Sprint 8 (Collector Agent ทดสอบกับ AD/FSRM จริง) | Backend Sync Job กับ Frontend Permission UI พึ่งกันแค่ API Contract ที่ Fix ได้ตั้งแต่ต้น Sprint |
 | Sprint 9 (Settings หน้าที่เหลือ) | Sprint 10 เริ่ม Performance/Security Test บนส่วนที่เสร็จแล้ว | ไม่ต้องรอ 100% ของทุกหน้าก่อนเริ่มทดสอบ |
 
-ถ้าทำคู่ขนานเต็มที่ ระยะเวลารวมลดจาก ~48 วัน เหลือประมาณ **30–34 วัน**
+ถ้าทำคู่ขนานเต็มที่ ระยะเวลารวมลดจาก ~51 วัน เหลือประมาณ **32–36 วัน**
 
 ---
 
@@ -94,7 +94,7 @@
 | 2 | Commit `packages.lock.json` + `package-lock.json` | HANDOFF §10.2 |
 | 3 | `dotnet publish --self-contained -r win-x64` + `next build` (standalone) | HANDOFF §10.2 |
 | 4 | Self-host Font (Inter, JetBrains Mono) แทน Google Fonts CDN | HANDOFF §7 ข้อ 3 |
-| 5 | รัน Migration Script จริงบน Production DB (ตามลำดับ 7 ไฟล์) | HANDOFF §4.4 |
+| 5 | รัน Migration Script จริงบน Production DB (ตามลำดับ 8 ไฟล์) | HANDOFF §4.4 |
 | 6 | สร้าง Collector Agent แรก + สร้าง API Key (บันทึกครั้งเดียว) | 13-permission-control-proposal.md |
 | 7 | กรอก `sync_ou_scopes` จริง + กดปุ่มทดสอบ OU ก่อนเปิดใช้งาน | 04-settings-screens.md §8 |
 | 8 | ตั้งเวลา Sync Job (AD 02:00 · FSRM 03:00) | ตกลงไว้แล้ว |
@@ -109,7 +109,7 @@
 
 | ความเสี่ยง | ผลกระทบ | ทางรับมือ |
 |---|---|---|
-| ~~SQL Temporal Tables รันจริงแล้วมี Syntax Error~~ | — | ✅ **ปิดความเสี่ยงแล้ว** — ทดสอบรันจริงผ่านครบ 7 ไฟล์แล้ว (17 ก.ย. 2569) |
+| ~~SQL Temporal Tables รันจริงแล้วมี Syntax Error~~ | — | ✅ **ปิดความเสี่ยงแล้ว** — ทดสอบรันจริงผ่านครบ 8 ไฟล์แล้ว (ล่าสุด 20 ก.ย. 2569) |
 | Service Account ของ Collector Agent ขออนุมัติช้า | บล็อก Sprint 8 | ยื่นขอตั้งแต่ Phase 0 คู่ขนานกับ Sprint 0-7 |
 | ไม่มี Windows Server ทดสอบจริงที่มี AD+FSRM | Sprint 8 ทำได้แค่ Mock ทดสอบไม่ครบ | ต้องยืนยันเรื่องนี้กับ IT Infra ก่อนเข้า Sprint 8 |
 | `fixed_asset_no` เปลี่ยนรูปแบบหลัง Sprint 2 เสร็จแล้ว | ต้องแก้ Validation Layer | ออกแบบ Validation แยกเป็น Config ไม่ Hard-code ตั้งแต่แรก |

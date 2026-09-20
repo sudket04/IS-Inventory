@@ -56,7 +56,7 @@
 
 ---
 
-## 4. รายการไฟล์ทั้งหมด (13,152 บรรทัด)
+## 4. รายการไฟล์ทั้งหมด (13,349 บรรทัด)
 
 ### 4.1 Requirement
 | ไฟล์ | บรรทัด | เนื้อหา |
@@ -87,15 +87,17 @@
 | ลำดับ | ไฟล์ | บรรทัด | เนื้อหา |
 |:---:|---|---:|---|
 | 1 | `02-schema-sqlserver.sql` | 1,055 | v1.0 — 25 ตารางหลัก · 5 View · 3 SP · Trigger Append-Only |
-| 2 | `04-vlan-module.sql` | 740 | v1.1 — VLAN/IPAM · Zone · IP Validation · Site (สาขา) |
+| 2 | `04-vlan-module.sql` | 803 | v1.1 — VLAN/IPAM · Zone · IP Validation · Site (สาขา) · Secondary Subnet/Untagged |
 | 3 | `06-module-v1.2.sql` | 750 | v1.2 — Server Roles · Cluster · Storage Volume · DHCP Control |
 | 4 | `10-module-v1.3a-taxonomy.sql` | 863 | v1.3a — asset_types · device_models |
 | 5 | `11-module-v1.3b-details-rack-ipam.sql` | 713 | v1.3b — ตารางขยาย 4 หมวด · Rack · IPAM |
 | 6 | `12-module-v1.4-contracts-temporal.sql` | 746 | v1.4 — Master Asset · Contracts · Temporal |
 | 7 | `14-module-v1.5-permission-control.sql` | 1,695 | v1.5 — สิทธิ์ File Server / Internet · AD Sync · ประวัติสิทธิ์ |
+| 8 | `15-module-v1.6-server-applications.sql` | 110 | v1.6 — Application บน Server · เชื่อม Port/Link/ผู้รับผิดชอบ/แผนก/สาขา |
 
-> ✅ **ทดสอบรันจริงแล้ว** (17 ก.ย. 2569) บน SQL Server 2022 (Docker) ตามลำดับไฟล์ครบทั้ง 7 ไฟล์
+> ✅ **ทดสอบรันจริงแล้ว** (20 ก.ย. 2569) บน SQL Server 2022 (Docker) ตามลำดับไฟล์ครบทั้ง 8 ไฟล์
 > ไม่มี Error เหลือ — เจอและแก้บั๊ก 6 จุดที่ Static Review จับไม่ได้ ดูรายละเอียดที่ §4.4.1
+> และปรับโครงสร้าง VLAN + เพิ่มโมดูล Application ตามข้อมูลจริงที่ผู้ใช้ให้มา ดู §4.4.2
 
 ### 4.4.1 บั๊ก 6 จุดที่พบจากการรันจริง (แก้แล้วทั้งหมด)
 
@@ -108,15 +110,36 @@
 | 5 | `12-` และ `14-...sql` | `DEFAULT SYSUTCDATETIME()` ตรงๆ ใน Loop ที่ ALTER หลายสิบตารางติดกัน | Msg 13542 "start of period set to a value in the future" (สุ่มตามจังหวะ) | ใช้ `DATEADD(SECOND, -2, SYSUTCDATETIME())` กันชนเวลา |
 | 6 | `14-...sql` | ก. ชื่อ Constraint `DF_ip_created`/`FK_ip_created_by` ชนกับ `ip_addresses` (ไฟล์ 11) และ `DF_ca_created` ชนกับ `contract_assets` (ไฟล์ 12) — SQL Server บังคับชื่อ Constraint ไม่ซ้ำทั้งฐานข้อมูล<br>ข. Unique Index บน `NVARCHAR(1000)` ยาวเกิน Limit 1700 byte<br>ค. `EXEC(N'...' + QUOTENAME(@db) + ...)` — รูปแบบ Execute String ไม่รับ Function Call ตรงๆ ในวงเล็บ | Msg 2714 / Warning Key ยาวเกิน / Msg 102 | ก. เปลี่ยน Prefix เป็น `intpol`/`cagt`<br>ข. Unique บน `HASHBYTES('SHA2_256', ...)` แทน (Deterministic เช่นกัน)<br>ค. ประกอบ String ใส่ตัวแปรก่อน ค่อย `EXEC sp_executesql` |
 
-**Object ที่ยืนยันแล้วว่าตรงกับที่ออกแบบไว้ (นับจาก DB จริงหลังรันครบ 7 ไฟล์):**
-65 ตาราง · 45 ตารางประวัติ (Temporal) · 45 ตารางประวัติเงา (History) · 44 View · 10 Trigger · 5 Function · 3 SP
+**Object ที่ยืนยันแล้วว่าตรงกับที่ออกแบบไว้ (นับจาก DB จริงหลังรันครบ 8 ไฟล์):**
+66 ตาราง · 45 ตารางประวัติ (Temporal) · 45 ตารางประวัติเงา (History) · 45 View · 10 Trigger · 5 Function · 3 SP
 (ตัวเลข Temporal แก้จาก 46 เป็น 45 ตามที่นับได้จริง — ค่าก่อนหน้าเป็นการประมาณจากเอกสารก่อนทดสอบ)
+
+### 4.4.2 ปรับโครงสร้าง VLAN + เพิ่มโมดูล Application (20 ก.ย. 2569)
+
+ผู้ใช้ให้ข้อมูล VLAN จริงจากหน้างาน (Excel) มาตรวจสอบว่าออกแบบครอบคลุมหรือไม่ พบช่องว่าง
+3 จุด และมีคำขอโมดูลใหม่ 1 จุด — แก้ไขและทดสอบกับข้อมูลจริงแล้วทั้งหมด:
+
+| # | สิ่งที่พบ/ขอ | สิ่งที่แก้ | ตัดสินใจแบบ |
+|:---:|---|---|---|
+| 1 | **VLAN เดียวมีได้หลาย Subnet** — ข้อมูลจริงแสดง VLAN 4 ปรากฏ 5 ครั้งบนอุปกรณ์เดียวกัน (mcp-1) คนละ Subnet โดยมี 1 Primary + 4 Secondary (Secondary IP บน Core Switch จริง) | ยกเลิก `UNIQUE(vlan_number)` เดิม เพิ่มคอลัมน์ `network_level` (PRIMARY/SECONDARY) — 1 แถว = 1 VLAN+Subnet ตรงกับที่ Excel เก็บจริง | เลือก**แบบ Flat** (ไม่แยกตาราง VLAN/Subnet) เพราะ Excel ต้นทางก็เก็บแบบนี้อยู่แล้ว ลดความเสี่ยงจากการรื้อ Schema ที่ทดสอบผ่านแล้ว |
+| 2 | **Untagged VLAN** — Firewall บางจุดตั้งค่าแบบไม่ติด Tag 802.1Q | เพิ่ม `is_untagged BIT` + `vlan_number` เปลี่ยนเป็น `NULL` ได้ พร้อม CHECK บังคับ 2 ค่านี้สอดคล้องกันเสมอ | — |
+| 3 | **Static/DHCP หลายช่วง** — อาจมี Static 2 ช่วง หรือ DHCP 2 Scope ในซับเน็ตเดียว | **ไม่ต้องแก้อะไร** — `vlan_ip_ranges` รองรับหลายแถวต่อ VLAN อยู่แล้วตั้งแต่ออกแบบครั้งแรก ทดสอบกับข้อมูลจริง (DHCP 2 Scope รวม 306 IP) ผ่าน | ยืนยันของเดิมเพียงพอ |
+| 4 | **DHCP Server ที่ยังไม่มีใน Asset** (เช่น "EIEISVR") | เพิ่ม `dhcp_server_name_raw` เป็นช่องกรอกชื่อสำรอง แยกจาก `dhcp_server_asset_id` (FK) — พบระหว่างทดสอบกับข้อมูลจริง ไม่ใช่ในคำขอเดิม | รูปแบบเดียวกับ `ad_group_name_raw` ในไฟล์ 14 |
+| 5 | **หน้าจัดเก็บ Application บน Server** (Server/Type/App Name/Port/Link/ผู้รับผิดชอบ/แผนก) | ไฟล์ใหม่ `15-module-v1.6-server-applications.sql` — ตาราง `server_applications` + View `vw_server_applications` | ใช้ `dbo.server_roles` ซ้ำเป็น "ประเภท Server" เสริม ไม่สร้าง Lookup ใหม่ซ้อน |
+| — | **ขอบเขต Site (1st/2nd Site)** — ผู้ใช้ขอให้ "ทุกหน้า" มี Site ให้เลือก | ยืนยันกับผู้ใช้แล้วว่าจำกัดเฉพาะ VLAN + โมดูลใหม่ (`server_applications`) เท่านั้น — ตาราง 65 ตารางเดิมยังใช้ `dbo.locations` ตามปกติ ไม่แตะ | ป้องกันงานลามไปทั้งระบบโดยไม่จำเป็น |
+
+**ทดสอบยืนยันกับข้อมูลจริงแล้ว:** Insert สถานการณ์ VLAN 4 (1 Primary + 4 Secondary), Untagged
+(ThinServer), VLAN 152 (DHCP 2 Scope รวม 306 IP), และตรวจว่า Index กันซ้ำ (`UX_vlans_primary_per_device`)
+ปฏิเสธการเพิ่ม Primary ซ้ำสำหรับ VLAN+อุปกรณ์เดียวกันได้ถูกต้อง — พบและแก้ Bug เพิ่ม 1 จุด:
+View ตรวจสอบ (`vw_vlan_validation_issues` ข้อ 8) เดิมจับคู่ Primary/Secondary ด้วย `vlan_number`
+ทำให้เตือนผิดพลาดกรณี Secondary มีเลข VLAN แต่ Primary เป็น Untagged (พบจริงในข้อมูลตัวอย่าง
+"ThinServer") แก้เป็นจับคู่ด้วยชื่อ VLAN (`name`) แทน
 
 ---
 
 ## 5. โครงสร้างฐานข้อมูลปัจจุบัน
 
-**65 ตาราง · 45 ตารางประวัติ (Temporal) · 44 View · 5 Function · 3 SP · 10 Trigger** (ยืนยันจากการรันจริง)
+**66 ตาราง · 45 ตารางประวัติ (Temporal) · 45 View · 5 Function · 3 SP · 10 Trigger** (ยืนยันจากการรันจริง)
 
 ### 5.1 หมวดทรัพย์สิน 8 หมวด (Prefix ของ Asset Tag)
 
@@ -150,6 +173,7 @@
 | ความสัมพันธ์ | `software_installations` `asset_relationships` `server_role_assignments` |
 | Infrastructure | `clusters` `cluster_members` `storage_volumes` `racks` `rack_mounts` |
 | Network/IPAM | `vlans` `vlan_sites` `vlan_ip_ranges` `vlan_devices` `ip_addresses` `tally` |
+| Application | `server_applications` (v1.6 — ใช้ `vlan_sites` ร่วมกับ VLAN) |
 | สัญญา | `contracts` `contract_assets` |
 | Support | `attachments` `notifications` `notification_history` `import_batches` |
 | Compliance | `audit_logs` `audit_logs_archive` `system_settings` |
