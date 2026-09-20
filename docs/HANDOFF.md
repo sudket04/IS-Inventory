@@ -5,7 +5,7 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-20 · commit `PENDING` (จะแก้เป็น Hash จริงหลัง Push) |
+| **อัปเดตล่าสุด** | 2569-09-20 · commit `a384051` |
 | **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 (Auth/RBAC/Layout) เสร็จ** |
 | **โค้ดโปรแกรม** | 🟡 **Login + RBAC 4 บทบาท + จัดการผู้ใช้ + Layout (Sidebar/Topbar/Dark Mode) ทำงานจริง** (ดู §4.5) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Business Logic หน้าอื่นยังไม่เริ่ม |
 
