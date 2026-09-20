@@ -5,7 +5,7 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-20 |
+| **อัปเดตล่าสุด** | 2569-09-20 · commit `f2ca3c2` |
 | **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 Scaffolding เสร็จ** |
 | **โค้ดโปรแกรม** | 🟡 **`backend/` + `frontend/` สร้างแล้ว เชื่อมต่อกันจริง** (ดู `docs/ROADMAP.md` §1.3) — หน้าจอ/Business Logic ยังไม่เริ่ม |
 
