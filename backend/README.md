@@ -8,11 +8,11 @@ over Next.js Route Handlers + Prisma.
 
 ```
 src/
-  KKND.Domain/          # Entities live here eventually; currently empty —
-                         # KKND.Infrastructure/Entities holds the scaffolded
-                         # set until they're reorganized in Sprint 1+
-  KKND.Infrastructure/  # KkndDbContext + Entities/, scaffolded from the
-                         # actual tested database (see docs/database/)
+  KKND.Domain/           # Contracts only (IPasswordHasher, IJwtTokenService, IAuthService,
+                         # Security/Auth models) — scaffolded EF entities still live in
+                         # Infrastructure/Entities until they're reorganized in a later sprint
+  KKND.Infrastructure/  # KkndDbContext + Entities/ (scaffolded from the actual tested
+                         # database, see docs/database/) + Security/Auth implementations
   KKND.Api/              # ASP.NET Core Web API — Program.cs, Controllers/
 ```
 
@@ -30,8 +30,13 @@ Connection string is **never** committed — set it via user-secrets locally:
 cd src/KKND.Api
 dotnet user-secrets set "ConnectionStrings:KkndDatabase" \
   "Server=<host>,<port>;Database=KKND;User Id=<user>;Password=<password>;TrustServerCertificate=True;Encrypt=True"
+dotnet user-secrets set "Jwt:Secret" "$(openssl rand -base64 48)"
 dotnet run
 ```
+
+`Jwt:Secret` signs access tokens (`KKND.Infrastructure/Security/JwtTokenService.cs`) — the app
+refuses to start without one set. Rotating it invalidates every issued access token (refresh
+tokens still work since they're validated against the DB, not the JWT signature).
 
 `GET /health/db` confirms connectivity and returns the live table count —
 useful for verifying Sprint 0 setup, remove once real endpoints exist.

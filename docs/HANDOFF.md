@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-20 · commit `f2ca3c2` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 Scaffolding เสร็จ** |
-| **โค้ดโปรแกรม** | 🟡 **`backend/` + `frontend/` สร้างแล้ว เชื่อมต่อกันจริง** (ดู `docs/ROADMAP.md` §1.3) — หน้าจอ/Business Logic ยังไม่เริ่ม |
+| **อัปเดตล่าสุด** | 2569-09-20 · commit `PENDING` (จะแก้เป็น Hash จริงหลัง Push) |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 (Auth/RBAC/Layout) เสร็จ** |
+| **โค้ดโปรแกรม** | 🟡 **Login + RBAC 4 บทบาท + จัดการผู้ใช้ + Layout (Sidebar/Topbar/Dark Mode) ทำงานจริง** (ดู §4.5) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Business Logic หน้าอื่นยังไม่เริ่ม |
 
 ---
 
@@ -52,7 +52,7 @@
 | **1. Requirement** | ✅ เสร็จ | `docs/PRD.md` |
 | **2. UI/UX Design** | ✅ เสร็จ | `docs/design/01` `02` `03` |
 | **3. Database** | ✅ เสร็จ (v1.0 → v1.6) — ทดสอบรันจริงบน SQL Server แล้ว | `docs/database/01`–`15` |
-| **4. Development** | 🟡 Sprint 0 Scaffolding เสร็จ — `backend/` `frontend/` | `docs/ROADMAP.md` §1.3 |
+| **4. Development** | 🟡 Sprint 0 + Sprint 1 (Auth/RBAC/Layout) เสร็จ | `docs/ROADMAP.md` §1.3, §1.4 |
 
 ---
 
@@ -134,6 +134,39 @@
 View ตรวจสอบ (`vw_vlan_validation_issues` ข้อ 8) เดิมจับคู่ Primary/Secondary ด้วย `vlan_number`
 ทำให้เตือนผิดพลาดกรณี Secondary มีเลข VLAN แต่ Primary เป็น Untagged (พบจริงในข้อมูลตัวอย่าง
 "ThinServer") แก้เป็นจับคู่ด้วยชื่อ VLAN (`name`) แทน
+
+---
+
+### 4.5 Backend/Frontend — Sprint 1: Auth + RBAC + Layout (20 ก.ย. 2569)
+
+ทำต่อจาก Sprint 0 Scaffolding — Login ใช้งานได้จริง มี RBAC 4 บทบาท จัดการผู้ใช้ได้
+และมี Layout หลัก (Sidebar/Topbar/Dark Mode) ตาม `docs/design/01-user-flow.md` §1–2
+
+**⚠️ ปรับจากแผนเดิมใน ROADMAP:** แผนเขียนว่า "ASP.NET Core Identity" แต่ Schema ที่ออกแบบไว้แล้ว
+(`02-schema-sqlserver.sql`) เป็นตาราง `users`/`roles`/`refresh_tokens` **ของเราเอง** ไม่ใช่รูปแบบ
+`AspNetUsers`/`AspNetRoles` ของ Identity — จึงเขียน Auth Service เองแทนการเรียก `AddIdentity<>()`
+(หลักการเดียวกัน: Argon2id + JWT + Refresh Token Rotation ตามที่ออกแบบไว้ใน §10) เพื่อไม่ต้องรื้อ
+Schema ที่ทดสอบผ่านแล้ว
+
+| ส่วน | รายละเอียด |
+|---|---|
+| **Argon2id Password Hasher** | `backend/src/KKND.Infrastructure/Security/Argon2PasswordHasher.cs` — เข้ารหัส/ตรวจสอบด้วยรูปแบบ PHC string มาตรฐาน (`$argon2id$v=19$m=,t=,p=$salt$hash`) พารามิเตอร์ m=64MiB, t=3, p=2 |
+| **JWT + Refresh Token** | Access Token อายุ 15 นาที (Claim: user id/username/role) + Refresh Token 7 วัน เก็บ SHA-256 Hash ใน `refresh_tokens`, หมุนเวียน (Rotate) ทุกครั้งที่ Refresh, ส่งผ่าน HttpOnly+Secure+SameSite=Strict Cookie |
+| **Login Flow ตาม §2.1** | ข้อความ Error ไม่บอกว่าผิดที่ Username หรือ Password (กัน User Enumeration) · ล็อกบัญชี 15 นาทีหลังผิดครบ 5 ครั้ง (FR-AU-03/04) · บันทึก Audit Log ทุก Outcome (`LOGIN`/`LOGIN_FAILED`/`USER_LOCKED`/`LOGOUT`) |
+| **RBAC 4 บทบาท** | Policy `Admin`/`ItStaffOrAbove`/`AuditorOrAbove`/`AnyRole` ผ่าน `[Authorize(Policy=...)]` — ตรวจที่ Server ทุก Endpoint ตาม NFR-06 |
+| **User Management (FR-AU-05/08/09)** | `UsersController` — สร้าง/แก้ไข Role/Deactivate (ไม่ลบจริง) · Admin Reset รหัสผ่านผู้ใช้อื่น · ผู้ใช้เปลี่ยนรหัสผ่านตนเองผ่าน `PUT /api/auth/password` · บังคับนโยบายรหัสผ่านขั้นต่ำ 8 ตัวอักษร มีทั้งตัวอักษรและตัวเลข (FR-AU-06) |
+| **Frontend: Login + Auth Context** | `frontend/src/lib/auth/auth-context.tsx` — Access Token เก็บใน Memory เท่านั้น (ไม่ใช้ localStorage กัน XSS) · ตอนเปิดหน้าเว็บลองยิง `/api/auth/refresh` เงียบๆ ก่อน เพื่อกู้ Session จาก Cookie เดิม |
+| **Frontend: Layout หลัก** | `frontend/src/components/layout/` — Sidebar ยุบ/ขยายได้ + เมนูกรองตาม Role (ตารางใน §1.2 ของ User Flow) · Topbar (Search/Notification/Theme Toggle/User Menu) · หน้า Login แยก Route Group `(app)` ป้องกัน (Redirect ไป `/login` ถ้ายังไม่ Login) |
+| **Admin > Users หน้าจัดการผู้ใช้** | `frontend/src/app/(app)/admin/users/page.tsx` — ตารางผู้ใช้ + ฟอร์มสร้างผู้ใช้ใหม่ + ปุ่ม Deactivate/Reactivate เรียก API จริง |
+
+**ทดสอบยืนยันกับ Backend + SQL Server จริงแล้ว (ไม่ใช่แค่ Build ผ่าน):**
+Login ผิดรหัส/ผิด Username ได้ข้อความเดียวกัน (401) · Login ถูกต้องได้ Access Token + Cookie ·
+`GET /api/auth/me` ยืนยัน Role จาก Token · `POST /api/auth/refresh` หมุน Token สำเร็จ ·
+ผิดรหัสครบ 5 ครั้งล็อกบัญชี 15 นาที (HTTP 423) แม้ครั้งถัดไปจะกรอกถูกก็ยังถูกบล็อกจนกว่าจะหมดเวลา ·
+`POST /api/auth/logout` เพิกถอน Refresh Token จริง (Refresh หลัง Logout ได้ 401) ·
+Audit Log บันทึกครบทุก Outcome · ทดสอบ UI ด้วย Playwright ครบ 6 ขั้นตอน (Redirect ไป Login →
+Error ข้อความ → Login สำเร็จเห็น Dashboard → สลับ Dark Mode → เข้าเมนู Admin > Users →
+Logout กลับไปหน้า Login)
 
 ---
 

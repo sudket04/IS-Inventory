@@ -23,6 +23,20 @@ Open [http://localhost:3000](http://localhost:3000). The home page calls the
 backend's `/health/db` endpoint to confirm end-to-end connectivity — replace
 it once real pages exist.
 
+## Auth
+
+- `src/lib/auth/auth-context.tsx` — `AuthProvider`/`useAuth()`. Access token is kept in memory
+  only (`src/lib/auth/token-store.ts`), never in localStorage — the real session is the httpOnly
+  refresh cookie the API sets, silently redeemed via `POST /api/auth/refresh` on page load.
+- `src/lib/api.ts` — `apiFetch()` wraps `fetch` for authenticated calls to the backend (attaches
+  the bearer token + `credentials: "include"`). Use it for anything under `/api/*`; the public
+  `/health/db` check doesn't need it.
+- `src/app/(app)/` — protected route group. Its `layout.tsx` redirects to `/login` when
+  unauthenticated; `src/app/login/` sits outside the group so it renders without the shell.
+- `src/lib/nav.ts` — sidebar menu + which of the 4 roles (ADMIN/IT_STAFF/AUDITOR/VIEWER) can see
+  each item, mirrors `docs/design/01-user-flow.md` §1.2. The server enforces the same policy
+  independently (NFR-06) — this only controls what's shown, never what's callable.
+
 ## Conventions
 
 - Never hardcode a raw color (e.g. `slate-200`) in a component — use the
