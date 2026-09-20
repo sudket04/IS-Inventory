@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2026-09-16 · commit `1b4377e` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · ⏳ **Phase 4 (Development) ยังไม่เริ่ม** |
-| **โค้ดโปรแกรม** | ❌ **ยังไม่มีแม้แต่บรรทัดเดียว** — มีเฉพาะเอกสารและสคริปต์ SQL |
+| **อัปเดตล่าสุด** | 2569-09-20 |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 Scaffolding เสร็จ** |
+| **โค้ดโปรแกรม** | 🟡 **`backend/` + `frontend/` สร้างแล้ว เชื่อมต่อกันจริง** (ดู `docs/ROADMAP.md` §1.3) — หน้าจอ/Business Logic ยังไม่เริ่ม |
 
 ---
 
@@ -51,8 +51,8 @@
 |:---:|---|---|
 | **1. Requirement** | ✅ เสร็จ | `docs/PRD.md` |
 | **2. UI/UX Design** | ✅ เสร็จ | `docs/design/01` `02` `03` |
-| **3. Database** | ✅ เสร็จ (v1.0 → v1.4) | `docs/database/01`–`12` |
-| **4. Development** | ⏳ **ยังไม่เริ่ม** | — |
+| **3. Database** | ✅ เสร็จ (v1.0 → v1.6) — ทดสอบรันจริงบน SQL Server แล้ว | `docs/database/01`–`15` |
+| **4. Development** | 🟡 Sprint 0 Scaffolding เสร็จ — `backend/` `frontend/` | `docs/ROADMAP.md` §1.3 |
 
 ---
 

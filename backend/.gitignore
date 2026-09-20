@@ -1,0 +1,17 @@
+## .NET build artifacts
+bin/
+obj/
+*.user
+.vs/
+
+## Test / publish output
+[Tt]est[Rr]esult*/
+publish/
+
+## Rider / VS Code
+.idea/
+.vscode/
+*.suo
+
+## User secrets note: connection strings live in `dotnet user-secrets`,
+## never in appsettings*.json — see appsettings.json's ConnectionStrings._comment

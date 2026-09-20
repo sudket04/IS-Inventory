@@ -14,11 +14,12 @@
 | Database Design | ✅ เสร็จ **และทดสอบรันจริงผ่านแล้ว** — 66 ตาราง · 45 Temporal · 45 View · 10 Trigger บน SQL Server 2022 จริง (ล่าสุด 20 ก.ย. 2569 รวม VLAN Secondary Subnet + Application Module) |
 | UI/UX Design | ✅ เสร็จ — User Flow · Wireframe 9 หน้า · Design System · หน้าตั้งค่า 25 หน้า |
 | Tech Stack | ✅ ตัดสินใจแล้ว — ASP.NET Core (.NET 8) + EF Core + Next.js |
-| **โค้ดจริง** | ❌ **0 บรรทัด** — ยังไม่เริ่ม |
+| **โค้ดจริง** | 🟡 **Sprint 0 Scaffolding เสร็จ** — Backend↔DB↔Frontend ต่อกันจริงแล้ว (§1.3) · หน้าจอ/Business Logic ยังไม่เริ่ม |
 
-**สรุป 1 บรรทัด:** Design เสร็จหมดแล้ว และฐานข้อมูลผ่านการทดสอบรันจริงแล้ว — คอขวดตอนนี้เหลือแค่
-**ข้อมูลจริงที่ยังไม่ได้รับ** (§1.2) กับ **Windows Server ทดสอบ AD/FSRM** (§1.1) ไม่ใช่การตัดสินใจ
-สถาปัตยกรรมหรือความเสี่ยงจาก Schema ที่ไม่เคยพิสูจน์แล้วอีกต่อไป
+**สรุป 1 บรรทัด:** Design เสร็จหมดแล้ว ฐานข้อมูลทดสอบผ่านแล้ว และตอนนี้ Backend/Frontend
+เชื่อมต่อกันจริงแล้วด้วย (Sprint 0 §1.3) — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริงที่ยังไม่ได้รับ**
+(§1.2) กับ **Windows Server ทดสอบ AD/FSRM** (§1.1) ไม่ใช่การตัดสินใจสถาปัตยกรรมหรือ
+ความเสี่ยงจาก Schema/Stack ที่ไม่เคยพิสูจน์แล้วอีกต่อไป
 
 ---
 
@@ -48,15 +49,40 @@
 
 > ชื่อ OU **ไม่ใช่ตัวบล็อก** เพราะระบบออกแบบให้กรอกทีหลังผ่านหน้าจอได้อยู่แล้ว — ระบุไว้ตรงนี้เพื่อไม่ให้ใครไปรอมันโดยไม่จำเป็น
 
+### 1.3 ✅ Project Scaffolding (20 ก.ย. 2569)
+
+`backend/` (ASP.NET Core .NET 8 + EF Core) และ `frontend/` (Next.js 16) สร้างแล้ว
+ทดสอบเชื่อมต่อ Backend↔Database↔Frontend ครบวงจรจริง ไม่ใช่แค่ Scaffold เปล่า
+
+| ส่วน | สถานะ |
+|---|---|
+| `backend/` — Solution 3 โปรเจกต์ (Api/Domain/Infrastructure) | ✅ Build ผ่าน |
+| `KkndDbContext` + Entity 111 ตัว | ✅ Scaffold จาก DB จริงที่ทดสอบแล้ว (ไม่ได้เขียนมือ) — 45 Temporal ผ่าน `IsTemporal()` อัตโนมัติ ไม่สร้าง Entity ซ้ำ, 45 View เป็น Keyless Entity |
+| `GET /health/db` | ✅ ยืนยันแล้ว: `canConnect: true, tableCount: 111` |
+| `frontend/` — Next.js 16 + Tailwind v4 + Design Token ครบ | ✅ Build ผ่าน · ทดสอบด้วย Screenshot จริง |
+| Font self-hosted (`@fontsource-variable/*`) | ✅ ตาม NFR-15 — ไม่พึ่ง Google Fonts CDN ตอน Runtime |
+| หน้าแรกดึงข้อมูลจริงจาก Backend | ✅ แสดง "Connected — 111 tables found" |
+
+**บั๊ก/ข้อติดขัดที่เจอและแก้ระหว่าง Setup:**
+
+| # | ปัญหา | แก้ |
+|:---:|---|---|
+| 1 | `builds.dotnet.microsoft.com` และ `ui.shadcn.com` ถูก Proxy ของ Sandbox บล็อก | ติดตั้ง .NET SDK ผ่าน `apt install dotnet-sdk-8.0` แทน · สร้าง shadcn/ui Component (Button) มือ ตาม Pattern เดียวกัน (`cva` + `cn()`) เพราะดึง Registry ไม่ได้ |
+| 2 | GitHub Raw ของ Repo ภายนอก (rsms/inter, JetBrains/JetBrainsMono) ถูกจำกัดสิทธิ์ตาม Session | ใช้ `@fontsource-variable/inter` และ `@fontsource-variable/jetbrains-mono` จาก npm แทน — Bundle ไฟล์ Font ในตัว Package |
+| 3 | Entity `FileShare` (จาก `dbo.file_shares`) ชนกับ `System.IO.FileShare` ใน Implicit Global Using ของ .NET 8 | Alias `using FileShare = KKND.Infrastructure.Entities.FileShare;` ใน `KkndDbContext.cs` |
+| 4 | `tailwindcss-animate` เป็นปลั๊กอิน Tailwind v3 ใช้กับ v4 ไม่ได้ | เอาออก (ยังไม่มี Component ไหนต้องใช้) |
+| 5 | React Strict Mode (Dev) ล้าง `class="dark"` ที่สคริปต์กันจอขาววาบตั้งไว้ทิ้งตอน Remount | เพิ่ม `suppressHydrationWarning` บน `<html>` ตาม Next.js 16 Docs |
+| 6 | หน้าแรกเขียนข้อความเป็นภาษาไทยตอนแรก ขัดกับ NFR-10 | แก้เป็นภาษาอังกฤษทั้งหมด รวม `lang="en"` |
+
 ---
 
-## 2. Sprint Plan (Sprint 0–10, รวม ~51 วันทำงาน)
+## 2. Sprint Plan (Sprint 0–10, รวม ~49 วันทำงาน)
 
 > เรียงตามลำดับ Dependency จริง ไม่ใช่ลำดับความสำคัญ — บาง Sprint ทำคู่ขนานได้ถ้ามีมากกว่า 1 คน (ดู §3)
 
 | Sprint | ขอบเขต | Deliverable | วัน |
 |:---:|---|---|:---:|
-| **0** | ~~รัน SQL ทั้ง 8 ไฟล์จริงครั้งแรก~~ ✅ เสร็จแล้ว — เหลือแค่ Setup .NET Solution + Next.js Project · Seed Data | Repo พร้อมพัฒนา · DB รันได้จริงบน SQL Server | 3 |
+| **0** | ~~รัน SQL 8 ไฟล์ · Setup .NET Solution + Next.js Project~~ ✅ เสร็จแล้ว (ดู §1.3) — เหลือ Seed Data ชุดจริง + Deploy Pipeline | Repo พร้อมพัฒนา · Backend↔DB↔Frontend ต่อกันจริงแล้ว | 1 |
 | **1** | Auth (ASP.NET Core Identity) · RBAC 4 บทบาท · จัดการผู้ใช้ · Layout + Dark Mode + กันจอขาววาบ | Login และควบคุมสิทธิ์ได้ | 4 |
 | **2** | Master Data CRUD (ใช้รูปแบบร่วม 12 หน้าจาก `04-settings-screens.md`) · Asset CRUD (Server/Network) · ค้นหา-กรอง | บันทึก/ค้นหาทรัพย์สินหลักได้ · หน้าตั้งค่าพื้นฐานครบ | 5 |
 | **3** | Asset ประเภทที่เหลือ (8 หมวด) · Attachment · Audit Log · Storage/Cluster · Rack (พร้อมผังกราฟิก) · VLAN + Site (1st/2nd, รองรับ Secondary Subnet/Untagged) · Application บน Server (v1.6) | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
@@ -68,7 +94,7 @@
 | **9** | หน้าตั้งค่าที่เหลือ (System, Retention, Audit) · หน้าแรก Settings (Status Panel) · ปิดช่องโหว่จาก Code Review | หน้าตั้งค่าครบ 25 หน้าตามที่ออกแบบ | 3 |
 | **10** | Integration Test · Performance Test (2,000+ รายการ < 2 วิ) · Security Review · คู่มือผู้ใช้ · Deploy จริง (§4) | **ระบบพร้อมใช้งานจริง (Go-Live)** | 6 |
 
-**รวม 51 วันทำงาน** (~10 สัปดาห์ ถ้า 1 คนทำเต็มเวลา ไม่รวม Phase 0)
+**รวม 49 วันทำงาน** (~9-10 สัปดาห์ ถ้า 1 คนทำเต็มเวลา ไม่รวม Phase 0)
 
 ---
 
@@ -80,7 +106,7 @@
 | Sprint 7 (Permission Control UI) | Sprint 8 (Collector Agent ทดสอบกับ AD/FSRM จริง) | Backend Sync Job กับ Frontend Permission UI พึ่งกันแค่ API Contract ที่ Fix ได้ตั้งแต่ต้น Sprint |
 | Sprint 9 (Settings หน้าที่เหลือ) | Sprint 10 เริ่ม Performance/Security Test บนส่วนที่เสร็จแล้ว | ไม่ต้องรอ 100% ของทุกหน้าก่อนเริ่มทดสอบ |
 
-ถ้าทำคู่ขนานเต็มที่ ระยะเวลารวมลดจาก ~51 วัน เหลือประมาณ **32–36 วัน**
+ถ้าทำคู่ขนานเต็มที่ ระยะเวลารวมลดจาก ~49 วัน เหลือประมาณ **31–34 วัน**
 
 ---
 

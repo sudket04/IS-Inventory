@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+/* Design Token — อ้างอิง docs/design/03-design-system.md §3
+   ห้ามใช้ค่าสีดิบ (เช่น slate-200) ตรงๆ ใน Component ต้องเรียกผ่าน Semantic Token นี้เท่านั้น
+   มิฉะนั้น Dark Mode จะพังเมื่อมีการแก้ไขในอนาคต */
+:root {
+  --bg-canvas: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --bg-inset: #f1f5f9;
+  --border-default: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-text: #4f46e5;
+  --focus-ring: #6366f1;
+
+  --font-sans: "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root.dark {
+  --bg-canvas: #020617;
+  --bg-surface: #0f172a;
+  --bg-subtle: #1e293b;
+  --bg-inset: #020617;
+  --border-default: #1e293b;
+  --border-strong: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-text: #818cf8;
+  --focus-ring: #818cf8;
+}
+
+@theme inline {
+  --color-bg-canvas: var(--bg-canvas);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-subtle: var(--bg-subtle);
+  --color-bg-inset: var(--bg-inset);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-text: var(--accent-text);
+  --color-focus-ring: var(--focus-ring);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  /* ⭐ ขนาดฐาน 14px ไม่ใช่ 16px — ผู้ใช้หลักเป็นทีม IT ที่ต้องกวาดสายตาดูข้อมูลจำนวนมาก
+     ความหนาแน่นของข้อมูลเป็นคุณสมบัติ ไม่ใช่ข้อบกพร่อง (Design System §1 หลักการที่ 4) */
+  font-size: 14px;
+  line-height: 20px;
+}
