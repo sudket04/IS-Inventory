@@ -5,7 +5,7 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-20 · commit (จะบันทึกหลัง push) |
+| **อัปเดตล่าสุด** | 2569-09-20 · commit `5d710a9` |
 | **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 เริ่มแล้ว (Asset CRUD ครบ 7/8 หมวด)** |
 | **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด (Server/Network/Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT) พร้อม Pagination/Search ทำงานจริง** (ดู §4.5, §4.6, §4.7) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, Attachment, Audit Log UI, Rack, VLAN/Site, Application ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) |
 
