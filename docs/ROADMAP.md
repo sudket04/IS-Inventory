@@ -369,6 +369,37 @@ Migration ตอนย้าย Coverage ไปที่ `contract_assets` — �
 
 ---
 
+### 1.17 🟡 นอก Sprint Plan — Server Domain v1.7: Server Inventory (Hardware) · Server List (21 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.18 — สรุปสั้น (ผู้ใช้สั่งแยก Server/Storage ออกจากหน้า Assets
+ทั่วไปเป็น 2 หน้าใหม่ นอกลำดับ Sprint Plan เดิม):
+
+| ส่วน | สถานะ |
+|---|---|
+| Schema `16-module-v1.7-server-domain.sql` — Lookup ใหม่ 3 ตัว, `server_details` ปรับ Temporal (ตัด 7 คอลัมน์เก่า เพิ่ม 9 ใหม่), Hardware Child Table ใหม่ 3 ตัว (CPU/Memory/Local Disk), Storage Multi-consumer Junction | ✅ ทดสอบกับ SQL Server จริง |
+| `ServerInventoryController` — CRUD Hardware (SRV Physical + STG ร่วมหน้าเดียว, Multi-entry CPU/Memory/Disk) | ✅ |
+| `ServerListController` — Virtual (Asset ใหม่ผูก Cluster) / Physical (Activate Asset เดิม) | ✅ |
+| `OsCatalogController` — OS Type/Version Quick-add | ✅ |
+| ล็อก `AssetsController` ไม่ให้ Create/Update/Delete SRV/STG อีกต่อไป | ✅ |
+| หน้าใหม่ `/server-inventory`, `/server-list` + Nav กลุ่ม "Server" (ย้าย Clusters เข้ามารวม) | ✅ Build/Typecheck/Lint ผ่าน |
+
+**การตัดสินใจสำคัญ:** ไม่ฟื้นคอลัมน์ `server_type` ที่เคยถูกลบทิ้งใน v1.3a (ซ้ำซ้อนกับ `asset_types.is_virtual`
+ตามที่ Comment เดิมระบุ) แต่สร้าง **Asset Type Picker** ขึ้นมาใช้แทน — ปิดช่องว่าง "Asset Type Tree Picker"
+ที่ค้างมาตั้งแต่ Sprint 2 (§1.16 เคยบันทึกไว้ว่าบล็อก Internet Policy Proxy Binding ด้วย)
+
+**บั๊กที่พบและแก้ระหว่างเขียนโค้ด:** EF Core ChangeTracker รั่วหลัง `DbUpdateException` ทำให้ Exception เดิม
+โผล่มา Throw ซ้ำใน `SaveChangesAsync` ครั้งถัดไปที่ไม่เกี่ยวข้องกัน (แก้โดยเปลี่ยน IP Upsert ไปใช้ Raw SQL) —
+รายละเอียดเต็มที่ HANDOFF §4.18
+
+**คงเหลือ:** Playwright E2E ผ่าน Browser จริง — บล็อกโดย Auto-mode Safety Classifier ("Credential
+Exploration") ตอนพยายามรีเซ็ตรหัสผ่านบัญชี Admin ของฐานข้อมูลทดสอบ ผู้ใช้ตัดสินใจข้ามไปก่อนโดยอาศัย
+Build/Typecheck/Lint สะอาด + Backend curl-test ผ่านครบเป็นหลักประกันแทน — **ควรทำก่อน Go-Live จริง**
+
+**🟡 ยังไม่ปิด Sprint นี้เต็มรูปแบบ** (รอ Playwright E2E) — Sprint Plan เดิม (§2) ไม่กระทบ เพราะเป็นงานนอก
+ลำดับ
+
+---
+
 ## 2. Sprint Plan (Sprint 0–10, รวม ~49 วันทำงาน)
 
 > เรียงตามลำดับ Dependency จริง ไม่ใช่ลำดับความสำคัญ — บาง Sprint ทำคู่ขนานได้ถ้ามีมากกว่า 1 คน (ดู §3)

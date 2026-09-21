@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using IsInventory.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
-// ชื่อ Entity "FileShare" (จากตาราง dbo.file_shares) ชนกับ System.IO.FileShare
-// ซึ่งเป็น Implicit Global Using ของ .NET SDK ต้อง Alias ให้ชัดเจน
 using FileShare = IsInventory.Infrastructure.Entities.FileShare;
 
 namespace IsInventory.Infrastructure;
@@ -93,6 +91,10 @@ public partial class IsInventoryDbContext : DbContext
 
     public virtual DbSet<NotificationHistory> NotificationHistories { get; set; }
 
+    public virtual DbSet<OsType> OsTypes { get; set; }
+
+    public virtual DbSet<OsVersion> OsVersions { get; set; }
+
     public virtual DbSet<PeripheralDetail> PeripheralDetails { get; set; }
 
     public virtual DbSet<PowerDetail> PowerDetails { get; set; }
@@ -109,11 +111,19 @@ public partial class IsInventoryDbContext : DbContext
 
     public virtual DbSet<ServerApplication> ServerApplications { get; set; }
 
+    public virtual DbSet<ServerCpu> ServerCpus { get; set; }
+
     public virtual DbSet<ServerDetail> ServerDetails { get; set; }
+
+    public virtual DbSet<ServerLocalDisk> ServerLocalDisks { get; set; }
+
+    public virtual DbSet<ServerMemoryModule> ServerMemoryModules { get; set; }
 
     public virtual DbSet<ServerRole> ServerRoles { get; set; }
 
     public virtual DbSet<ServerRoleAssignment> ServerRoleAssignments { get; set; }
+
+    public virtual DbSet<ServerStatus> ServerStatuses { get; set; }
 
     public virtual DbSet<SoftwareDetail> SoftwareDetails { get; set; }
 
@@ -122,6 +132,8 @@ public partial class IsInventoryDbContext : DbContext
     public virtual DbSet<StorageDetail> StorageDetails { get; set; }
 
     public virtual DbSet<StorageVolume> StorageVolumes { get; set; }
+
+    public virtual DbSet<StorageVolumeConsumer> StorageVolumeConsumers { get; set; }
 
     public virtual DbSet<SyncJob> SyncJobs { get; set; }
 
@@ -210,6 +222,8 @@ public partial class IsInventoryDbContext : DbContext
     public virtual DbSet<VwSelectablePhysicalServer> VwSelectablePhysicalServers { get; set; }
 
     public virtual DbSet<VwServerApplication> VwServerApplications { get; set; }
+
+    public virtual DbSet<VwServerHardwareSummary> VwServerHardwareSummaries { get; set; }
 
     public virtual DbSet<VwServerRolesSummary> VwServerRolesSummaries { get; set; }
 
@@ -2569,6 +2583,50 @@ public partial class IsInventoryDbContext : DbContext
                 .HasConstraintName("FK_nothist_asset");
         });
 
+        modelBuilder.Entity<OsType>(entity =>
+        {
+            entity.ToTable("os_types");
+
+            entity.HasIndex(e => e.Code, "UX_os_types_code").IsUnique();
+
+            entity.Property(e => e.OsTypeId).HasColumnName("os_type_id");
+            entity.Property(e => e.Code)
+                .HasMaxLength(30)
+                .IsUnicode(false)
+                .HasColumnName("code");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.Name)
+                .HasMaxLength(60)
+                .HasColumnName("name");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+        });
+
+        modelBuilder.Entity<OsVersion>(entity =>
+        {
+            entity.ToTable("os_versions");
+
+            entity.HasIndex(e => e.OsTypeId, "IX_osv_type").HasFilter("([is_active]=(1))");
+
+            entity.HasIndex(e => new { e.OsTypeId, e.Name }, "UX_os_versions").IsUnique();
+
+            entity.Property(e => e.OsVersionId).HasColumnName("os_version_id");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.Name)
+                .HasMaxLength(80)
+                .HasColumnName("name");
+            entity.Property(e => e.OsTypeId).HasColumnName("os_type_id");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+
+            entity.HasOne(d => d.OsType).WithMany(p => p.OsVersions)
+                .HasForeignKey(d => d.OsTypeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_osv_type");
+        });
+
         modelBuilder.Entity<PeripheralDetail>(entity =>
         {
             entity.HasKey(e => e.AssetId);
@@ -3011,6 +3069,35 @@ public partial class IsInventoryDbContext : DbContext
                 .HasConstraintName("FK_svcapp_updated_by");
         });
 
+        modelBuilder.Entity<ServerCpu>(entity =>
+        {
+            entity.ToTable("server_cpus");
+
+            entity.HasIndex(e => e.AssetId, "IX_scpu_asset");
+
+            entity.Property(e => e.ServerCpuId).HasColumnName("server_cpu_id");
+            entity.Property(e => e.AssetId).HasColumnName("asset_id");
+            entity.Property(e => e.CoreCount).HasColumnName("core_count");
+            entity.Property(e => e.CpuModel)
+                .HasMaxLength(150)
+                .HasColumnName("cpu_model");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysdatetimeoffset())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+
+            entity.HasOne(d => d.Asset).WithMany(p => p.ServerCpus)
+                .HasForeignKey(d => d.AssetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_scpu_asset");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ServerCpus)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_scpu_created_by");
+        });
+
         modelBuilder.Entity<ServerDetail>(entity =>
         {
             entity.HasKey(e => e.AssetId);
@@ -3028,18 +3115,25 @@ public partial class IsInventoryDbContext : DbContext
                             .HasColumnName("valid_to");
                     }));
 
-            entity.HasIndex(e => e.ParentHostAssetId, "IX_server_host");
+            entity.HasIndex(e => e.ClusterId, "IX_sd_cluster").HasFilter("([cluster_id] IS NOT NULL)");
 
             entity.HasIndex(e => e.Hostname, "IX_server_hostname").HasFilter("([hostname] IS NOT NULL)");
 
             entity.Property(e => e.AssetId)
                 .ValueGeneratedNever()
                 .HasColumnName("asset_id");
-            entity.Property(e => e.CpuCoreCount).HasColumnName("cpu_core_count");
-            entity.Property(e => e.CpuModel)
-                .HasMaxLength(150)
-                .HasColumnName("cpu_model");
-            entity.Property(e => e.CpuSocketCount).HasColumnName("cpu_socket_count");
+            entity.Property(e => e.ClusterId).HasColumnName("cluster_id");
+            entity.Property(e => e.Criticality)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("criticality");
+            entity.Property(e => e.Environment)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("environment");
+            entity.Property(e => e.Fqdn)
+                .HasMaxLength(255)
+                .HasColumnName("fqdn");
             entity.Property(e => e.Hostname)
                 .HasMaxLength(100)
                 .HasColumnName("hostname");
@@ -3049,23 +3143,109 @@ public partial class IsInventoryDbContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("mac_address");
             entity.Property(e => e.OsInstallDate).HasColumnName("os_install_date");
-            entity.Property(e => e.OsName)
+            entity.Property(e => e.OsTypeId).HasColumnName("os_type_id");
+            entity.Property(e => e.OsVersionId).HasColumnName("os_version_id");
+            entity.Property(e => e.ServerStatusId).HasColumnName("server_status_id");
+            entity.Property(e => e.ServerZoneId).HasColumnName("server_zone_id");
+            entity.Property(e => e.SystemGroup)
                 .HasMaxLength(100)
-                .HasColumnName("os_name");
-            entity.Property(e => e.OsVersion)
-                .HasMaxLength(50)
-                .HasColumnName("os_version");
-            entity.Property(e => e.ParentHostAssetId).HasColumnName("parent_host_asset_id");
-            entity.Property(e => e.RamGb).HasColumnName("ram_gb");
+                .HasColumnName("system_group");
 
-            entity.HasOne(d => d.Asset).WithOne(p => p.ServerDetailAsset)
+            entity.HasOne(d => d.Asset).WithOne(p => p.ServerDetail)
                 .HasForeignKey<ServerDetail>(d => d.AssetId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_server_details_asset");
 
-            entity.HasOne(d => d.ParentHostAsset).WithMany(p => p.ServerDetailParentHostAssets)
-                .HasForeignKey(d => d.ParentHostAssetId)
-                .HasConstraintName("FK_server_details_host");
+            entity.HasOne(d => d.Cluster).WithMany(p => p.ServerDetails)
+                .HasForeignKey(d => d.ClusterId)
+                .HasConstraintName("FK_sd_cluster");
+
+            entity.HasOne(d => d.OsType).WithMany(p => p.ServerDetails)
+                .HasForeignKey(d => d.OsTypeId)
+                .HasConstraintName("FK_sd_os_type");
+
+            entity.HasOne(d => d.OsVersion).WithMany(p => p.ServerDetails)
+                .HasForeignKey(d => d.OsVersionId)
+                .HasConstraintName("FK_sd_os_version");
+
+            entity.HasOne(d => d.ServerStatus).WithMany(p => p.ServerDetails)
+                .HasForeignKey(d => d.ServerStatusId)
+                .HasConstraintName("FK_sd_status");
+
+            entity.HasOne(d => d.ServerZone).WithMany(p => p.ServerDetails)
+                .HasForeignKey(d => d.ServerZoneId)
+                .HasConstraintName("FK_sd_zone");
+        });
+
+        modelBuilder.Entity<ServerLocalDisk>(entity =>
+        {
+            entity.HasKey(e => e.LocalDiskId);
+
+            entity.ToTable("server_local_disks");
+
+            entity.HasIndex(e => e.AssetId, "IX_sdisk_asset");
+
+            entity.Property(e => e.LocalDiskId).HasColumnName("local_disk_id");
+            entity.Property(e => e.AssetId).HasColumnName("asset_id");
+            entity.Property(e => e.CapacityGb)
+                .HasColumnType("decimal(10, 2)")
+                .HasColumnName("capacity_gb");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysdatetimeoffset())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.DiskLabel)
+                .HasMaxLength(80)
+                .HasColumnName("disk_label");
+            entity.Property(e => e.DiskType)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("disk_type");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+
+            entity.HasOne(d => d.Asset).WithMany(p => p.ServerLocalDisks)
+                .HasForeignKey(d => d.AssetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_sdisk_asset");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ServerLocalDisks)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_sdisk_created_by");
+        });
+
+        modelBuilder.Entity<ServerMemoryModule>(entity =>
+        {
+            entity.HasKey(e => e.MemoryModuleId);
+
+            entity.ToTable("server_memory_modules");
+
+            entity.HasIndex(e => e.AssetId, "IX_smem_asset");
+
+            entity.Property(e => e.MemoryModuleId).HasColumnName("memory_module_id");
+            entity.Property(e => e.AssetId).HasColumnName("asset_id");
+            entity.Property(e => e.CapacityGb)
+                .HasColumnType("decimal(10, 2)")
+                .HasColumnName("capacity_gb");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysdatetimeoffset())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.MemoryType)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("memory_type");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+
+            entity.HasOne(d => d.Asset).WithMany(p => p.ServerMemoryModules)
+                .HasForeignKey(d => d.AssetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_smem_asset");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ServerMemoryModules)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_smem_created_by");
         });
 
         modelBuilder.Entity<ServerRole>(entity =>
@@ -3158,6 +3338,30 @@ public partial class IsInventoryDbContext : DbContext
                 .HasForeignKey(d => d.ServerRoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_srvra_role");
+        });
+
+        modelBuilder.Entity<ServerStatus>(entity =>
+        {
+            entity.ToTable("server_statuses");
+
+            entity.HasIndex(e => e.Code, "UX_server_statuses_code").IsUnique();
+
+            entity.Property(e => e.ServerStatusId).HasColumnName("server_status_id");
+            entity.Property(e => e.Code)
+                .HasMaxLength(30)
+                .IsUnicode(false)
+                .HasColumnName("code");
+            entity.Property(e => e.ColorToken)
+                .HasMaxLength(30)
+                .IsUnicode(false)
+                .HasColumnName("color_token");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.Name)
+                .HasMaxLength(60)
+                .HasColumnName("name");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
         });
 
         modelBuilder.Entity<SoftwareDetail>(entity =>
@@ -3444,6 +3648,45 @@ public partial class IsInventoryDbContext : DbContext
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.StorageVolumeUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)
                 .HasConstraintName("FK_vol_updated_by");
+        });
+
+        modelBuilder.Entity<StorageVolumeConsumer>(entity =>
+        {
+            entity.HasKey(e => e.ConsumerId);
+
+            entity.ToTable("storage_volume_consumers");
+
+            entity.HasIndex(e => e.AssetId, "IX_svc_asset");
+
+            entity.HasIndex(e => e.VolumeId, "IX_svc_volume");
+
+            entity.HasIndex(e => new { e.VolumeId, e.AssetId }, "UX_storage_volume_consumers").IsUnique();
+
+            entity.Property(e => e.ConsumerId).HasColumnName("consumer_id");
+            entity.Property(e => e.AssetId).HasColumnName("asset_id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysdatetimeoffset())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.Notes)
+                .HasMaxLength(300)
+                .HasColumnName("notes");
+            entity.Property(e => e.VolumeId).HasColumnName("volume_id");
+
+            entity.HasOne(d => d.Asset).WithMany(p => p.StorageVolumeConsumers)
+                .HasForeignKey(d => d.AssetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_svc_asset");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.StorageVolumeConsumers)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_svc_created_by");
+
+            entity.HasOne(d => d.Volume).WithMany(p => p.StorageVolumeConsumers)
+                .HasForeignKey(d => d.VolumeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_svc_volume");
         });
 
         modelBuilder.Entity<SyncJob>(entity =>
@@ -5511,6 +5754,23 @@ public partial class IsInventoryDbContext : DbContext
             entity.Property(e => e.SiteName)
                 .HasMaxLength(80)
                 .HasColumnName("site_name");
+        });
+
+        modelBuilder.Entity<VwServerHardwareSummary>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToView("vw_server_hardware_summary");
+
+            entity.Property(e => e.AssetId).HasColumnName("asset_id");
+            entity.Property(e => e.CpuSocketCount).HasColumnName("cpu_socket_count");
+            entity.Property(e => e.CpuTotalCores).HasColumnName("cpu_total_cores");
+            entity.Property(e => e.TotalRamGb)
+                .HasColumnType("decimal(38, 2)")
+                .HasColumnName("total_ram_gb");
+            entity.Property(e => e.TotalStorageGb)
+                .HasColumnType("decimal(38, 2)")
+                .HasColumnName("total_storage_gb");
         });
 
         modelBuilder.Entity<VwServerRolesSummary>(entity =>

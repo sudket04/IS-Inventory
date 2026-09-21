@@ -13,7 +13,20 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/", icon: "layout-dashboard", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
   { label: "Assets", href: "/assets", icon: "server", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
-  { label: "Clusters", href: "/clusters", icon: "layers", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
+  {
+    // v1.7 Server Domain — Server + Storage (SRV/STG) moved here exclusively (see
+    // AssetsController.ManagedElsewhereCategoryCodes); "Assets" above still lists/reads them
+    // read-only for cross-category browsing only.
+    label: "Server",
+    href: "/server-inventory",
+    icon: "server",
+    roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"],
+    children: [
+      { label: "Server Inventory", href: "/server-inventory", icon: "hard-drive", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
+      { label: "Clusters", href: "/clusters", icon: "layers", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
+      { label: "Server List", href: "/server-list", icon: "list-tree", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
+    ],
+  },
   { label: "Racks", href: "/racks", icon: "warehouse", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
   { label: "VLANs", href: "/vlans", icon: "network", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
   { label: "Software", href: "/software", icon: "disc", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },

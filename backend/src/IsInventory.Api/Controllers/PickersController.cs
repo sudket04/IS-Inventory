@@ -124,4 +124,31 @@ public sealed class PickersController : ControllerBase
     public async Task<ActionResult<IEnumerable<Option>>> WebCategories(CancellationToken ct) =>
         Ok(await _db.WebCategories.Where(c => c.IsActive).OrderBy(c => c.SortOrder)
             .Select(c => new Option(c.CategoryId, c.NameEn)).ToListAsync(ct));
+
+    // v1.7 Server Domain (Sprint) — asset_types tree already existed (Sprint 2 taxonomy) but had
+    // no UI consumer until now. isVirtual filters the SRV branch: Server Inventory (Hardware)
+    // only offers is_virtual=0 types (a VM has no physical form); Server List's "Virtual" create
+    // path uses is_virtual=1 (SRV_VM_STD / SRV_APP_VIRT) directly, no picker needed there.
+    public sealed record AssetTypeOption(int Id, string Code, string Name, string FullPath, bool IsVirtual, bool CanHostVm, int? ParentTypeId, byte TypeLevel);
+
+    [HttpGet("asset-types")]
+    public async Task<ActionResult<IEnumerable<AssetTypeOption>>> AssetTypes(
+        [FromQuery] string categoryCode, [FromQuery] bool? isVirtual, CancellationToken ct)
+    {
+        var query = _db.VwAssetTypeTrees.Where(t => t.CategoryCode == categoryCode && t.IsActive);
+        if (isVirtual.HasValue) query = query.Where(t => t.IsVirtual == isVirtual.Value);
+        return Ok(await query.OrderBy(t => t.SortOrder)
+            .Select(t => new AssetTypeOption(t.AssetTypeId, t.Code, t.Name, t.FullPath, t.IsVirtual, t.CanHostVm, t.ParentTypeId, t.TypeLevel))
+            .ToListAsync(ct));
+    }
+
+    [HttpGet("server-statuses")]
+    public async Task<ActionResult<IEnumerable<Option>>> ServerStatuses(CancellationToken ct) =>
+        Ok(await _db.ServerStatuses.Where(s => s.IsActive).OrderBy(s => s.SortOrder)
+            .Select(s => new Option(s.ServerStatusId, s.Name)).ToListAsync(ct));
+
+    [HttpGet("clusters")]
+    public async Task<ActionResult<IEnumerable<Option>>> Clusters(CancellationToken ct) =>
+        Ok(await _db.Clusters.Where(c => c.IsActive).OrderBy(c => c.Name)
+            .Select(c => new Option(c.ClusterId, c.Name)).ToListAsync(ct));
 }

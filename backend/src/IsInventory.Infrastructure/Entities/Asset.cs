@@ -137,9 +137,13 @@ public partial class Asset
 
     public virtual ICollection<ServerApplication> ServerApplications { get; set; } = new List<ServerApplication>();
 
-    public virtual ServerDetail? ServerDetailAsset { get; set; }
+    public virtual ICollection<ServerCpu> ServerCpus { get; set; } = new List<ServerCpu>();
 
-    public virtual ICollection<ServerDetail> ServerDetailParentHostAssets { get; set; } = new List<ServerDetail>();
+    public virtual ServerDetail? ServerDetail { get; set; }
+
+    public virtual ICollection<ServerLocalDisk> ServerLocalDisks { get; set; } = new List<ServerLocalDisk>();
+
+    public virtual ICollection<ServerMemoryModule> ServerMemoryModules { get; set; } = new List<ServerMemoryModule>();
 
     public virtual ServerRoleAssignment? ServerRoleAssignment { get; set; }
 
@@ -154,6 +158,8 @@ public partial class Asset
     public virtual StorageDetail? StorageDetail { get; set; }
 
     public virtual ICollection<StorageVolume> StorageVolumeAssets { get; set; } = new List<StorageVolume>();
+
+    public virtual ICollection<StorageVolumeConsumer> StorageVolumeConsumers { get; set; } = new List<StorageVolumeConsumer>();
 
     public virtual ICollection<StorageVolume> StorageVolumeProviderAssets { get; set; } = new List<StorageVolume>();
 

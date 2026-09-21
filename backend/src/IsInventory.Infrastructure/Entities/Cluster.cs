@@ -41,6 +41,8 @@ public partial class Cluster
 
     public virtual User? CreatedByNavigation { get; set; }
 
+    public virtual ICollection<ServerDetail> ServerDetails { get; set; } = new List<ServerDetail>();
+
     public virtual Location? SiteLocation { get; set; }
 
     public virtual ICollection<StorageVolume> StorageVolumes { get; set; } = new List<StorageVolume>();

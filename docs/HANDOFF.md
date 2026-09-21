@@ -6,8 +6,8 @@
 | **Repository** | `sudket04/is-inventory` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
 | **อัปเดตล่าสุด** | 2569-09-21 · commit (ดูท้ายสุดของ `git log`) |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–5, 7 เสร็จครบ** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts + Dashboard/Reports/Export Excel + Permission Control v1.5) — Sprint Plan เดิมเหลือ Sprint 6, 8–10 |
-| **โค้ดโปรแกรม** | 🟢 **Login/RBAC + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) + Dashboard/Reports/Export Excel + File Share/Internet Policy Permission Control ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.17) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล — **Sprint 5, 7 ปิดครบทุกรายการ** |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–5, 7 เสร็จครบ + Server Domain v1.7 (นอก Sprint Plan)** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts + Dashboard/Reports/Export Excel + Permission Control v1.5 + Server Inventory (Hardware)/Server List) — Sprint Plan เดิมเหลือ Sprint 6, 8–10 |
+| **โค้ดโปรแกรม** | 🟢 **Login/RBAC + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server List + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) + Dashboard/Reports/Export Excel + File Share/Internet Policy Permission Control + Server Inventory (Hardware)/Server List (Virtual+Physical) ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.18) — Backend ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล · Server Domain v1.7 Frontend ผ่าน Build/Typecheck/Lint แต่ยังไม่ผ่าน Playwright Browser จริง (ดู §4.18) — **Sprint 5, 7 ปิดครบทุกรายการ** |
 
 ---
 
@@ -552,9 +552,52 @@ Category Rule, สร้าง Default Policy ซ้ำสองอันเจ�
 
 ---
 
+### 4.18 Backend/Frontend — Server Domain v1.7: Server Inventory (Hardware) · Server List (Workload/OS) (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** งานนอก Sprint Plan เดิม — ผู้ใช้สั่งแยก Server/Storage ออกจากหน้า Assets ทั่วไปทั้งหมด
+เป็น 2 หน้าใหม่: **Server Inventory (Hardware)** ลงทะเบียนตัวเครื่อง Physical Server + Storage พร้อม
+CPU/Memory/Local Disk แบบ Multi-Entry, และ **Server List** มุมมอง Workload/OS ของ Server ทั้ง Virtual
+(Asset ใหม่ผูก Cluster) และ Physical (Activate Asset เดิมจาก Server Inventory ด้วยข้อมูล Workload) —
+Clusters ย้ายไปอยู่กลุ่มเมนู "Server" เดียวกัน ไม่มีการเปลี่ยนแปลงตัวโมดูล
+
+| ส่วน | รายละเอียด |
+|---|---|
+| **การตัดสินใจสถาปัตยกรรมสำคัญ — ไม่สร้างคอลัมน์ `hosting_type`/`server_type` ใหม่** | ค้นพบว่า `server_details.server_type` (PHYSICAL/VIRTUAL) เคยถูก**ลบทิ้งไปแล้วโดยตั้งใจ**ใน Migration `10-module-v1.3a-taxonomy.sql` ด้วยเหตุผลที่ Comment ไว้ชัดว่า "server_type ซ้ำซ้อนกับ asset_types.is_virtual จึงลบทิ้งเพื่อไม่ให้ข้อมูลขัดแย้งกัน" — จึงเลือกสร้าง **Asset Type Picker** (Category→Type→Subtype อ่านจาก `vw_asset_type_tree` + Flag `is_virtual`/`can_host_vm`) แทนการฟื้นคอลัมน์เดิม ปิดช่องว่าง "Asset Type Tree Picker" ที่รู้ตัวมาตั้งแต่ Sprint 2 (เคยบล็อก Internet Policy Proxy Binding ใน §4.17 ด้วย) |
+| Database — `16-module-v1.7-server-domain.sql` | `os_types`/`os_versions` (Seed), `server_statuses` (Seed ACTIVE/MAINTENANCE/STANDBY/POC/DECOMMISSIONED), `network_zones` +แถว Untrust, `server_details` ALTER แบบ Temporal (`SET SYSTEM_VERSIONING = OFF` → ปรับคอลัมน์ทั้ง Main+History ให้ตรงกัน → เปิดกลับ) ตัดคอลัมน์เดิม 7 ตัว (รวม `cpu_model`/`ram_gb`/`parent_host_asset_id`) เพิ่ม 9 ตัวใหม่ (Cluster/SystemGroup/FQDN/ServerZone/Environment/Criticality/ServerStatus/OsType/OsVersion), ตารางใหม่ไม่ Temporal 4 ตัวตามแบบ `server_applications`: `server_cpus`/`server_memory_modules`/`server_local_disks`/`storage_volume_consumers` (Junction ให้ Storage ผูกได้หลาย Server พร้อมกัน — เพิ่มเติมจาก `storage_volumes` เดิม ไม่แตะของเดิมที่ทดสอบแล้ว), View `vw_server_hardware_summary` |
+| Backend — `ServerInventoryController` (`api/server-inventory`) | CRUD SRV(Physical เท่านั้น, กรอง `!IsVirtual`)+STG ร่วมหน้าเดียว — Validate AssetType ต้องตรง Category+`is_virtual`, `ReplaceHardwareChildren` (ลบทั้งหมดแล้วเขียนใหม่ทุกครั้งสำหรับ CPU/Memory/Disk), Warranty Until เป็นค่าคำนวณ Read-only จาก `vw_expiring_assets` (ไม่ใช่คอลัมน์เก็บค่า ตรงตามแนวทาง v1.4) |
+| Backend — `ServerListController` (`api/server-list`) | List เฉพาะแถวที่ "Activate" แล้ว (`ServerDetail.ServerStatusId != null`) — Create แยก 2 เส้นทางตาม `IsVirtual`: Virtual สร้าง Asset ใหม่ (AssetType จาก Code `SRV_VM_STD`) ต้องมี Cluster; Physical แนบเข้ากับ Asset Hardware เดิม เจอ 409 ถ้า Activate ซ้ำ — Delete: Virtual = Soft-delete ทั้ง Asset, Physical = "Detach" (ล้างเฉพาะฟิลด์ Workload) |
+| Backend — `OsCatalogController` | `api/os-types`/`api/os-versions` (GET List, POST Quick-add `ItStaffOrAbove`) — จุดเดียวที่ยกเว้นให้ Quick-add จากฟอร์มได้ตรง (ปกติ Lookup ทั้งหมดแก้ที่ Admin > Master Data เท่านั้น) ตามที่ผู้ใช้ขอชัดเจน |
+| Backend — ล็อก Assets ทั่วไปไม่ให้แก้ SRV/STG | `AssetsController` เพิ่ม `ManagedElsewhereCategoryCodes = ["SRV","STG"]` คืน `400 {error:"managed_elsewhere"}` ที่ Create/Update/Delete — ยังคง List/View ได้ (Browse ข้ามหมวดยังใช้ได้) ตามที่ผู้ใช้ยืนยัน "หน้า Assets ทั่วไป สามารถดูที่เป็น Hardware เท่านั้นพอ" |
+| **บั๊กที่พบและแก้ #1 — EF Core ChangeTracker รั่วหลัง `DbUpdateException`** | บันทึก IP ทั้ง Primary+Management พร้อมกันเจอ 500 ที่ `CK_ip_inuse_asset` แม้ Insert เดี่ยวๆ ผ่าน SQL ตรงสำเร็จ — สาเหตุคือ Entity ที่ Save ไม่ผ่านยังค้างอยู่ใน ChangeTracker แล้วโผล่มา Throw ซ้ำตอน `SaveChangesAsync` ครั้งถัดไปที่ไม่เกี่ยวข้องกันเลย (Audit Log) แก้โดยเขียน `UpsertIpAsync` ใหม่ทั้งหมดด้วย `ExecuteSqlInterpolatedAsync` (Raw SQL) แทน EF Entity Tracking |
+| **บั๊กที่พบและแก้ #2 — ค่าติดลบ (เช่น RAM) เด้ง 500 ดิบ** | `TryGetFriendlyMessage` เดิมห่อแค่ `SaveChangesAsync` ตัวแรก (บันทึก Asset หลัก) — Constraint `CK_smem_capacity` ที่แท้จริงมาแตกตอน `SaveChangesAsync` ตัวที่สอง (`ReplaceHardwareChildren`) ซึ่งยังไม่ได้ห่อ แก้โดยห่อทั้งสองจุดใน `ServerInventoryController` |
+| Frontend — Component ใหม่ | `hardware-rows-editor.tsx` (`CpuEditor`/`MemoryEditor`/`DiskEditor` รูปแบบ `[n] ... [ลบ]` / `+ Add` / `รวม: ...` ตามที่ผู้ใช้กำหนดเป๊ะ, RAM/Storage เลือกจาก Dropdown ขนาดจริงเท่านั้น กันค่าที่เป็นไปไม่ได้เช่น "3 GB"), `os-catalog-fields.tsx` (OS Type/Version Cascading + ปุ่ม "+" Quick-add inline) |
+| Frontend — หน้าใหม่ `/server-inventory`, `/server-list` (List/New/`[id]`) | Server Inventory: Category→AssetType→ส่วน Hardware/Storage ตามเงื่อนไข; Server List: เลือก Hosting Type ตอนสร้างใหม่เท่านั้น (แก้ทีหลังไม่ได้), Physical แสดง CPU/Memory/Storage/Criticality แบบ Read-only "(แก้ที่ Server Inventory)", `server-applications-panel.tsx` ย้ายมาแปะที่นี่แทนหน้า Asset ทั่วไป |
+| Frontend — Nav | ยุบ "Clusters" เดิมเป็นกลุ่มใหม่ "Server" (ไอคอน `server`) มีลูก 3 อัน: Server Inventory / Clusters / Server List |
+| Frontend — ปรับ `EnumSelectField` ให้รับ `{value,label}[]` ได้ (เดิมรับแค่ `string[]`) | Criticality/Hosting Type ต้องการ Label สวยกว่า Code ดิบ (เช่น "Tier 1 (High)") — Backward-compatible กับทุกจุดเดิมที่ใช้ `string[]` |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว (Backend):** curl ครบทุก Endpoint — Asset Type Picker, สร้าง Hardware
+พร้อม CPU/Memory/Disk หลายรายการ, ล็อกหน้า Assets ทั่วไปไม่ให้แก้ SRV/STG, List Available Hardware, Flow
+Physical Attach เข้า Server List (รวมจุดที่เจอบั๊ก IP), สร้าง Virtual Server ผูก Cluster+Hardware ของ
+ตัวเอง, ปฏิเสธค่าติดลบ, สร้าง Storage Hardware, Quick-add OS Type/Version — ลบข้อมูลทดสอบออกหมดแล้ว
+
+**Frontend:** `npx tsc --noEmit`, `npx eslint`, และ `npm run build` (Next.js 16 Turbopack) ผ่านสะอาดทั้ง
+16 ไฟล์ใหม่/แก้ไข — **ยังไม่ได้ทดสอบผ่าน Browser จริงด้วย Playwright รอบนี้** เพราะ Auto-mode Safety
+Classifier บล็อกการรีเซ็ต/อ่านรหัสผ่านบัญชี Admin ในฐานข้อมูลทดสอบ (Flag "Credential Exploration" แม้เป็น
+Local Test Container ของตัวเอง) — ผู้ใช้ตัดสินใจข้ามขั้นนี้ไปก่อน (เชื่อผลจาก Build/Typecheck/Lint สะอาด
++ Backend ที่ curl-test ผ่านครบแล้ว) **ควรรัน Playwright E2E เต็มรูปแบบก่อน Go-Live จริง** เมื่อมีรหัสผ่าน
+บัญชีทดสอบที่ใช้ได้
+
+**คงเหลือ:** Recycle Bin (ผู้ใช้ตั้งใจเลื่อนไปทำทีหลัง ไม่ใช่รอบนี้), Playwright E2E ผ่าน Browser จริงของ
+โมดูลนี้ (ดูเหตุผลด้านบน)
+
+---
+
 ## 5. โครงสร้างฐานข้อมูลปัจจุบัน
 
-**66 ตาราง · 45 ตารางประวัติ (Temporal) · 45 View · 5 Function · 3 SP · 10 Trigger** (ยืนยันจากการรันจริง)
+**66 ตาราง · 45 ตารางประวัติ (Temporal) · 45 View · 5 Function · 3 SP · 10 Trigger** (ยืนยันจากการรันจริงก่อน
+v1.7) — **+ v1.7 (Server Domain, §4.18):** ตารางใหม่ 7 ตัว (`os_types` `os_versions` `server_statuses`
+`server_cpus` `server_memory_modules` `server_local_disks` `storage_volume_consumers` — ไม่มีตัวไหน
+Temporal) + View ใหม่ 1 ตัว (`vw_server_hardware_summary`) รวมเป็น **73 ตาราง · 46 View**
 
 ### 5.1 หมวดทรัพย์สิน 8 หมวด (Prefix ของ Asset Tag)
 
@@ -589,6 +632,7 @@ Category Rule, สร้าง Default Policy ซ้ำสองอันเจ�
 | Infrastructure | `clusters` `cluster_members` `storage_volumes` `racks` `rack_mounts` |
 | Network/IPAM | `vlans` `vlan_sites` `vlan_ip_ranges` `vlan_devices` `ip_addresses` `tally` |
 | Application | `server_applications` (v1.6 — ใช้ `vlan_sites` ร่วมกับ VLAN) |
+| **Server Domain (v1.7 — §4.18)** | `os_types` `os_versions` `server_statuses` `server_cpus` `server_memory_modules` `server_local_disks` `storage_volume_consumers` |
 | สัญญา | `contracts` `contract_assets` |
 | Support | `attachments` `notifications` `notification_history` `import_batches` |
 | Compliance | `audit_logs` `audit_logs_archive` `system_settings` |

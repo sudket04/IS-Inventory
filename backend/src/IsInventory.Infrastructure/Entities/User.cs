@@ -135,11 +135,19 @@ public partial class User
 
     public virtual ICollection<ServerApplication> ServerApplicationUpdatedByNavigations { get; set; } = new List<ServerApplication>();
 
+    public virtual ICollection<ServerCpu> ServerCpus { get; set; } = new List<ServerCpu>();
+
+    public virtual ICollection<ServerLocalDisk> ServerLocalDisks { get; set; } = new List<ServerLocalDisk>();
+
+    public virtual ICollection<ServerMemoryModule> ServerMemoryModules { get; set; } = new List<ServerMemoryModule>();
+
     public virtual ICollection<ServerRoleAssignment> ServerRoleAssignments { get; set; } = new List<ServerRoleAssignment>();
 
     public virtual ICollection<SoftwareInstallation> SoftwareInstallationCreatedByNavigations { get; set; } = new List<SoftwareInstallation>();
 
     public virtual ICollection<SoftwareInstallation> SoftwareInstallationRemovedByNavigations { get; set; } = new List<SoftwareInstallation>();
+
+    public virtual ICollection<StorageVolumeConsumer> StorageVolumeConsumers { get; set; } = new List<StorageVolumeConsumer>();
 
     public virtual ICollection<StorageVolume> StorageVolumeCreatedByNavigations { get; set; } = new List<StorageVolume>();
 

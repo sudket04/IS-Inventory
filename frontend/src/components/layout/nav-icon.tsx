@@ -22,6 +22,7 @@ import {
   Folder,
   Globe,
   ShieldCheck,
+  ListTree,
   type LucideIcon,
 } from "lucide-react";
 
@@ -49,6 +50,7 @@ const ICONS: Record<string, LucideIcon> = {
   folder: Folder,
   globe: Globe,
   "shield-check": ShieldCheck,
+  "list-tree": ListTree,
 };
 
 export function NavIcon({ name, className }: { name: string; className?: string }) {

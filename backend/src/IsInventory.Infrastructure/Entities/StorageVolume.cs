@@ -67,5 +67,7 @@ public partial class StorageVolume
 
     public virtual Asset? ProviderAsset { get; set; }
 
+    public virtual ICollection<StorageVolumeConsumer> StorageVolumeConsumers { get; set; } = new List<StorageVolumeConsumer>();
+
     public virtual User? UpdatedByNavigation { get; set; }
 }

@@ -27,7 +27,11 @@ namespace IsInventory.Api.Controllers.Assets;
 public sealed class AssetsController : ControllerBase
 {
     private const int MaxPageSize = 100;
-    private static readonly string[] SupportedCategoryCodes = ["SRV", "NET", "PC", "STG", "PWR", "PER", "IOT", "SFT"];
+    // SRV/STG removed — managed exclusively via Server Inventory / Server List (see
+    // ServerInventoryController) since v1.7. Generic Assets endpoint still lists/reads them
+    // (read-only cross-category browsing) but Create/Update/Delete reject those two codes.
+    private static readonly string[] SupportedCategoryCodes = ["NET", "PC", "PWR", "PER", "IOT", "SFT"];
+    private static readonly string[] ManagedElsewhereCategoryCodes = ["SRV", "STG"];
 
     private readonly IsInventoryDbContext _db;
     private readonly ILicenseKeyProtector _licenseKeyProtector;
@@ -82,7 +86,7 @@ public sealed class AssetsController : ControllerBase
                 EF.Functions.Like(a.AssetTag, $"%{needle}%") ||
                 EF.Functions.Like(a.Name, $"%{needle}%") ||
                 (a.SerialNumber != null && EF.Functions.Like(a.SerialNumber, $"%{needle}%")) ||
-                (a.ServerDetailAsset != null && a.ServerDetailAsset.Hostname != null && EF.Functions.Like(a.ServerDetailAsset.Hostname, $"%{needle}%")) ||
+                (a.ServerDetail != null && a.ServerDetail.Hostname != null && EF.Functions.Like(a.ServerDetail.Hostname, $"%{needle}%")) ||
                 (a.NetworkDetailAsset != null && a.NetworkDetailAsset.Hostname != null && EF.Functions.Like(a.NetworkDetailAsset.Hostname, $"%{needle}%")) ||
                 (a.ComputerDetail != null && a.ComputerDetail.Hostname != null && EF.Functions.Like(a.ComputerDetail.Hostname, $"%{needle}%")) ||
                 (a.StorageDetail != null && a.StorageDetail.Hostname != null && EF.Functions.Like(a.StorageDetail.Hostname, $"%{needle}%")) ||
@@ -100,7 +104,7 @@ public sealed class AssetsController : ControllerBase
                 a.Category.Code, a.Category.Name,
                 a.Status.Code, a.Status.Name, a.Status.ColorToken,
                 a.Manufacturer != null ? a.Manufacturer.Name : null, a.Model, a.SerialNumber,
-                a.ServerDetailAsset != null ? a.ServerDetailAsset.Hostname
+                a.ServerDetail != null ? a.ServerDetail.Hostname
                     : a.NetworkDetailAsset != null ? a.NetworkDetailAsset.Hostname
                     : a.ComputerDetail != null ? a.ComputerDetail.Hostname
                     : a.StorageDetail != null ? a.StorageDetail.Hostname
@@ -119,7 +123,7 @@ public sealed class AssetsController : ControllerBase
     {
         var asset = await _db.Assets
             .Include(a => a.Category)
-            .Include(a => a.ServerDetailAsset)
+            .Include(a => a.ServerDetail)
             .Include(a => a.NetworkDetailAsset)
             .Include(a => a.ComputerDetail)
             .Include(a => a.StorageDetail)
@@ -144,6 +148,11 @@ public sealed class AssetsController : ControllerBase
             return BadRequest(new { error = "invalid_category", message = "Category does not exist." });
         }
 
+        if (ManagedElsewhereCategoryCodes.Contains(category.Code))
+        {
+            return BadRequest(new { error = "managed_elsewhere", message = "Server and Storage assets are managed via Server Inventory (/api/server-inventory), not the generic Assets endpoint." });
+        }
+
         if (!SupportedCategoryCodes.Contains(category.Code))
         {
             return BadRequest(new { error = "unsupported_category", message = "This asset category is not supported here yet." });
@@ -151,7 +160,6 @@ public sealed class AssetsController : ControllerBase
 
         var detailsError = category.Code switch
         {
-            "SRV" when request.ServerDetails is null => "Server Details are required for a Server asset.",
             "NET" when request.NetworkDetails is null => "Network Device Details are required for a Network Device asset.",
             "PC" when request.ComputerDetails is null => "Computer Details are required for a Computer asset.",
             "STG" when request.StorageDetails is null => "Storage Details are required for a Storage asset.",
@@ -199,10 +207,6 @@ public sealed class AssetsController : ControllerBase
 
         switch (category.Code)
         {
-            case "SRV" when request.ServerDetails is { } sd:
-                asset.ServerDetailAsset = new ServerDetail();
-                Apply(asset.ServerDetailAsset, sd);
-                break;
             case "NET" when request.NetworkDetails is { } nd:
                 asset.NetworkDetailAsset = new NetworkDetail();
                 Apply(asset.NetworkDetailAsset, nd);
@@ -249,7 +253,7 @@ public sealed class AssetsController : ControllerBase
 
         var created = await _db.Assets
             .Include(a => a.Category)
-            .Include(a => a.ServerDetailAsset)
+            .Include(a => a.ServerDetail)
             .Include(a => a.NetworkDetailAsset)
             .Include(a => a.ComputerDetail)
             .Include(a => a.StorageDetail)
@@ -268,7 +272,7 @@ public sealed class AssetsController : ControllerBase
     {
         var asset = await _db.Assets
             .Include(a => a.Category)
-            .Include(a => a.ServerDetailAsset)
+            .Include(a => a.ServerDetail)
             .Include(a => a.NetworkDetailAsset)
             .Include(a => a.ComputerDetail)
             .Include(a => a.StorageDetail)
@@ -279,6 +283,11 @@ public sealed class AssetsController : ControllerBase
             .SingleOrDefaultAsync(a => a.AssetId == id && !a.IsDeleted, ct);
 
         if (asset is null) return NotFound();
+
+        if (ManagedElsewhereCategoryCodes.Contains(asset.Category.Code))
+        {
+            return BadRequest(new { error = "managed_elsewhere", message = "Server and Storage assets are managed via Server Inventory (/api/server-inventory), not the generic Assets endpoint." });
+        }
 
         var userId = CurrentUserId();
 
@@ -308,10 +317,6 @@ public sealed class AssetsController : ControllerBase
 
         switch (asset.Category.Code)
         {
-            case "SRV" when request.ServerDetails is { } sd:
-                asset.ServerDetailAsset ??= new ServerDetail { AssetId = asset.AssetId };
-                Apply(asset.ServerDetailAsset, sd);
-                break;
             case "NET" when request.NetworkDetails is { } nd:
                 asset.NetworkDetailAsset ??= new NetworkDetail { AssetId = asset.AssetId };
                 Apply(asset.NetworkDetailAsset, nd);
@@ -360,8 +365,13 @@ public sealed class AssetsController : ControllerBase
     [Authorize(Policy = "ItStaffOrAbove")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
-        var asset = await _db.Assets.SingleOrDefaultAsync(a => a.AssetId == id && !a.IsDeleted, ct);
+        var asset = await _db.Assets.Include(a => a.Category).SingleOrDefaultAsync(a => a.AssetId == id && !a.IsDeleted, ct);
         if (asset is null) return NotFound();
+
+        if (ManagedElsewhereCategoryCodes.Contains(asset.Category.Code))
+        {
+            return BadRequest(new { error = "managed_elsewhere", message = "Server and Storage assets are managed via Server Inventory (/api/server-inventory), not the generic Assets endpoint." });
+        }
 
         var userId = CurrentUserId() ?? throw new InvalidOperationException("Authenticated user has no numeric id.");
 
@@ -381,20 +391,6 @@ public sealed class AssetsController : ControllerBase
         await _db.SaveChangesAsync(ct);
 
         return NoContent();
-    }
-
-    private static void Apply(ServerDetail e, ServerDetailsDto d)
-    {
-        e.Hostname = d.Hostname;
-        e.MacAddress = d.MacAddress;
-        e.CpuModel = d.CpuModel;
-        e.CpuSocketCount = d.CpuSocketCount;
-        e.RamGb = d.RamGb;
-        e.OsName = d.OsName;
-        e.OsVersion = d.OsVersion;
-        e.OsInstallDate = d.OsInstallDate;
-        e.LastPatchDate = d.LastPatchDate;
-        e.ParentHostAssetId = d.ParentHostAssetId;
     }
 
     private static void Apply(NetworkDetail e, NetworkDetailsDto d)
@@ -569,9 +565,6 @@ public sealed class AssetsController : ControllerBase
         a.ReceivedDate, a.InstallDate, a.ServiceStartDate,
         a.FixedAssetNo, a.ServiceTag, a.SystemUuid, a.CostCenter, a.Notes,
         a.CreatedAt, a.UpdatedAt,
-        a.ServerDetailAsset is { } sd ? new ServerDetailsDto(
-            sd.Hostname, sd.MacAddress, sd.CpuModel, sd.CpuSocketCount, sd.RamGb,
-            sd.OsName, sd.OsVersion, sd.OsInstallDate, sd.LastPatchDate, sd.ParentHostAssetId) : null,
         a.NetworkDetailAsset is { } nd ? new NetworkDetailsDto(
             nd.Hostname, nd.MacAddress, nd.PortSpeed, nd.PoeSupport,
             nd.FirmwareVersion, nd.FirmwareUpdatedAt, nd.StackInfo, nd.UplinkAssetId) : null,

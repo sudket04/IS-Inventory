@@ -11,25 +11,37 @@ public partial class ServerDetail
 
     public string? MacAddress { get; set; }
 
-    public string? CpuModel { get; set; }
-
-    public byte? CpuSocketCount { get; set; }
-
-    public short? CpuCoreCount { get; set; }
-
-    public int? RamGb { get; set; }
-
-    public string? OsName { get; set; }
-
-    public string? OsVersion { get; set; }
-
     public DateOnly? OsInstallDate { get; set; }
 
     public DateOnly? LastPatchDate { get; set; }
 
-    public int? ParentHostAssetId { get; set; }
+    public int? ClusterId { get; set; }
+
+    public string? SystemGroup { get; set; }
+
+    public string? Fqdn { get; set; }
+
+    public int? ServerZoneId { get; set; }
+
+    public string? Environment { get; set; }
+
+    public string? Criticality { get; set; }
+
+    public int? ServerStatusId { get; set; }
+
+    public int? OsTypeId { get; set; }
+
+    public int? OsVersionId { get; set; }
 
     public virtual Asset Asset { get; set; } = null!;
 
-    public virtual Asset? ParentHostAsset { get; set; }
+    public virtual Cluster? Cluster { get; set; }
+
+    public virtual OsType? OsType { get; set; }
+
+    public virtual OsVersion? OsVersion { get; set; }
+
+    public virtual ServerStatus? ServerStatus { get; set; }
+
+    public virtual NetworkZone? ServerZone { get; set; }
 }
