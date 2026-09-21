@@ -14,13 +14,13 @@
 | Database Design | ✅ เสร็จ **และทดสอบรันจริงผ่านแล้ว** — 66 ตาราง · 45 Temporal · 45 View · 10 Trigger บน SQL Server 2022 จริง (ล่าสุด 20 ก.ย. 2569 รวม VLAN Secondary Subnet + Application Module) |
 | UI/UX Design | ✅ เสร็จ — User Flow · Wireframe 9 หน้า · Design System · หน้าตั้งค่า 25 หน้า |
 | Tech Stack | ✅ ตัดสินใจแล้ว — ASP.NET Core (.NET 8) + EF Core + Next.js |
-| **โค้ดจริง** | 🟡 **Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 เริ่มแล้ว** — Login/RBAC/จัดการผู้ใช้/Master Data/Asset CRUD ครบ 7/8 หมวด ใช้งานได้จริง (§1.4, §1.5, §1.6) · Software License + Attachment/Audit Log UI/Rack/VLAN/Application ยังไม่เริ่ม (ส่วนที่เหลือของ Sprint 3 + Sprint 4) |
+| **โค้ดจริง** | 🟡 **Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ** — Login/RBAC/จัดการผู้ใช้/Master Data/Asset CRUD ครบ 7/8 หมวด/Audit Log UI ใช้งานได้จริง (§1.4, §1.5, §1.6, §1.7) · Software License + Attachment/Rack/VLAN/Application ยังไม่เริ่ม (ส่วนที่เหลือของ Sprint 3 + Sprint 4) |
 
 **สรุป 1 บรรทัด:** Design เสร็จหมดแล้ว ฐานข้อมูลทดสอบผ่านแล้ว Backend/Frontend เชื่อมต่อกันจริง
 Login + RBAC + จัดการผู้ใช้ + Layout ใช้งานได้ (Sprint 1) บันทึก/ค้นหา Master Data ได้จริง (Sprint 2)
-และตอนนี้ Asset CRUD ครบ 7 ใน 8 หมวดแล้วด้วย (Sprint 3 บางส่วน §1.6) — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริง
-ที่ยังไม่ได้รับ** (§1.2) กับ **Windows Server ทดสอบ AD/FSRM** (§1.1) ไม่ใช่การตัดสินใจสถาปัตยกรรม
-หรือความเสี่ยงจาก Schema/Stack ที่ไม่เคยพิสูจน์แล้วอีกต่อไป
+Asset CRUD ครบ 7 ใน 8 หมวด และตอนนี้ดู Audit Log ผ่านหน้าเว็บได้จริงแล้วด้วย (Sprint 3 บางส่วน §1.6, §1.7)
+— คอขวดตอนนี้เหลือแค่ **ข้อมูลจริงที่ยังไม่ได้รับ** (§1.2) กับ **Windows Server ทดสอบ AD/FSRM** (§1.1)
+ไม่ใช่การตัดสินใจสถาปัตยกรรมหรือความเสี่ยงจาก Schema/Stack ที่ไม่เคยพิสูจน์แล้วอีกต่อไป
 
 ---
 
@@ -141,9 +141,31 @@ Plan เดิมเองแยกมันไว้ที่ Sprint 4 (ต้�
 เปลี่ยนช่องกรอกอิสระเป็น Dropdown ปิดตายตัวในฟอร์ม แทนที่จะปล่อยให้ผู้ใช้เจอ Error จากฐานข้อมูลตรงๆ
 
 **คงเหลือใน Sprint 3 (ยังไม่ทำรอบนี้):** Attachment · Audit Log UI (มี Backend Audit Log ทำงานอยู่
-แล้วตั้งแต่ Sprint 2 แต่ยังไม่มีหน้าดู) · Storage/Cluster · Rack พร้อมผังกราฟิก · VLAN + Site
-(รองรับ Secondary Subnet/Untagged) · Application บน Server (v1.6) — Software License เลื่อนไป
-Sprint 4 ตามแผนเดิม
+แล้วตั้งแต่ Sprint 2 แต่ยังไม่มีหน้าดู — **ทำแล้วใน §1.7**) · Storage/Cluster · Rack พร้อมผังกราฟิก ·
+VLAN + Site (รองรับ Secondary Subnet/Untagged) · Application บน Server (v1.6) — Software License
+เลื่อนไป Sprint 4 ตามแผนเดิม
+
+---
+
+### 1.7 🟡 Sprint 3 (บางส่วน) — Audit Log UI (21 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.8 — สรุปสั้น:
+
+| ส่วน | สถานะ |
+|---|---|
+| `GET /api/audit-logs` (List + Filter + Pagination) และ `GET /api/audit-logs/{id}` (Detail) | ✅ ทดสอบกับ SQL Server จริง |
+| หน้า `/audit-logs` — เมนู Sidebar ที่เคยเป็นลิงก์ตายตั้งแต่ Sprint 1 ใช้งานได้แล้ว | ✅ |
+| Filter: Search (Username/Entity Label) · Action · Entity Type · ช่วงวันที่ | ✅ |
+| คลิกแถวขยายดู Before/After JSON | ✅ UI ทำงานถูกต้อง แต่ยังไม่มีข้อมูลจริงให้แสดง (ดูข้อจำกัดด้านล่าง) |
+
+**พบระหว่างทดสอบ:** Action ที่มีจริงในตารางมากกว่าที่เอกสาร Sprint ก่อนหน้าเคยบันทึกไว้ — `AuthService.cs`
+เขียน Audit Log เอง (Action `LOGIN`/`LOGIN_FAILED`) แยกจาก `AuthController.cs` ที่เขียนแค่
+`PASSWORD_CHANGE` — grep ตอนออกแบบ Filter ครั้งแรกจับไม่ครบ แก้โดยเพิ่มทั้งสอง Action เข้า Dropdown
+
+**ข้อจำกัดที่รู้ตัว (ไม่ใช่ Bug ของงานรอบนี้):** คอลัมน์ `before_json`/`after_json`/`changed_fields`
+ไม่เคยถูกเขียนค่าจริงจาก Controller ไหนเลยตั้งแต่ Sprint ก่อนหน้า (มีแค่ `EntityId`/`EntityLabel`) —
+หน้า Detail จึงแสดง "—" เสมอ ต้องเพิ่ม Diff Tracking ใน `AssetsController`/`UsersController` ทีหลังถ้า
+ต้องการเห็นค่าก่อน/หลังจริง
 
 ---
 
@@ -156,7 +178,7 @@ Sprint 4 ตามแผนเดิม
 | **0** | ~~รัน SQL 8 ไฟล์ · Setup .NET Solution + Next.js Project~~ ✅ เสร็จแล้ว (ดู §1.3) — เหลือ Seed Data ชุดจริง + Deploy Pipeline | Repo พร้อมพัฒนา · Backend↔DB↔Frontend ต่อกันจริงแล้ว | 1 |
 | **1** | ~~Auth (Argon2id+JWT ตาม Schema เดิม แทน ASP.NET Core Identity โดยตรง) · RBAC 4 บทบาท · จัดการผู้ใช้ · Layout + Dark Mode + กันจอขาววาบ~~ ✅ เสร็จแล้ว (ดู §1.4) | Login และควบคุมสิทธิ์ได้ | 4 |
 | **2** | ~~Master Data CRUD (11/12 หน้า — เหลือ `device_models` รอผังต้นไม้ `asset_type`) · Asset CRUD (Server/Network) · ค้นหา-กรอง~~ ✅ เสร็จแล้ว (ดู §1.5) | บันทึก/ค้นหาทรัพย์สินหลักได้ · หน้าตั้งค่าพื้นฐานครบ | 5 |
-| **3** | ~~Asset ประเภทที่เหลือ 5 หมวด (Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT)~~ ✅ เสร็จแล้ว (ดู §1.6) — เหลือ Software License (เลื่อนไป Sprint 4) · Attachment · Audit Log UI · Storage/Cluster · Rack (พร้อมผังกราฟิก) · VLAN + Site (1st/2nd, รองรับ Secondary Subnet/Untagged) · Application บน Server (v1.6) | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
+| **3** | ~~Asset ประเภทที่เหลือ 5 หมวด (Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT)~~ ✅ เสร็จแล้ว (ดู §1.6) · ~~Audit Log UI~~ ✅ เสร็จแล้ว (ดู §1.7) — เหลือ Software License (เลื่อนไป Sprint 4) · Attachment · Storage/Cluster · Rack (พร้อมผังกราฟิก) · VLAN + Site (1st/2nd, รองรับ Secondary Subnet/Untagged) · Application บน Server (v1.6) | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
 | **4** | Software License · Seat Counting · CMDB Relationship · Contracts (เครื่องเดียว/หลายเครื่อง) | บริหาร License และความสัมพันธ์ได้ | 4 |
 | **5** | Dashboard · Reports · Export Excel | เห็นภาพรวมและออกรายงานได้ | 3 |
 | **6** | Excel Import + Validation · Notification (Email + In-app) · Settings หน้า SMTP/เกณฑ์แจ้งเตือน | นำเข้าข้อมูลเดิมและแจ้งเตือนอัตโนมัติได้ | 3 |

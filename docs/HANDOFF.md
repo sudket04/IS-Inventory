@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-20 · commit `5d710a9` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 เริ่มแล้ว (Asset CRUD ครบ 7/8 หมวด)** |
-| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด (Server/Network/Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT) พร้อม Pagination/Search ทำงานจริง** (ดู §4.5, §4.6, §4.7) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, Attachment, Audit Log UI, Rack, VLAN/Site, Application ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) |
+| **อัปเดตล่าสุด** | 2569-09-21 · commit `a1b403b` |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI เสร็จแล้ว)** |
+| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด + Audit Log UI (List/Filter/Detail) ทำงานจริง** (ดู §4.5, §4.6, §4.7, §4.8) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, Attachment, Rack, VLAN/Site, Application ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) |
 
 ---
 
@@ -52,7 +52,7 @@
 | **1. Requirement** | ✅ เสร็จ | `docs/PRD.md` |
 | **2. UI/UX Design** | ✅ เสร็จ | `docs/design/01` `02` `03` |
 | **3. Database** | ✅ เสร็จ (v1.0 → v1.6) — ทดสอบรันจริงบน SQL Server แล้ว | `docs/database/01`–`15` |
-| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 เริ่มแล้ว | `docs/ROADMAP.md` §1.3–§1.6 |
+| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ | `docs/ROADMAP.md` §1.3–§1.7 |
 
 ---
 
@@ -223,10 +223,38 @@ List/Search/Filter/Update/Soft Delete ครบ จากนั้นทดส�
 และเปิดฟอร์มแก้ไข Computer ที่มีข้อมูลอยู่แล้วเพื่อยืนยันว่าค่าที่บันทึกไว้โหลดกลับมาแสดงถูกต้อง
 ลบข้อมูลทดสอบออกหลังทดสอบเสร็จเช่นเดิม
 
-**ยังไม่ทำใน Sprint 3:** Software License CRUD (รอ Sprint 4), Attachment, Audit Log UI (มี Backend
-Audit Log อยู่แล้วแต่ยังไม่มีหน้าดู), Storage/Cluster, Rack พร้อมผังกราฟิก, VLAN + Site, Application
+**ยังไม่ทำใน Sprint 3 (ตอนนั้น):** Software License CRUD (รอ Sprint 4), Attachment, Audit Log UI (มี Backend
+Audit Log อยู่แล้วแต่ยังไม่มีหน้าดู — **ทำแล้วใน §4.8**), Storage/Cluster, Rack พร้อมผังกราฟิก, VLAN + Site, Application
 บน Server (v1.6), Asset Type/Location Tree Picker (บล็อก `device_models`, `asset_type_id`/`model_id`,
 Autocomplete เลือก Parent Host/Uplink Asset), Self Change Password UI
+
+---
+
+### 4.8 Backend/Frontend — Sprint 3 (บางส่วน): Audit Log UI (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** เมนู "Audit Logs" ในแถบด้านซ้ายมีอยู่แล้วตั้งแต่ Sprint 1 แต่ไม่มีหน้าจอ
+(จะ 404) — และ Backend เขียน Audit Log ลงตาราง `dbo.audit_logs` มาตั้งแต่ Sprint 1/2 แล้ว (ทุก
+CREATE/UPDATE/DELETE ของ Asset, User, Password Change, และ Login/Login Failed ผ่าน `AuthService.WriteAuditAsync`)
+แต่ไม่เคยมีใครอ่านออกมาดูได้เลยนอกจาก query SQL ตรง จึงเป็นงานที่ทำได้ทันทีโดยไม่ต้องรอ Sprint 4
+และปิดช่องว่างที่ชัดเจนที่สุดใน Sprint 3 ที่เหลือ
+
+| ส่วน | รายละเอียด |
+|---|---|
+| Backend — Controller ใหม่ | `AuditLogsController.cs` (`GET /api/audit-logs` list แบบ Pagination + Filter, `GET /api/audit-logs/{id}` ดูรายละเอียด) — Read-only ทั้งคู่ เพราะตาราง `audit_logs` เป็น Append-only ตาม decision #3 |
+| Policy | `[Authorize(Policy = "AuditorOrAbove")]` — ตรงกับ Role ที่กำหนดไว้ใน `nav.ts` (`ADMIN`, `IT_STAFF`, `AUDITOR`) พอดี ใช้ Policy เดิมที่มีอยู่แล้วใน `Program.cs` ไม่ต้องเพิ่มใหม่ |
+| Filter ที่รองรับ | `entityType`, `action`, `userId`, `search` (ค้น Username/Entity Label), `dateFrom`/`dateTo` — เรียงจากใหม่ไปเก่าเสมอ |
+| **พบระหว่างทดสอบ** | Action จริงมีมากกว่าที่เอกสาร Sprint ก่อนหน้าระบุไว้ — `AuthService.cs` เขียน `LOGIN` และ `LOGIN_FAILED` เองอีกที่หนึ่ง (แยกจาก `AuthController.cs`) ไม่ได้ถูกจับตอน grep ครั้งแรก แก้โดยเพิ่มทั้งสอง Action เข้า Dropdown Filter ของหน้าเว็บ |
+| Frontend — หน้าใหม่ | `/audit-logs` — ตาราง + Filter (Search/Action/Entity Type/ช่วงวันที่) + Pagination รูปแบบเดียวกับหน้า Assets, คลิกแถวเพื่อขยายดู Before/After JSON (Pretty-print ถ้า Parse ได้) |
+| **ข้อจำกัดที่รู้ตัว** | คอลัมน์ `before_json`/`after_json`/`changed_fields` ในตาราง `audit_logs` ยังไม่เคยถูกเขียนค่าจริงจาก Controller ไหนเลย (ตรวจสอบแล้วว่า `AssetsController`/`UsersController` ใส่แค่ `EntityId`/`EntityLabel`) — หน้า Audit Log Detail จึงแสดง "—" เสมอในตอนนี้ ยังไม่ได้ทำ Diff Tracking จริง เป็นงานที่ต้องทำเพิ่มถ้าต้องการเห็นค่าก่อน/หลังจริงๆ (ไม่ใช่ Bug ของหน้านี้ แต่เป็นข้อมูลที่ Backend Sprint ก่อนหน้ายังไม่เคยส่งมาให้) |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** curl ทดสอบ `GET /api/audit-logs` ทั้งไม่มี Filter, Filter
+`action=LOGIN_FAILED`, `search=admin`, `entityType=asset`, และ `GET /api/audit-logs/{id}` — ทดสอบซ้ำผ่าน UI
+จริงด้วย Playwright: เข้าเมนู Audit Logs จาก Sidebar (ยืนยันว่าลิงก์เดิมที่เคยตายใช้งานได้แล้ว),
+Filter ตาม Action, ค้นหาด้วย Search Box ของหน้า (ระวัง Selector ชนกับ Search Box บน Topbar เพราะเป็น
+`input[type=search]` เหมือนกัน — แก้ Test Script ด้วย Placeholder เจาะจง ไม่ใช่ Bug ของหน้าเว็บ), และขยายแถวดู
+Before/After Panel — ผลลัพธ์ตรงกับ curl ทุกกรณี
+
+**ยังไม่ทำ:** Diff Tracking จริง (Before/After JSON), Export Audit Log เป็นไฟล์, การแจ้งเตือน Anomaly
 
 ---
 
