@@ -10,6 +10,7 @@ import {
   Database,
   Sliders,
   Layers,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,6 +26,7 @@ const ICONS: Record<string, LucideIcon> = {
   database: Database,
   sliders: Sliders,
   layers: Layers,
+  warehouse: Warehouse,
 };
 
 export function NavIcon({ name, className }: { name: string; className?: string }) {
