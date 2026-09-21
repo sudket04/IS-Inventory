@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-21 · commit `f71f7b0` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment + Application บน Server เสร็จแล้ว)** |
-| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment + Application บน Server ทำงานจริง** (ดู §4.5–§4.10) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, Storage/Cluster, Rack, VLAN/Site UI ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) |
+| **อัปเดตล่าสุด** | 2569-09-21 · commit `ba10077` |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment + Application บน Server + Storage/Cluster เสร็จแล้ว)** |
+| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume ทำงานจริง** (ดู §4.5–§4.11) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, Rack, VLAN/Site UI ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) |
 
 ---
 
@@ -52,7 +52,7 @@
 | **1. Requirement** | ✅ เสร็จ | `docs/PRD.md` |
 | **2. UI/UX Design** | ✅ เสร็จ | `docs/design/01` `02` `03` |
 | **3. Database** | ✅ เสร็จ (v1.0 → v1.6) — ทดสอบรันจริงบน SQL Server แล้ว | `docs/database/01`–`15` |
-| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ | `docs/ROADMAP.md` §1.3–§1.9 |
+| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ | `docs/ROADMAP.md` §1.3–§1.10 |
 
 ---
 
@@ -327,6 +327,39 @@ Applications เลย — ลบข้อมูลทดสอบหลัง�
 **ยังไม่ทำ:** หน้า Browse Application แบบรวมทุก Server (ตอนนี้ดูได้ทีละเครื่องผ่านหน้า Edit Asset เท่านั้น
 ตาม Scope ที่ตกลงไว้ว่า Site จำกัดเฉพาะโมดูลนี้กับ VLAN — ยังไม่มีหน้า Master Data สำหรับ Site เพราะเป็น
 Lookup 2 ค่าคงที่ ไม่ใช่ข้อมูลที่ผู้ใช้ต้องจัดการเอง)
+
+---
+
+### 4.11 Backend/Frontend — Sprint 3 (บางส่วน): Storage/Cluster (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** โมดูล v1.2 (`docs/database/06-module-v1.2.sql`) — `dbo.clusters` (VM/Storage/DB
+Cluster), `dbo.cluster_members` (สมาชิก Cluster ผูกกับ Asset), `dbo.storage_volumes` (แทนที่ฟิลด์
+`storage_config` แบบข้อความอิสระเดิมของ Server ด้วยตัวเลขจริง) — EF Entity มีอยู่แล้วตั้งแต่ก่อนหน้า
+(รวม View `vw_cluster_overview`, `vw_asset_storage_summary`) เหลือแค่ Controller/UI เช่นเดียวกับ
+Application บน Server (§4.10)
+
+| ส่วน | รายละเอียด |
+|---|---|
+| Backend — Controller ใหม่ | `ClustersController.cs` (CRUD Cluster + Members), `StorageVolumesController.cs` (แยก Route ตามเจ้าของ: `/api/assets/{id}/storage-volumes` กับ `/api/clusters/{id}/storage-volumes` เพื่อให้แต่ละ Route สร้างได้แค่รูปแบบที่ Schema อนุญาตเท่านั้น — Asset-owned ต้อง `is_shared=0` เสมอ, Cluster-owned ต้อง `is_shared=1` เสมอ ตรงกับ `CK_vol_shared_cluster`) |
+| Policy | List = `AnyRole` · Create/Update/Delete = `ItStaffOrAbove` (รูปแบบเดียวกับโมดูลอื่นใน Sprint 3) |
+| Cluster ไม่มี `is_deleted` | เหมือน `server_applications` — Delete เป็น Hard Delete จริง แต่ถ้ายังมี Member หรือ Storage Volume อ้างอิงอยู่ (ไม่มี `ON DELETE CASCADE` ตาม Decision #10) จะโดน SQL Error 547 (Reference/CHECK Violation) ซึ่งจับแปลงเป็น 409 พร้อมข้อความ "ลบ Member/Volume ออกก่อน" แทนที่จะโยน Stack Trace ดิบ |
+| Cluster Member — วงจรชีวิตที่ Schema ออกแบบไว้แล้ว | "ออกจาก Cluster" ไม่ใช่การลบแถว แต่ตั้ง `left_date = วันนี้` (คอลัมน์ `is_active` เป็น Computed Column คำนวณจาก `left_date IS NULL` อยู่แล้ว) — ประวัติการเป็นสมาชิกจึงยังอยู่ครบ กลับเข้า Cluster ใหม่ได้เพราะ Unique Index กันซ้ำเฉพาะสมาชิกที่ Active เท่านั้น (`UX_cluster_members_active ... WHERE left_date IS NULL`) — มีปุ่ม Hard Delete แยกไว้สำหรับกรณีกรอกผิดจริงๆ |
+| Storage Volume — Computed Column | `free_gb`/`used_percent` เป็น Computed Column บน SQL Server (`PERSISTED`) — EF Core รู้จักผ่าน `HasComputedColumnSql` อยู่แล้วตั้งแต่ Scaffold จึงไม่ส่งค่าตอน INSERT/UPDATE ไม่ต้องเขียนโค้ดจัดการเพิ่ม |
+| Frontend — หน้าใหม่ | เมนู "Clusters" ใหม่ในแถบซ้าย → `/clusters` (List จาก `vw_cluster_overview` พร้อม Badge "Degraded"), `/clusters/new`, `/clusters/{id}` (ฟอร์มแก้ไข + Panel Members + Panel Storage Volumes) |
+| Frontend — Storage Volumes Panel (Reusable) | Component เดียวใช้ได้ทั้งบนหน้า Asset (Server/Storage เท่านั้น) และหน้า Cluster โดยรับ Prop `owner: {assetId} \| {clusterId}` แทนการเขียนซ้ำสองชุด |
+| **พบระหว่างทดสอบ (แก้แล้ว)** | ส่ง `clusterType`/`memberRole` ที่ไม่อยู่ใน CHECK Constraint ผ่าน curl ตรงๆ (ข้าม Dropdown ของ UI) ทำให้ได้ 500 พร้อม Stack Trace ดิบ — เพิ่ม `catch (DbUpdateException) when (Error 547)` ในทุก Endpoint ที่เขียนค่า Enum แปลงเป็น 400 ข้อความอ่านง่าย เหมือนที่เคยแก้ให้ Assets/Audit Log ไปแล้วในสัปดาห์นี้ |
+| Autocomplete Asset ID | ฟอร์ม "Add Member"/"Storage Volume Provider" ยังใช้ช่องกรอก Asset ID เป็นตัวเลขธรรมดา ไม่ใช่ Autocomplete ค้นหา — จงใจให้สอดคล้องกับ Parent Host/Uplink Asset ที่เป็นช่องว่างที่รู้อยู่แล้วตั้งแต่ Sprint 2 (ไม่ขยายขอบเขตสร้าง Component ใหม่กลางทาง) |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** curl ทดสอบ Cluster CRUD ครบ (Duplicate Code 409, Invalid Enum
+400 หลังแก้), Member Join/Duplicate-Active 409/Invalid Role 400/Leave-then-Rejoin (ยืนยัน Unique Index
+กรองแค่ Active), Storage Volume ทั้ง Asset-owned และ Cluster-shared (Used > Capacity ถูกปฏิเสธ 400,
+Computed Column `free_gb`/`used_percent` คำนวณถูกต้องจาก DB), Delete Cluster ที่ยังมี Member/Volume
+ถูกบล็อก 409, RBAC ด้วย VIEWER (List/ดู 200, Create/Add Member 403) — ทดสอบซ้ำผ่าน UI จริงด้วย
+Playwright: หน้า List เห็น Badge Degraded และสรุป Shared Storage, หน้า Cluster Detail เห็นทั้ง Members
+(รวมประวัติ Left/Rejoined) และ Storage Volumes, สร้าง Cluster ใหม่ผ่านฟอร์มจริงสำเร็จ, Storage Volumes
+Panel ปรากฏถูกต้องบนหน้า Server Asset — ลบข้อมูลทดสอบหลังทดสอบเสร็จเช่นเดิม
+
+**ยังไม่ทำ:** Rack พร้อมผังกราฟิก, VLAN + Site UI (Entity/Schema มีอยู่แล้วแต่ยังไม่มี Controller/หน้าเว็บ)
 
 ---
 
