@@ -20,6 +20,10 @@ interface UserListItem {
   isActive: boolean;
   lastLoginAt: string | null;
   mustChangePassword: boolean;
+  siteId: number;
+  siteName: string;
+  teamId: number;
+  teamName: string;
 }
 
 interface RoleItem {
@@ -28,12 +32,19 @@ interface RoleItem {
   name: string;
 }
 
-const emptyForm = { username: "", email: "", fullName: "", initialPassword: "", roleId: "" };
+interface PickerOption {
+  id: number;
+  label: string;
+}
+
+const emptyForm = { username: "", email: "", fullName: "", initialPassword: "", roleId: "", siteId: "", teamId: "" };
 
 export default function AdminUsersPage() {
   const { user: me } = useAuth();
   const [users, setUsers] = React.useState<UserListItem[]>([]);
   const [roles, setRoles] = React.useState<RoleItem[]>([]);
+  const [sites, setSites] = React.useState<PickerOption[]>([]);
+  const [teams, setTeams] = React.useState<PickerOption[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [showForm, setShowForm] = React.useState(false);
   const [form, setForm] = React.useState(emptyForm);
@@ -51,6 +62,8 @@ export default function AdminUsersPage() {
       await Promise.all([
         loadUsers(),
         apiFetch("/api/roles").then((res) => (res.ok ? res.json() : [])).then(setRoles),
+        apiFetch("/api/pickers/user-sites").then((res) => (res.ok ? res.json() : [])).then(setSites),
+        apiFetch("/api/pickers/user-teams").then((res) => (res.ok ? res.json() : [])).then(setTeams),
       ]);
       setLoading(false);
     })();
@@ -63,7 +76,14 @@ export default function AdminUsersPage() {
 
     const res = await apiFetch("/api/users", {
       method: "POST",
-      body: JSON.stringify({ ...form, roleId: Number(form.roleId), departmentId: null, phone: null }),
+      body: JSON.stringify({
+        ...form,
+        roleId: Number(form.roleId),
+        siteId: Number(form.siteId),
+        teamId: Number(form.teamId),
+        departmentId: null,
+        phone: null,
+      }),
     });
 
     setSubmitting(false);
@@ -88,6 +108,8 @@ export default function AdminUsersPage() {
         departmentId: null,
         phone: null,
         isActive: !u.isActive,
+        siteId: u.siteId,
+        teamId: u.teamId,
       }),
     });
     if (!res.ok) {
@@ -174,6 +196,44 @@ export default function AdminUsersPage() {
               ))}
             </select>
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="new-site">Site</Label>
+            <select
+              id="new-site"
+              required
+              value={form.siteId}
+              onChange={(e) => setForm((f) => ({ ...f, siteId: e.target.value }))}
+              className="h-9 w-full rounded-md border border-border-default bg-bg-surface px-3 text-sm text-text-primary"
+            >
+              <option value="" disabled>
+                Select a site
+              </option>
+              {sites.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="new-team">Team</Label>
+            <select
+              id="new-team"
+              required
+              value={form.teamId}
+              onChange={(e) => setForm((f) => ({ ...f, teamId: e.target.value }))}
+              className="h-9 w-full rounded-md border border-border-default bg-bg-surface px-3 text-sm text-text-primary"
+            >
+              <option value="" disabled>
+                Select a team
+              </option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="col-span-2 space-y-1.5">
             <Label htmlFor="new-password">Initial password</Label>
             <Input
@@ -215,6 +275,8 @@ export default function AdminUsersPage() {
               <th className="px-3 py-2 font-medium">Name</th>
               <th className="px-3 py-2 font-medium">Username</th>
               <th className="px-3 py-2 font-medium">Role</th>
+              <th className="px-3 py-2 font-medium">Site</th>
+              <th className="px-3 py-2 font-medium">Team</th>
               <th className="px-3 py-2 font-medium">Status</th>
               <th className="px-3 py-2 font-medium">Last login</th>
               <th className="px-3 py-2 font-medium" />
@@ -223,7 +285,7 @@ export default function AdminUsersPage() {
           <tbody className="divide-y divide-border-default bg-bg-surface">
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-3 py-4 text-center text-text-tertiary">
+                <td colSpan={8} className="px-3 py-4 text-center text-text-tertiary">
                   Loading…
                 </td>
               </tr>
@@ -233,6 +295,8 @@ export default function AdminUsersPage() {
                   <td className="px-3 py-2 text-text-primary">{u.fullName}</td>
                   <td className="px-3 py-2 text-text-secondary">{u.username}</td>
                   <td className="px-3 py-2 text-text-secondary">{u.roleName}</td>
+                  <td className="px-3 py-2 text-text-secondary">{u.siteName}</td>
+                  <td className="px-3 py-2 text-text-secondary">{u.teamName}</td>
                   <td className="px-3 py-2">
                     <span
                       className={cn(

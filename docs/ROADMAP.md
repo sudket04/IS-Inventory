@@ -448,6 +448,29 @@ Filter (`IAsyncAuthorizationFilter`) ให้รันเร็วกว่า 
 ทันที (ทดสอบยิง `api/lookups/vendors` ผ่านจริงหลัง Override), ล้าง Override แล้วสิทธิ์กลับตาม Role ทันที,
 Admin แก้สิทธิ์ตัวเองโดนบล็อก (`409`) — ลบ/ปิดข้อมูลทดสอบออกหมดแล้ว
 
+**หมายเหตุ (ถามจากผู้ใช้ก่อน Phase 2):** ยังไม่มี Audit Log ฝั่ง "ถูกบล็อก" (Self-protection 409 และ
+RequiresPermission 403) — มีแค่ฝั่ง "สำเร็จ" เท่านั้น รอคำสั่งผู้ใช้ว่าจะเพิ่มก่อนไป Phase 2 หรือไม่
+
+---
+
+### 1.20 🟡 นอก Sprint Plan — User: Site + Team บังคับเลือก (21 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.21 — สรุปสั้น:
+
+| ส่วน | สถานะ |
+|---|---|
+| `dbo.user_sites` (1st Site/2nd Site) + `dbo.user_teams` (Admin/Support/Develop Team) — Lookup ใหม่แยกจาก `vlan_sites` เดิม | ✅ |
+| `dbo.users.site_id`/`team_id` บังคับ NOT NULL — Backfill บัญชีเดิมเป็น Default (1st Site + Admin Team) | ✅ |
+| Backend Validate + `api/pickers/user-sites`/`user-teams` | ✅ |
+| Frontend ฟอร์มสร้าง User บังคับเลือก Site/Team | ✅ |
+
+**บั๊กที่พบระหว่าง Migrate และแก้แล้ว:** `dbo.users` เป็น Temporal Table — SQL Server บังคับ Nullability
+ตรงกันระหว่างตารางหลักกับ `users_history` ก่อนเปิด System Versioning กลับได้ ต้อง Backfill + ตั้ง NOT NULL
+บนตารางประวัติด้วย ไม่ใช่แค่ตารางหลัก (รายละเอียดเต็มใน `18-module-user-site-team.sql`)
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** Picker คืนค่าถูกต้อง, สร้าง User ไม่กรอก/กรอกผิดโดนบล็อก (`400`),
+สร้างสำเร็จแสดงผลถูกต้อง, บัญชีเดิมได้ Default ถูกต้อง — ลบ/ปิดข้อมูลทดสอบออกหมดแล้ว
+
 ---
 
 ## 2. Sprint Plan (Sprint 0–10, รวม ~49 วันทำงาน)

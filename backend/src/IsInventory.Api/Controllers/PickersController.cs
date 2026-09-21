@@ -28,6 +28,16 @@ public sealed class PickersController : ControllerBase
         Ok(await _db.Departments.Where(d => d.IsActive).OrderBy(d => d.Name)
             .Select(d => new Option(d.DepartmentId, d.Name)).ToListAsync(ct));
 
+    [HttpGet("user-sites")]
+    public async Task<ActionResult<IEnumerable<Option>>> UserSites(CancellationToken ct) =>
+        Ok(await _db.UserSites.OrderBy(s => s.SortOrder)
+            .Select(s => new Option(s.SiteId, s.Name)).ToListAsync(ct));
+
+    [HttpGet("user-teams")]
+    public async Task<ActionResult<IEnumerable<Option>>> UserTeams(CancellationToken ct) =>
+        Ok(await _db.UserTeams.OrderBy(t => t.SortOrder)
+            .Select(t => new Option(t.TeamId, t.Name)).ToListAsync(ct));
+
     [HttpGet("locations")]
     public async Task<ActionResult<IEnumerable<Option>>> Locations(CancellationToken ct) =>
         Ok(await _db.Locations.Where(l => l.IsActive).OrderBy(l => l.Name)

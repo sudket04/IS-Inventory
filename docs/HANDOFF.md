@@ -662,6 +662,35 @@ Enforcement + กรองเมนูจริง — รอบนี้; Phase
 (Next.js 16 Turbopack) ผ่านสะอาด — ยังไม่ได้ทดสอบผ่าน Browser จริงด้วย Playwright รอบนี้ (Phase 1 เน้น
 Backend Enforcement เป็นหลัก จะทดสอบ UI เต็มรูปแบบพร้อม Phase 2)
 
+**หมายเหตุ (ถามจากผู้ใช้ก่อน Phase 2):** ตอนนี้มี Audit Log เฉพาะฝั่ง "สำเร็จ" (Admin ตั้ง/ล้าง Override
+บันทึกเป็น `SETTING_CHANGE`) — ฝั่ง "ถูกบล็อก" ยังไม่มี Audit เลยทั้ง Self-protection 409 (พยายามแก้สิทธิ์/
+Role/Disable ตัวเอง) และ `RequiresPermissionAttribute` 403 (ยิง Endpoint ที่ไม่มีสิทธิ์) — ยังไม่ได้แก้
+รอคำสั่งผู้ใช้
+
+---
+
+### 4.21 Backend/Frontend — User: Site + Team (บังคับเลือกตอนสร้าง) (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** ผู้ใช้ขอเพิ่ม 2 ฟิลด์บังคับบนบัญชีผู้ใช้ — **Site** (เลือกจาก "1st Site"/"2nd Site")
+และ **Team** (เลือกจาก "Admin Team"/"Support Team"/"Develop Team") ถามยืนยัน 2 จุดก่อนทำ: (1) แยกเป็น
+Lookup ใหม่ต่างหาก ไม่ใช้ร่วมกับ `vlan_sites` เดิม (2) Backfill บัญชีเดิมเป็นค่า Default (1st Site +
+Admin Team) ตอน Migrate
+
+| ส่วน | รายละเอียด |
+|---|---|
+| Database — `18-module-user-site-team.sql` | ตารางใหม่ 2 ตัว (`user_sites` Seed 2 แถว, `user_teams` Seed 3 แถว) + `dbo.users` เพิ่มคอลัมน์ `site_id`/`team_id` NOT NULL พร้อม FK — Backfill บัญชีเดิมเป็น Default ก่อนบังคับ NOT NULL |
+| **บั๊กที่พบระหว่างทำ Migration และแก้แล้ว** | `dbo.users` เป็น Temporal Table (System-Versioned) — พบว่า SQL Server บังคับให้ **Nullability ของคอลัมน์ต้องตรงกันทั้งตารางหลักและตารางประวัติ (`users_history`)** ก่อนเปิด System Versioning กลับได้ (ต่างจากกรณี v1.7 ที่คอลัมน์ใหม่ยังเป็น NULL ได้ทั้งคู่เลยไม่เจอปัญหานี้) ต้อง Backfill + `ALTER COLUMN NOT NULL` บน `users_history` ด้วย และต้อง `DROP INDEX` ก่อน `ALTER COLUMN` แล้วค่อยสร้างใหม่ (SQL Server ไม่ให้เปลี่ยน Nullability ตรงๆ ถ้ามี Index อยู่) |
+| Backend — `PickersController` เพิ่ม 2 Endpoint | `api/pickers/user-sites`, `api/pickers/user-teams` (Read-only ให้ทุก Role ใช้เป็น Dropdown เหมือน Pattern เดิม) |
+| Backend — `UsersController` | `CreateUserRequest`/`UpdateUserRequest` เพิ่ม `SiteId`/`TeamId` (บังคับ, Validate ว่ามีอยู่จริงก่อนบันทึก ไม่งั้น `400 invalid_site`/`invalid_team`) — `UserListItem` ส่ง `siteName`/`teamName` กลับไปแสดงผลด้วย |
+| Frontend — หน้า Admin > Users | ฟอร์มสร้าง User เพิ่ม Dropdown Site + Team (บังคับเลือกทั้งคู่) ตารางแสดงคอลัมน์ Site/Team เพิ่ม |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** Picker คืนค่าตรงตามที่กำหนด (2 Site, 3 Team), สร้าง User ไม่ใส่
+Site/Team โดนบล็อก (`400 invalid_site`), ใส่ Site/Team ที่ไม่มีจริงโดนบล็อก (`400`), สร้างสำเร็จด้วยค่า
+ถูกต้องแสดงชื่อ Site/Team กลับมาถูกต้อง, แก้ไข User (Deactivate) ผ่าน Site/Team เดิมได้ปกติ, บัญชีเดิมที่
+เคย Migrate มา (`admin` และบัญชีทดสอบเก่า) ได้ค่า Default "1st Site"/"Admin Team" ถูกต้องครบ — **Backend**
+`dotnet build` ผ่านสะอาด, **Frontend** `npx tsc --noEmit`/`npm run build` ผ่านสะอาด — ลบ/ปิดข้อมูลทดสอบ
+ออกหมดแล้ว
+
 ---
 
 ## 5. โครงสร้างฐานข้อมูลปัจจุบัน
@@ -670,8 +699,9 @@ Backend Enforcement เป็นหลัก จะทดสอบ UI เต็�
 v1.7) — **+ v1.7 (Server Domain, §4.18):** ตารางใหม่ 7 ตัว (`os_types` `os_versions` `server_statuses`
 `server_cpus` `server_memory_modules` `server_local_disks` `storage_volume_consumers` — ไม่มีตัวไหน
 Temporal) + View ใหม่ 1 ตัว (`vw_server_hardware_summary`) — **+ สิทธิ์ต่อเมนูรายคน (§4.20):** ตารางใหม่อีก
-3 ตัว (`menus` `role_menu_permissions` `user_menu_permissions` — ไม่มีตัวไหน Temporal) รวมเป็น
-**76 ตาราง · 46 View**
+3 ตัว (`menus` `role_menu_permissions` `user_menu_permissions` — ไม่มีตัวไหน Temporal) — **+ User Site/Team
+(§4.21):** ตารางใหม่อีก 2 ตัว (`user_sites` `user_teams` — ไม่มีตัวไหน Temporal) รวมเป็น
+**78 ตาราง · 46 View**
 
 ### 5.1 หมวดทรัพย์สิน 8 หมวด (Prefix ของ Asset Tag)
 

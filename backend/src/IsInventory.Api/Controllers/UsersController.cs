@@ -32,7 +32,8 @@ public sealed partial class UsersController : ControllerBase
     public sealed record UserListItem(
         int UserId, string Username, string Email, string FullName,
         string RoleCode, string RoleName, string? DepartmentName, bool IsActive,
-        DateTimeOffset? LastLoginAt, bool MustChangePassword);
+        DateTimeOffset? LastLoginAt, bool MustChangePassword,
+        int SiteId, string SiteName, int TeamId, string TeamName);
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<UserListItem>>> List(CancellationToken ct)
@@ -40,11 +41,14 @@ public sealed partial class UsersController : ControllerBase
         var users = await _db.Users
             .Include(u => u.Role)
             .Include(u => u.Department)
+            .Include(u => u.Site)
+            .Include(u => u.Team)
             .OrderBy(u => u.Username)
             .Select(u => new UserListItem(
                 u.UserId, u.Username, u.Email, u.FullName,
                 u.Role.Code, u.Role.Name, u.Department != null ? u.Department.Name : null, u.IsActive,
-                u.LastLoginAt, u.MustChangePassword))
+                u.LastLoginAt, u.MustChangePassword,
+                u.SiteId, u.Site.Name, u.TeamId, u.Team.Name))
             .ToListAsync(ct);
 
         return Ok(users);
@@ -52,7 +56,7 @@ public sealed partial class UsersController : ControllerBase
 
     public sealed record CreateUserRequest(
         string Username, string Email, string FullName, string InitialPassword,
-        int RoleId, int? DepartmentId, string? Phone);
+        int RoleId, int? DepartmentId, string? Phone, byte SiteId, byte TeamId);
 
     [HttpPost]
     [RequiresPermission("admin_users", PermissionAction.Create)]
@@ -74,6 +78,18 @@ public sealed partial class UsersController : ControllerBase
             return BadRequest(new { error = "invalid_role", message = "Role does not exist." });
         }
 
+        var site = await _db.UserSites.FindAsync([request.SiteId], ct);
+        if (site is null)
+        {
+            return BadRequest(new { error = "invalid_site", message = "Site does not exist." });
+        }
+
+        var team = await _db.UserTeams.FindAsync([request.TeamId], ct);
+        if (team is null)
+        {
+            return BadRequest(new { error = "invalid_team", message = "Team does not exist." });
+        }
+
         var user = new User
         {
             Username = request.Username.Trim(),
@@ -83,6 +99,8 @@ public sealed partial class UsersController : ControllerBase
             RoleId = request.RoleId,
             DepartmentId = request.DepartmentId,
             Phone = request.Phone,
+            SiteId = request.SiteId,
+            TeamId = request.TeamId,
             IsActive = true,
             MustChangePassword = true,
             CreatedBy = CurrentUserId(),
@@ -96,10 +114,12 @@ public sealed partial class UsersController : ControllerBase
 
         return CreatedAtAction(nameof(List), new { id = user.UserId }, new UserListItem(
             user.UserId, user.Username, user.Email, user.FullName, role.Code, role.Name,
-            null, user.IsActive, null, user.MustChangePassword));
+            null, user.IsActive, null, user.MustChangePassword,
+            site.SiteId, site.Name, team.TeamId, team.Name));
     }
 
-    public sealed record UpdateUserRequest(string FullName, int RoleId, int? DepartmentId, string? Phone, bool IsActive);
+    public sealed record UpdateUserRequest(
+        string FullName, int RoleId, int? DepartmentId, string? Phone, bool IsActive, byte SiteId, byte TeamId);
 
     [HttpPut("{id:int}")]
     [RequiresPermission("admin_users", PermissionAction.Edit)]
@@ -115,6 +135,16 @@ public sealed partial class UsersController : ControllerBase
         if (role is null)
         {
             return BadRequest(new { error = "invalid_role", message = "Role does not exist." });
+        }
+
+        if (!await _db.UserSites.AnyAsync(s => s.SiteId == request.SiteId, ct))
+        {
+            return BadRequest(new { error = "invalid_site", message = "Site does not exist." });
+        }
+
+        if (!await _db.UserTeams.AnyAsync(t => t.TeamId == request.TeamId, ct))
+        {
+            return BadRequest(new { error = "invalid_team", message = "Team does not exist." });
         }
 
         // Self-protection: an Admin can never touch their own role or active flag — only
@@ -150,6 +180,8 @@ public sealed partial class UsersController : ControllerBase
         user.DepartmentId = request.DepartmentId;
         user.Phone = request.Phone;
         user.IsActive = request.IsActive;
+        user.SiteId = request.SiteId;
+        user.TeamId = request.TeamId;
         user.UpdatedAt = DateTimeOffset.UtcNow;
         user.UpdatedBy = CurrentUserId();
 

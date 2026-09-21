@@ -43,6 +43,10 @@ public partial class User
 
     public int? UpdatedBy { get; set; }
 
+    public byte SiteId { get; set; }
+
+    public byte TeamId { get; set; }
+
     public virtual ICollection<AdUser> AdUsers { get; set; } = new List<AdUser>();
 
     public virtual ICollection<Asset> AssetCreatedByNavigations { get; set; } = new List<Asset>();
@@ -143,6 +147,8 @@ public partial class User
 
     public virtual ICollection<ServerRoleAssignment> ServerRoleAssignments { get; set; } = new List<ServerRoleAssignment>();
 
+    public virtual UserSite Site { get; set; } = null!;
+
     public virtual ICollection<SoftwareInstallation> SoftwareInstallationCreatedByNavigations { get; set; } = new List<SoftwareInstallation>();
 
     public virtual ICollection<SoftwareInstallation> SoftwareInstallationRemovedByNavigations { get; set; } = new List<SoftwareInstallation>();
@@ -158,6 +164,8 @@ public partial class User
     public virtual ICollection<SyncJob> SyncJobs { get; set; } = new List<SyncJob>();
 
     public virtual ICollection<SystemSetting> SystemSettings { get; set; } = new List<SystemSetting>();
+
+    public virtual UserTeam Team { get; set; } = null!;
 
     public virtual User? UpdatedByNavigation { get; set; }
 

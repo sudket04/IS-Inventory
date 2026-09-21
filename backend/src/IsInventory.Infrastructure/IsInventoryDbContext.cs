@@ -153,6 +153,10 @@ public partial class IsInventoryDbContext : DbContext
 
     public virtual DbSet<UserMenuPermission> UserMenuPermissions { get; set; }
 
+    public virtual DbSet<UserSite> UserSites { get; set; }
+
+    public virtual DbSet<UserTeam> UserTeams { get; set; }
+
     public virtual DbSet<Vendor> Vendors { get; set; }
 
     public virtual DbSet<Vlan> Vlans { get; set; }
@@ -3969,6 +3973,10 @@ public partial class IsInventoryDbContext : DbContext
 
             entity.HasIndex(e => e.RoleId, "IX_users_role");
 
+            entity.HasIndex(e => e.SiteId, "IX_users_site");
+
+            entity.HasIndex(e => e.TeamId, "IX_users_team");
+
             entity.HasIndex(e => e.Email, "UX_users_email").IsUnique();
 
             entity.HasIndex(e => e.Username, "UX_users_username").IsUnique();
@@ -4012,6 +4020,8 @@ public partial class IsInventoryDbContext : DbContext
                 .HasMaxLength(30)
                 .HasColumnName("phone");
             entity.Property(e => e.RoleId).HasColumnName("role_id");
+            entity.Property(e => e.SiteId).HasColumnName("site_id");
+            entity.Property(e => e.TeamId).HasColumnName("team_id");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
                 .HasColumnName("updated_at");
@@ -4032,6 +4042,16 @@ public partial class IsInventoryDbContext : DbContext
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_users_role");
+
+            entity.HasOne(d => d.Site).WithMany(p => p.Users)
+                .HasForeignKey(d => d.SiteId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_users_site");
+
+            entity.HasOne(d => d.Team).WithMany(p => p.Users)
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_users_team");
 
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.InverseUpdatedByNavigation)
                 .HasForeignKey(d => d.UpdatedBy)
@@ -4068,6 +4088,44 @@ public partial class IsInventoryDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_ump_user");
+        });
+
+        modelBuilder.Entity<UserSite>(entity =>
+        {
+            entity.HasKey(e => e.SiteId);
+
+            entity.ToTable("user_sites");
+
+            entity.HasIndex(e => e.Code, "UX_user_sites_code").IsUnique();
+
+            entity.Property(e => e.SiteId).HasColumnName("site_id");
+            entity.Property(e => e.Code)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("code");
+            entity.Property(e => e.Name)
+                .HasMaxLength(50)
+                .HasColumnName("name");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+        });
+
+        modelBuilder.Entity<UserTeam>(entity =>
+        {
+            entity.HasKey(e => e.TeamId);
+
+            entity.ToTable("user_teams");
+
+            entity.HasIndex(e => e.Code, "UX_user_teams_code").IsUnique();
+
+            entity.Property(e => e.TeamId).HasColumnName("team_id");
+            entity.Property(e => e.Code)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("code");
+            entity.Property(e => e.Name)
+                .HasMaxLength(50)
+                .HasColumnName("name");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
         });
 
         modelBuilder.Entity<Vendor>(entity =>
