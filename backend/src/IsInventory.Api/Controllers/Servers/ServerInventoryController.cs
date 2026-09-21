@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Data;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
@@ -22,7 +24,8 @@ namespace IsInventory.Api.Controllers.Servers;
 /// </summary>
 [ApiController]
 [Route("api/server-inventory")]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("server_inventory", PermissionAction.View)]
 public sealed class ServerInventoryController : ControllerBase
 {
     private static readonly string[] AllowedCategoryCodes = ["SRV", "STG"];
@@ -90,7 +93,7 @@ public sealed class ServerInventoryController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("server_inventory", PermissionAction.Create)]
     public async Task<ActionResult<ServerInventoryDetail>> Create([FromBody] ServerInventoryRequest request, CancellationToken ct)
     {
         var category = await _db.AssetCategories.FindAsync([request.CategoryId], ct);
@@ -211,7 +214,7 @@ public sealed class ServerInventoryController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("server_inventory", PermissionAction.Edit)]
     public async Task<ActionResult<ServerInventoryDetail>> Update(int id, [FromBody] ServerInventoryRequest request, CancellationToken ct)
     {
         var asset = await LoadAssetAsync(id, ct);
@@ -296,7 +299,7 @@ public sealed class ServerInventoryController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("server_inventory", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var asset = await _db.Assets.Include(a => a.Category)

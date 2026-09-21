@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
@@ -15,7 +17,8 @@ namespace IsInventory.Api.Controllers.Racks;
 /// than C# — this controller only translates that into a friendly response.
 /// </summary>
 [ApiController]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("racks", PermissionAction.View)]
 public sealed class RacksController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -49,7 +52,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpPost("api/racks")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("racks", PermissionAction.Create)]
     public async Task<ActionResult<RackDetail>> Create([FromBody] RackRequest request, CancellationToken ct)
     {
         var entity = new Rack();
@@ -86,7 +89,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpPut("api/racks/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("racks", PermissionAction.Edit)]
     public async Task<ActionResult<RackDetail>> Update(int id, [FromBody] RackRequest request, CancellationToken ct)
     {
         var entity = await _db.Racks.FirstOrDefaultAsync(r => r.RackId == id, ct);
@@ -127,7 +130,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpDelete("api/racks/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("racks", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var entity = await _db.Racks.FirstOrDefaultAsync(r => r.RackId == id, ct);
@@ -180,7 +183,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpPost("api/racks/{rackId:int}/mounts")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("racks", PermissionAction.Create)]
     public async Task<ActionResult<RackMountItem>> AddMount(int rackId, [FromBody] RackMountRequest request, CancellationToken ct)
     {
         var rack = await _db.Racks.FirstOrDefaultAsync(r => r.RackId == rackId, ct);
@@ -238,7 +241,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpPut("api/rack-mounts/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("racks", PermissionAction.Edit)]
     public async Task<ActionResult<RackMountItem>> UpdateMount(int id, [FromBody] RackMountUpdateRequest request, CancellationToken ct)
     {
         var entity = await _db.RackMounts.FirstOrDefaultAsync(m => m.RackMountId == id, ct);
@@ -270,7 +273,7 @@ public sealed class RacksController : ControllerBase
     /// <summary>Marks the mount as removed (removed_date = today) rather than deleting the
     /// row, mirroring the same history-preserving pattern used for cluster membership.</summary>
     [HttpPost("api/rack-mounts/{id:int}/remove")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("racks", PermissionAction.Edit)]
     public async Task<IActionResult> RemoveMount(int id, CancellationToken ct)
     {
         var entity = await _db.RackMounts.FirstOrDefaultAsync(m => m.RackMountId == id, ct);
@@ -297,7 +300,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpDelete("api/rack-mounts/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("racks", PermissionAction.Delete)]
     public async Task<IActionResult> DeleteMount(int id, CancellationToken ct)
     {
         var entity = await _db.RackMounts.FirstOrDefaultAsync(m => m.RackMountId == id, ct);

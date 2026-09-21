@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using IsInventory.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +16,8 @@ namespace IsInventory.Api.Controllers.PermissionControl;
 /// </summary>
 [ApiController]
 [Route("api/admin/classification-visibility")]
-[Authorize(Policy = "Admin")]
+[Authorize]
+[RequiresPermission("admin_classification_visibility", PermissionAction.View)]
 public sealed class ClassificationVisibilityController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -46,6 +49,7 @@ public sealed class ClassificationVisibilityController : ControllerBase
     }
 
     [HttpPut("{classificationId:int}/{roleId:int}")]
+    [RequiresPermission("admin_classification_visibility", PermissionAction.Edit)]
     public async Task<ActionResult<VisibilityCell>> UpdateCell(int classificationId, int roleId, [FromBody] VisibilityCellRequest request, CancellationToken ct)
     {
         var cell = await _db.ClassificationRoleVisibilities

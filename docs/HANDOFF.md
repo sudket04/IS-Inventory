@@ -6,8 +6,8 @@
 | **Repository** | `sudket04/is-inventory` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
 | **อัปเดตล่าสุด** | 2569-09-21 · commit (ดูท้ายสุดของ `git log`) |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–5, 7 เสร็จครบ + Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน (นอก Sprint Plan)** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts + Dashboard/Reports/Export Excel + Permission Control v1.5 + Server Inventory (Hardware)/Server List + รหัสผ่านเริ่มต้นตอนติดตั้ง/บังคับเปลี่ยน) — Sprint Plan เดิมเหลือ Sprint 6, 8–10 |
-| **โค้ดโปรแกรม** | 🟢 **Login/RBAC (พร้อมรหัสผ่านเริ่มต้นตอนติดตั้ง + บังคับเปลี่ยนรหัสผ่านจริง ทั้ง Frontend+Backend) + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server List + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) + Dashboard/Reports/Export Excel + File Share/Internet Policy Permission Control + Server Inventory (Hardware)/Server List (Virtual+Physical) ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.19) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล **รวม Playwright Browser จริง** (Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน ดู §4.18–§4.19) — **Sprint 5, 7 ปิดครบทุกรายการ** |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–5, 7 เสร็จครบ + Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน + สิทธิ์ต่อเมนูรายคน Phase 1 (นอก Sprint Plan)** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts + Dashboard/Reports/Export Excel + Permission Control v1.5 + Server Inventory (Hardware)/Server List + รหัสผ่านเริ่มต้นตอนติดตั้ง/บังคับเปลี่ยน + Self-protection/สิทธิ์ต่อเมนูรายคน Backend Enforcement) — Sprint Plan เดิมเหลือ Sprint 6, 8–10 · **ค้าง Phase 2 ของสิทธิ์ต่อเมนู** (ซ่อนปุ่มตามสิทธิ์ + หน้า Admin จัดการสิทธิ์แบบตาราง §4.20) |
+| **โค้ดโปรแกรม** | 🟢 **Login/RBAC (พร้อมรหัสผ่านเริ่มต้นตอนติดตั้ง + บังคับเปลี่ยนรหัสผ่านจริง + สิทธิ์ต่อเมนูรายคน Phase 1 ทั้ง Frontend+Backend) + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server List + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) + Dashboard/Reports/Export Excel + File Share/Internet Policy Permission Control + Server Inventory (Hardware)/Server List (Virtual+Physical) ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.20) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล **รวม Playwright Browser จริง** (Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน ดู §4.18–§4.19 — สิทธิ์ต่อเมนูรายคน §4.20 ทดสอบผ่าน API เท่านั้น ยังไม่ผ่าน Playwright) — **Sprint 5, 7 ปิดครบทุกรายการ** |
 
 ---
 
@@ -630,12 +630,48 @@ Token หมดอายุ, Re-login ด้วยรหัสผ่านให
 
 ---
 
+### 4.20 Backend/Frontend — Self-protection กันแก้สิทธิ์ตัวเอง + สิทธิ์ต่อเมนูรายคน Phase 1 (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** ผู้ใช้ถามว่ามีกฎ "IT Admin ห้ามแก้สิทธิ์/เปลี่ยน Role/Disable ตัวเอง, ต้องมี Active Admin
+อย่างน้อย 1 คน, Delete/Restore/Merge = Admin เท่านั้น" หรือยัง (ยังไม่มีสักข้อ) แล้วสั่งดำเนินการ พร้อมขอให้
+ออกแบบระบบให้ Admin กำหนดได้ว่าแต่ละ User เห็น/ใช้เมนูไหนได้บ้าง (View/Add/Edit/Delete) — เลือกแนวทาง
+**Role เป็นค่าเริ่มต้น + Override รายคน** และ**แบ่ง 2 เฟส** ตามที่ผู้ใช้ยืนยัน (Phase 1: Schema + Backend
+Enforcement + กรองเมนูจริง — รอบนี้; Phase 2: ซ่อนปุ่ม Add/Edit/Delete ในแต่ละหน้า + หน้า Admin จัดการสิทธิ์
+แบบตาราง — ยังไม่ทำ)
+
+| ส่วน | รายละเอียด |
+|---|---|
+| Self-protection — `UsersController.Update` | Admin แก้ Role/Disable ตัวเอง → `409 self_role_change`/`self_disable`; ลด Role ออกจาก ADMIN หรือ Disable ผู้ใช้ ADMIN ที่ Active คนสุดท้าย (แม้ทำโดย Admin คนอื่น) → `409 last_admin` |
+| Database — `17-module-user-menu-permissions.sql` | ตารางใหม่ 3 ตัว (ไม่ Temporal): `menus` (Registry 19 เมนู ตรงกับ `nav.ts`), `role_menu_permissions` (ค่าเริ่มต้นต่อ Role×เมนู Seed ให้ตรงกับ Policy เดิมทุกตัวเป๊ะ — พฤติกรรม Default ไม่เปลี่ยน), `user_menu_permissions` (Override รายคนแบบ Sparse, `NULL` = สืบทอดจาก Role) |
+| **การตัดสินใจสถาปัตยกรรม — ผูกกับ "เมนู" ไม่ใช่ Controller/Route** | กันสิทธิ์หลุดเวลา Route เปลี่ยนภายใน — `PickersController` ทั้งตัวและ `LocationsController` GET (Tree/Detail) **ไม่ผูกกับระบบนี้เลย** ยังเป็น AnyRole เหมือนเดิม เพราะเป็นข้อมูลอ้างอิงข้ามหน้า (Location Picker ในฟอร์มอื่น) ไม่ใช่ "เมนู" ที่เข้าตรงๆ — เฉพาะ Create/Edit/Delete ของ Locations ผูกกับสิทธิ์ `admin_locations` |
+| Backend — `IPermissionService`/`PermissionService` | Effective Permission = User Override ?? Role Default ต่อ (User, เมนู, Action) |
+| Backend — `RequiresPermissionAttribute` | แทนที่ `[Authorize(Policy="AnyRole"/"ItStaffOrAbove"/"AuditorOrAbove"/"Admin")]` เดิมทั้งหมดใน ~20 Controller ด้วย `[RequiresPermission(menuKey, Action)]` — Implement เป็น `IAsyncAuthorizationFilter` (ไม่ใช่ `IAsyncActionFilter`) **จำเป็นต้องเป็นชั้น Authorization** เพราะ `[ApiController]` ตรวจ Model Validation ในชั้น Action Filter ด้วย ถ้าใช้ Action Filter สิทธิ์จะเช็คช้ากว่า Validation ทำให้ผู้ใช้ที่ไม่มีสิทธิ์เห็น Error 400 (บอก Field ที่ขาด) แทนที่จะโดน 403 ตั้งแต่แรก (**บั๊กที่พบระหว่างทดสอบและแก้แล้ว**) — รองรับ OR-เมนู (`RequiresPermission(Action, "assets", "contracts")`) สำหรับ Sub-resource ที่มีเจ้าของได้มากกว่า 1 เมนู เช่น Attachment |
+| Backend — `AuthController` | `LoginResponse`/`Refresh`/`ChangePassword`/`GET /api/auth/me` ส่ง `permissions` (Map เมนู→{view,create,edit,delete}) กลับไปด้วยเสมอ |
+| Backend — `UsersController` เพิ่ม 3 Endpoint | `GET/PUT/DELETE api/users/{id}/permissions[/{menuKey}]` — Admin ตั้ง/ล้าง Override รายเมนูได้ (กันแก้สิทธิ์ตัวเองด้วยกฎเดียวกับข้อบน) — ยังไม่มีหน้า UI ให้กด (Phase 2) ใช้ทดสอบผ่าน API ตรงๆ ก่อน |
+| Frontend — `nav.ts` | `NavItem.roles` (Array ของ Role) → `NavItem.menuKey` (String เดียว ตรงกับ `dbo.menus.menu_key`) — `visibleNavItems()` กรองด้วยสิทธิ์จริงจาก `/api/auth/me` แทน Role ตรงๆ, กลุ่มเมนู (Server/Administration) โชว์ก็ต่อเมื่อมีลูกที่เห็นได้อย่างน้อย 1 |
+| Frontend — `AuthContext` | เพิ่ม `permissions: PermissionsMap` เก็บคู่กับ `user`, `applySession` รับ Permissions เพิ่มด้วย |
+| **สิ่งที่ยังไม่ทำ (Phase 2)** | ปุ่ม Add/Edit/Delete ในแต่ละหน้า (12 จุดที่ยัง Hardcode `roleCode === "ADMIN" \|\| "IT_STAFF"`) ยังไม่เปลี่ยนไปใช้ Permission จริง — ปลอดภัยเพราะ Backend เช็คจริงอยู่แล้ว (กดปุ่มได้แต่ยิง API แล้วโดน 403 ถ้าไม่มีสิทธิ์จริง) แค่ UI ยังไม่ซ่อนปุ่มที่กดไม่ได้ตาม Override; หน้า Admin จัดการสิทธิ์แบบตารางก็ยังไม่มี |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** Role Default ตรงกับ Policy เดิม 100% (Spot-check `assets`/
+`admin_users`/`reports`/`dashboard`/`import`/`admin_locations` ทั้ง 4 Role), VIEWER ยิง `POST /api/assets`
+โดนบล็อกจริง (`403 forbidden` — หลังแก้บั๊ก Action Filter แล้ว), Admin ตั้ง Override ให้ VIEWER มีสิทธิ์
+`admin_master_data` Create ได้ทันที (Login ใหม่เห็นสิทธิ์เปลี่ยน, ยิง `POST /api/lookups/vendors` ผ่านจริง),
+ล้าง Override แล้วสิทธิ์กลับไปตาม Role เดิมทันที (ยิงซ้ำโดนบล็อกอีกครั้ง), Admin แก้สิทธิ์ตัวเองโดนบล็อก
+(`409 self_permission_change`) — ลบ/ปิดข้อมูลทดสอบออกหมดแล้ว (Deactivate User ทดสอบ 2 บัญชีตาม FR-AU-09
+ไม่ลบจริง) — **Backend** `dotnet build` ผ่านสะอาด, **Frontend** `npx tsc --noEmit`/`npm run build`
+(Next.js 16 Turbopack) ผ่านสะอาด — ยังไม่ได้ทดสอบผ่าน Browser จริงด้วย Playwright รอบนี้ (Phase 1 เน้น
+Backend Enforcement เป็นหลัก จะทดสอบ UI เต็มรูปแบบพร้อม Phase 2)
+
+---
+
 ## 5. โครงสร้างฐานข้อมูลปัจจุบัน
 
 **66 ตาราง · 45 ตารางประวัติ (Temporal) · 45 View · 5 Function · 3 SP · 10 Trigger** (ยืนยันจากการรันจริงก่อน
 v1.7) — **+ v1.7 (Server Domain, §4.18):** ตารางใหม่ 7 ตัว (`os_types` `os_versions` `server_statuses`
 `server_cpus` `server_memory_modules` `server_local_disks` `storage_volume_consumers` — ไม่มีตัวไหน
-Temporal) + View ใหม่ 1 ตัว (`vw_server_hardware_summary`) รวมเป็น **73 ตาราง · 46 View**
+Temporal) + View ใหม่ 1 ตัว (`vw_server_hardware_summary`) — **+ สิทธิ์ต่อเมนูรายคน (§4.20):** ตารางใหม่อีก
+3 ตัว (`menus` `role_menu_permissions` `user_menu_permissions` — ไม่มีตัวไหน Temporal) รวมเป็น
+**76 ตาราง · 46 View**
 
 ### 5.1 หมวดทรัพย์สิน 8 หมวด (Prefix ของ Asset Tag)
 

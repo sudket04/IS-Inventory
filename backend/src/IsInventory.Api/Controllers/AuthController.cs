@@ -18,17 +18,27 @@ public sealed partial class AuthController : ControllerBase
     private readonly IAuthService _authService;
     private readonly IsInventoryDbContext _db;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IPermissionService _permissionService;
 
-    public AuthController(IAuthService authService, IsInventoryDbContext db, IPasswordHasher passwordHasher)
+    public AuthController(IAuthService authService, IsInventoryDbContext db, IPasswordHasher passwordHasher, IPermissionService permissionService)
     {
         _authService = authService;
         _db = db;
         _passwordHasher = passwordHasher;
+        _permissionService = permissionService;
     }
 
     public sealed record LoginRequest(string Username, string Password);
 
-    public sealed record LoginResponse(string AccessToken, DateTimeOffset AccessTokenExpiresAt, AuthenticatedUser User);
+    public sealed record LoginResponse(
+        string AccessToken,
+        DateTimeOffset AccessTokenExpiresAt,
+        AuthenticatedUser User,
+        IReadOnlyDictionary<string, MenuPermission> Permissions);
+
+    private async Task<LoginResponse> ToLoginResponseAsync(AuthResult result, CancellationToken ct) =>
+        new(result.AccessToken!, result.AccessTokenExpiresAt!.Value, result.User!,
+            await _permissionService.GetEffectivePermissionsAsync(result.User!.UserId, ct));
 
     [HttpPost("login")]
     [AllowAnonymous]
@@ -62,7 +72,7 @@ public sealed partial class AuthController : ControllerBase
         }
 
         SetRefreshCookie(result.RefreshToken!, result.RefreshTokenExpiresAt!.Value);
-        return Ok(new LoginResponse(result.AccessToken!, result.AccessTokenExpiresAt!.Value, result.User!));
+        return Ok(await ToLoginResponseAsync(result, ct));
     }
 
     [HttpPost("refresh")]
@@ -87,7 +97,7 @@ public sealed partial class AuthController : ControllerBase
         }
 
         SetRefreshCookie(result.RefreshToken!, result.RefreshTokenExpiresAt!.Value);
-        return Ok(new LoginResponse(result.AccessToken!, result.AccessTokenExpiresAt!.Value, result.User!));
+        return Ok(await ToLoginResponseAsync(result, ct));
     }
 
     [HttpPost("logout")]
@@ -105,14 +115,16 @@ public sealed partial class AuthController : ControllerBase
 
     [HttpGet("me")]
     [Authorize]
-    public IActionResult Me()
+    public async Task<IActionResult> Me(CancellationToken ct)
     {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         return Ok(new
         {
-            userId = User.FindFirstValue(ClaimTypes.NameIdentifier),
+            userId,
             username = User.FindFirstValue(ClaimTypes.Name),
             fullName = User.FindFirstValue("full_name"),
             role = User.FindFirstValue(ClaimTypes.Role),
+            permissions = await _permissionService.GetEffectivePermissionsAsync(userId, ct),
         });
     }
 
@@ -163,7 +175,7 @@ public sealed partial class AuthController : ControllerBase
             ct);
 
         SetRefreshCookie(reissued.RefreshToken!, reissued.RefreshTokenExpiresAt!.Value);
-        return Ok(new LoginResponse(reissued.AccessToken!, reissued.AccessTokenExpiresAt!.Value, reissued.User!));
+        return Ok(await ToLoginResponseAsync(reissued, ct));
     }
 
     [GeneratedRegex(@"^(?=.*[A-Za-z])(?=.*\d).{8,}$")]

@@ -19,5 +19,7 @@ public partial class Role
 
     public virtual ICollection<ClassificationRoleVisibility> ClassificationRoleVisibilities { get; set; } = new List<ClassificationRoleVisibility>();
 
+    public virtual ICollection<RoleMenuPermission> RoleMenuPermissions { get; set; } = new List<RoleMenuPermission>();
+
     public virtual ICollection<User> Users { get; set; } = new List<User>();
 }

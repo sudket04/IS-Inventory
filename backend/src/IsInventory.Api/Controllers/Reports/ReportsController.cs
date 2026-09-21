@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using IsInventory.Api.Excel;
 using IsInventory.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +14,8 @@ namespace IsInventory.Api.Controllers.Reports;
 /// Not exposed to VIEWER — matches nav.ts, which never lists "Reports" for that role.</summary>
 [ApiController]
 [Route("api/reports")]
-[Authorize(Policy = "AuditorOrAbove")]
+[Authorize]
+[RequiresPermission("reports", PermissionAction.View)]
 public sealed class ReportsController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;

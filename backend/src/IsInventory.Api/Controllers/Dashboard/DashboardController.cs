@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
@@ -14,7 +16,8 @@ namespace IsInventory.Api.Controllers.Dashboard;
 /// </summary>
 [ApiController]
 [Route("api/dashboard")]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("dashboard", PermissionAction.View)]
 public sealed class DashboardController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;

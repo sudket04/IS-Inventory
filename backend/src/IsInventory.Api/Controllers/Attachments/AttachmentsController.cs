@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.IO.Compression;
@@ -52,7 +54,7 @@ public sealed class AttachmentsController : ControllerBase
         Ok(await ListInternal(a => a.ContractId == contractId, ct));
 
     [HttpPost("api/assets/{assetId:int}/attachments")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("assets", PermissionAction.Create)]
     [RequestSizeLimit(MaxFileSizeBytes + 1024)]
     public async Task<ActionResult<AttachmentListItem>> Upload(int assetId, [FromForm] IFormFile file, [FromForm] string? description, CancellationToken ct)
     {
@@ -66,7 +68,7 @@ public sealed class AttachmentsController : ControllerBase
     }
 
     [HttpPost("api/contracts/{contractId:int}/attachments")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("contracts", PermissionAction.Create)]
     [RequestSizeLimit(MaxFileSizeBytes + 1024)]
     public async Task<ActionResult<AttachmentListItem>> UploadForContract(int contractId, [FromForm] IFormFile file, [FromForm] string? description, CancellationToken ct)
     {
@@ -195,7 +197,7 @@ public sealed class AttachmentsController : ControllerBase
     }
 
     [HttpDelete("api/attachments/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission(PermissionAction.Delete, "assets", "contracts")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var attachment = await _db.Attachments.FirstOrDefaultAsync(a => a.AttachmentId == id && !a.IsDeleted, ct);

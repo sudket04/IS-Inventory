@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
@@ -19,7 +21,8 @@ namespace IsInventory.Api.Controllers.PermissionControl;
 /// "ชื่อ + AD Group พอ" — so policies are fully usable without it until that picker ships.
 /// </summary>
 [ApiController]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("internet_policies", PermissionAction.View)]
 public sealed class InternetPoliciesController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -51,7 +54,7 @@ public sealed class InternetPoliciesController : ControllerBase
     }
 
     [HttpPost("api/internet-policies")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("internet_policies", PermissionAction.Create)]
     public async Task<ActionResult<InternetPolicyDetail>> Create([FromBody] InternetPolicyRequest request, CancellationToken ct)
     {
         var policy = new InternetPolicy
@@ -82,7 +85,7 @@ public sealed class InternetPoliciesController : ControllerBase
     }
 
     [HttpPut("api/internet-policies/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("internet_policies", PermissionAction.Edit)]
     public async Task<ActionResult<InternetPolicyDetail>> Update(int id, [FromBody] InternetPolicyRequest request, CancellationToken ct)
     {
         var policy = await _db.InternetPolicies.FirstOrDefaultAsync(p => p.PolicyId == id && !p.IsDeleted, ct);
@@ -112,7 +115,7 @@ public sealed class InternetPoliciesController : ControllerBase
     }
 
     [HttpDelete("api/internet-policies/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("internet_policies", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var policy = await _db.InternetPolicies.FirstOrDefaultAsync(p => p.PolicyId == id && !p.IsDeleted, ct);
@@ -138,7 +141,7 @@ public sealed class InternetPoliciesController : ControllerBase
             .ToListAsync(ct));
 
     [HttpPost("api/internet-policies/{policyId:int}/groups")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("internet_policies", PermissionAction.Create)]
     public async Task<ActionResult<PolicyGroupItem>> AddGroup(int policyId, [FromBody] PolicyGroupRequest request, CancellationToken ct)
     {
         if (!await _db.InternetPolicies.AnyAsync(p => p.PolicyId == policyId && !p.IsDeleted, ct)) return NotFound();
@@ -168,7 +171,7 @@ public sealed class InternetPoliciesController : ControllerBase
     }
 
     [HttpDelete("api/internet-policies/{policyId:int}/groups/{policyGroupId:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("internet_policies", PermissionAction.Delete)]
     public async Task<IActionResult> RemoveGroup(int policyId, int policyGroupId, CancellationToken ct)
     {
         var group = await _db.InternetPolicyGroups.FirstOrDefaultAsync(g => g.PolicyGroupId == policyGroupId && g.PolicyId == policyId && !g.IsDeleted, ct);
@@ -194,7 +197,7 @@ public sealed class InternetPoliciesController : ControllerBase
             .ToListAsync(ct));
 
     [HttpPost("api/internet-policies/{policyId:int}/categories")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("internet_policies", PermissionAction.Create)]
     public async Task<ActionResult<PolicyCategoryItem>> AddCategory(int policyId, [FromBody] PolicyCategoryRequest request, CancellationToken ct)
     {
         if (!await _db.InternetPolicies.AnyAsync(p => p.PolicyId == policyId && !p.IsDeleted, ct)) return NotFound();
@@ -228,7 +231,7 @@ public sealed class InternetPoliciesController : ControllerBase
     }
 
     [HttpDelete("api/internet-policies/{policyId:int}/categories/{policyCategoryId:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("internet_policies", PermissionAction.Delete)]
     public async Task<IActionResult> RemoveCategory(int policyId, int policyCategoryId, CancellationToken ct)
     {
         var category = await _db.InternetPolicyCategories.FirstOrDefaultAsync(c => c.PolicyCategoryId == policyCategoryId && c.PolicyId == policyId, ct);

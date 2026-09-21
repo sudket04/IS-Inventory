@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using IsInventory.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +9,8 @@ namespace IsInventory.Api.Controllers;
 
 [ApiController]
 [Route("api/roles")]
-[Authorize(Policy = "Admin")]
+[Authorize]
+[RequiresPermission("admin_users", PermissionAction.View)]
 public sealed class RolesController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;

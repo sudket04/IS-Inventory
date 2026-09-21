@@ -1,18 +1,20 @@
-import type { AuthUser } from "@/lib/auth/auth-context";
+import type { PermissionsMap } from "@/lib/auth/auth-context";
 
 export interface NavItem {
   label: string;
   href: string;
   icon: string;
-  roles: AuthUser["roleCode"][];
+  menuKey: string;
   children?: NavItem[];
 }
 
 // เมนูตามสิทธิ์ — docs/design/01-user-flow.md §1.2. หน้าที่ยังไม่ได้สร้างจริง (Sprint 2+)
 // ยังคงอยู่ในเมนูเพื่อให้เห็นโครงสร้างครบ แต่ยังไม่มีปลายทางจนกว่าจะถึง Sprint นั้น
+// menuKey ต้องตรงกับ dbo.menus.menu_key (docs/database/17-module-user-menu-permissions.sql) —
+// การมองเห็นแต่ละเมนูมาจากสิทธิ์จริงของผู้ใช้ (Role เริ่มต้น + Override รายคน) ไม่ใช่ Role ตรงๆ แล้ว
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/", icon: "layout-dashboard", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
-  { label: "Assets", href: "/assets", icon: "server", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
+  { label: "Dashboard", href: "/", icon: "layout-dashboard", menuKey: "dashboard" },
+  { label: "Assets", href: "/assets", icon: "server", menuKey: "assets" },
   {
     // v1.7 Server Domain — Server + Storage (SRV/STG) moved here exclusively (see
     // AssetsController.ManagedElsewhereCategoryCodes); "Assets" above still lists/reads them
@@ -20,41 +22,49 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Server",
     href: "/server-inventory",
     icon: "server",
-    roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"],
+    menuKey: "server_inventory",
     children: [
-      { label: "Server Inventory", href: "/server-inventory", icon: "hard-drive", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
-      { label: "Clusters", href: "/clusters", icon: "layers", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
-      { label: "Server List", href: "/server-list", icon: "list-tree", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
+      { label: "Server Inventory", href: "/server-inventory", icon: "hard-drive", menuKey: "server_inventory" },
+      { label: "Clusters", href: "/clusters", icon: "layers", menuKey: "clusters" },
+      { label: "Server List", href: "/server-list", icon: "list-tree", menuKey: "server_list" },
     ],
   },
-  { label: "Racks", href: "/racks", icon: "warehouse", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
-  { label: "VLANs", href: "/vlans", icon: "network", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
-  { label: "Software", href: "/software", icon: "disc", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
-  { label: "Contracts", href: "/contracts", icon: "file-text", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
-  { label: "Reports", href: "/reports", icon: "bar-chart-3", roles: ["ADMIN", "IT_STAFF", "AUDITOR"] },
-  { label: "Import", href: "/import", icon: "upload", roles: ["ADMIN", "IT_STAFF"] },
-  { label: "File Shares", href: "/file-shares", icon: "folder", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
-  { label: "Internet Policies", href: "/internet-policies", icon: "globe", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
-  { label: "Audit Logs", href: "/audit-logs", icon: "search", roles: ["ADMIN", "IT_STAFF", "AUDITOR"] },
+  { label: "Racks", href: "/racks", icon: "warehouse", menuKey: "racks" },
+  { label: "VLANs", href: "/vlans", icon: "network", menuKey: "vlans" },
+  { label: "Software", href: "/software", icon: "disc", menuKey: "software" },
+  { label: "Contracts", href: "/contracts", icon: "file-text", menuKey: "contracts" },
+  { label: "Reports", href: "/reports", icon: "bar-chart-3", menuKey: "reports" },
+  { label: "Import", href: "/import", icon: "upload", menuKey: "import" },
+  { label: "File Shares", href: "/file-shares", icon: "folder", menuKey: "file_shares" },
+  { label: "Internet Policies", href: "/internet-policies", icon: "globe", menuKey: "internet_policies" },
+  { label: "Audit Logs", href: "/audit-logs", icon: "search", menuKey: "audit_logs" },
   {
     label: "Administration",
     href: "/admin",
     icon: "settings",
-    roles: ["ADMIN"],
+    menuKey: "admin_users",
     children: [
-      { label: "Users", href: "/admin/users", icon: "users", roles: ["ADMIN"] },
-      { label: "Locations", href: "/admin/locations", icon: "map-pin", roles: ["ADMIN"] },
-      { label: "Master Data", href: "/admin/master-data", icon: "database", roles: ["ADMIN"] },
-      { label: "Classification Visibility", href: "/admin/classification-visibility", icon: "shield-check", roles: ["ADMIN"] },
-      { label: "Settings", href: "/admin/settings", icon: "sliders", roles: ["ADMIN"] },
+      { label: "Users", href: "/admin/users", icon: "users", menuKey: "admin_users" },
+      { label: "Locations", href: "/admin/locations", icon: "map-pin", menuKey: "admin_locations" },
+      { label: "Master Data", href: "/admin/master-data", icon: "database", menuKey: "admin_master_data" },
+      { label: "Classification Visibility", href: "/admin/classification-visibility", icon: "shield-check", menuKey: "admin_classification_visibility" },
+      { label: "Settings", href: "/admin/settings", icon: "sliders", menuKey: "admin_settings" },
     ],
   },
 ];
 
-export function visibleNavItems(roleCode: AuthUser["roleCode"]): NavItem[] {
-  return NAV_ITEMS.filter((item) => item.roles.includes(roleCode))
+function canView(permissions: PermissionsMap, menuKey: string): boolean {
+  return permissions[menuKey]?.canView ?? false;
+}
+
+export function visibleNavItems(permissions: PermissionsMap): NavItem[] {
+  return NAV_ITEMS
+    // A grouping item (Server, Administration) has its own menuKey only because it's also a
+    // clickable link to its first child's page — its own permission is irrelevant to whether
+    // the *group* shows; that's decided purely by whether any child survives below.
     .map((item) => ({
       ...item,
-      children: item.children?.filter((c) => c.roles.includes(roleCode)),
-    }));
+      children: item.children?.filter((c) => canView(permissions, c.menuKey)),
+    }))
+    .filter((item) => (item.children ? item.children.length > 0 : canView(permissions, item.menuKey)));
 }

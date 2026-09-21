@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +14,8 @@ namespace IsInventory.Api.Controllers.AuditLogs;
 /// </summary>
 [ApiController]
 [Route("api/audit-logs")]
-[Authorize(Policy = "AuditorOrAbove")]
+[Authorize]
+[RequiresPermission("audit_logs", PermissionAction.View)]
 public sealed class AuditLogsController : ControllerBase
 {
     private const int MaxPageSize = 100;

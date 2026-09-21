@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { apiFetch } from "@/lib/api";
-import { useAuth, type AuthUser } from "@/lib/auth/auth-context";
+import { useAuth, type AuthUser, type PermissionsMap } from "@/lib/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ const PASSWORD_POLICY_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 interface LoginResponseBody {
   accessToken: string;
   user: AuthUser;
+  permissions: PermissionsMap;
 }
 
 /** Self-service password change. Used both as the mandatory full-screen gate when
@@ -55,8 +56,8 @@ export function ChangePasswordForm({ forced, onDone }: { forced?: boolean; onDon
       return;
     }
 
-    const { accessToken, user } = body as LoginResponseBody;
-    applySession(accessToken, user);
+    const { accessToken, user, permissions } = body as LoginResponseBody;
+    applySession(accessToken, user, permissions);
     onDone?.();
   }
 

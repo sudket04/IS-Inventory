@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
@@ -53,7 +55,7 @@ public sealed class LocationsController : ControllerBase
     }
 
     [HttpPost("api/locations")]
-    [Authorize(Policy = "Admin")]
+    [RequiresPermission("admin_locations", PermissionAction.Create)]
     public async Task<ActionResult<LocationDetail>> Create([FromBody] LocationRequest request, CancellationToken ct)
     {
         if (request.ParentLocationId is int parentId && !await _db.Locations.AnyAsync(l => l.LocationId == parentId, ct))
@@ -84,7 +86,7 @@ public sealed class LocationsController : ControllerBase
     }
 
     [HttpPut("api/locations/{id:int}")]
-    [Authorize(Policy = "Admin")]
+    [RequiresPermission("admin_locations", PermissionAction.Edit)]
     public async Task<ActionResult<LocationDetail>> Update(int id, [FromBody] LocationRequest request, CancellationToken ct)
     {
         var entity = await _db.Locations.FirstOrDefaultAsync(l => l.LocationId == id, ct);
@@ -129,7 +131,7 @@ public sealed class LocationsController : ControllerBase
     }
 
     [HttpDelete("api/locations/{id:int}")]
-    [Authorize(Policy = "Admin")]
+    [RequiresPermission("admin_locations", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var entity = await _db.Locations.FirstOrDefaultAsync(l => l.LocationId == id, ct);

@@ -1,3 +1,4 @@
+using IsInventory.Api.Authorization;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using IsInventory.Domain.Security;
@@ -15,7 +16,8 @@ namespace IsInventory.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/users")]
-[Authorize(Policy = "Admin")]
+[Authorize]
+[RequiresPermission("admin_users", PermissionAction.View)]
 public sealed partial class UsersController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -53,6 +55,7 @@ public sealed partial class UsersController : ControllerBase
         int RoleId, int? DepartmentId, string? Phone);
 
     [HttpPost]
+    [RequiresPermission("admin_users", PermissionAction.Create)]
     public async Task<ActionResult<UserListItem>> Create([FromBody] CreateUserRequest request, CancellationToken ct)
     {
         if (!IsValidPassword(request.InitialPassword))
@@ -99,17 +102,46 @@ public sealed partial class UsersController : ControllerBase
     public sealed record UpdateUserRequest(string FullName, int RoleId, int? DepartmentId, string? Phone, bool IsActive);
 
     [HttpPut("{id:int}")]
+    [RequiresPermission("admin_users", PermissionAction.Edit)]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateUserRequest request, CancellationToken ct)
     {
-        var user = await _db.Users.FindAsync([id], ct);
+        var user = await _db.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.UserId == id, ct);
         if (user is null)
         {
             return NotFound();
         }
 
-        if (!await _db.Roles.AnyAsync(r => r.RoleId == request.RoleId, ct))
+        var role = await _db.Roles.FindAsync([request.RoleId], ct);
+        if (role is null)
         {
             return BadRequest(new { error = "invalid_role", message = "Role does not exist." });
+        }
+
+        // Self-protection: an Admin can never touch their own role or active flag — only
+        // another Admin account can do that, so one admin can't accidentally (or maliciously)
+        // lock themselves out or escalate/demote themselves.
+        var isSelf = CurrentUserId() == id;
+        if (isSelf && request.RoleId != user.RoleId)
+        {
+            return Conflict(new { error = "self_role_change", message = "You cannot change your own role." });
+        }
+        if (isSelf && !request.IsActive)
+        {
+            return Conflict(new { error = "self_disable", message = "You cannot deactivate your own account." });
+        }
+
+        // Guardrail: the system must always keep at least one active Administrator, so demoting
+        // or deactivating the last one (even by another admin) is rejected.
+        var wasActiveAdmin = user.Role.Code == "ADMIN" && user.IsActive;
+        var staysActiveAdmin = role.Code == "ADMIN" && request.IsActive;
+        if (wasActiveAdmin && !staysActiveAdmin)
+        {
+            var otherActiveAdmins = await _db.Users.CountAsync(
+                u => u.UserId != id && u.IsActive && u.Role.Code == "ADMIN", ct);
+            if (otherActiveAdmins == 0)
+            {
+                return Conflict(new { error = "last_admin", message = "At least one active Administrator must remain." });
+            }
         }
 
         var wasActive = user.IsActive;
@@ -135,6 +167,7 @@ public sealed partial class UsersController : ControllerBase
     public sealed record ResetPasswordRequest(string NewPassword);
 
     [HttpPost("{id:int}/reset-password")]
+    [RequiresPermission("admin_users", PermissionAction.Edit)]
     public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetPasswordRequest request, CancellationToken ct)
     {
         if (!IsValidPassword(request.NewPassword))
@@ -155,6 +188,106 @@ public sealed partial class UsersController : ControllerBase
         user.UpdatedBy = CurrentUserId();
 
         AddAudit("PASSWORD_RESET", user.UserId, user.Username, "user");
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    public sealed record MenuPermissionRow(
+        string MenuKey, string MenuName,
+        bool RoleView, bool RoleCreate, bool RoleEdit, bool RoleDelete,
+        bool? OverrideView, bool? OverrideCreate, bool? OverrideEdit, bool? OverrideDelete,
+        bool EffectiveView, bool EffectiveCreate, bool EffectiveEdit, bool EffectiveDelete);
+
+    /// <summary>Full matrix (role default + override + effective) for the admin permissions editor.</summary>
+    [HttpGet("{id:int}/permissions")]
+    [RequiresPermission("admin_users", PermissionAction.View)]
+    public async Task<ActionResult<IEnumerable<MenuPermissionRow>>> GetPermissions(int id, CancellationToken ct)
+    {
+        var user = await _db.Users.FindAsync([id], ct);
+        if (user is null) return NotFound();
+
+        var roleDefaults = await _db.RoleMenuPermissions
+            .Where(rmp => rmp.RoleId == user.RoleId)
+            .Include(rmp => rmp.Menu)
+            .OrderBy(rmp => rmp.Menu.SortOrder)
+            .ToListAsync(ct);
+
+        var overrides = await _db.UserMenuPermissions
+            .Where(ump => ump.UserId == id)
+            .ToDictionaryAsync(ump => ump.MenuId, ct);
+
+        var rows = roleDefaults.Select(rd =>
+        {
+            overrides.TryGetValue(rd.MenuId, out var over);
+            return new MenuPermissionRow(
+                rd.Menu.MenuKey, rd.Menu.Name,
+                rd.CanView, rd.CanCreate, rd.CanEdit, rd.CanDelete,
+                over?.CanView, over?.CanCreate, over?.CanEdit, over?.CanDelete,
+                over?.CanView ?? rd.CanView, over?.CanCreate ?? rd.CanCreate,
+                over?.CanEdit ?? rd.CanEdit, over?.CanDelete ?? rd.CanDelete);
+        });
+
+        return Ok(rows);
+    }
+
+    public sealed record SetMenuPermissionRequest(bool? CanView, bool? CanCreate, bool? CanEdit, bool? CanDelete);
+
+    /// <summary>
+    /// Upserts a per-user override for one menu. Any field left null falls back to inheriting
+    /// the role default for that specific action — only the non-null fields actually override.
+    /// </summary>
+    [HttpPut("{id:int}/permissions/{menuKey}")]
+    [RequiresPermission("admin_users", PermissionAction.Edit)]
+    public async Task<IActionResult> SetPermission(int id, string menuKey, [FromBody] SetMenuPermissionRequest request, CancellationToken ct)
+    {
+        if (CurrentUserId() == id)
+        {
+            return Conflict(new { error = "self_permission_change", message = "You cannot change your own permissions." });
+        }
+
+        var user = await _db.Users.FindAsync([id], ct);
+        if (user is null) return NotFound();
+
+        var menu = await _db.Menus.FirstOrDefaultAsync(m => m.MenuKey == menuKey, ct);
+        if (menu is null) return NotFound(new { error = "invalid_menu", message = "Menu does not exist." });
+
+        var over = await _db.UserMenuPermissions.FindAsync([id, menu.MenuId], ct);
+        if (over is null)
+        {
+            over = new IsInventory.Infrastructure.Entities.UserMenuPermission { UserId = id, MenuId = menu.MenuId };
+            _db.UserMenuPermissions.Add(over);
+        }
+
+        over.CanView = request.CanView;
+        over.CanCreate = request.CanCreate;
+        over.CanEdit = request.CanEdit;
+        over.CanDelete = request.CanDelete;
+        over.UpdatedAt = DateTimeOffset.UtcNow;
+        over.UpdatedBy = CurrentUserId();
+
+        AddAudit("SETTING_CHANGE", user.UserId, $"{user.Username}:{menuKey}", "user_menu_permission");
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    /// <summary>Clears the override for one menu, reverting the user back to their role default.</summary>
+    [HttpDelete("{id:int}/permissions/{menuKey}")]
+    [RequiresPermission("admin_users", PermissionAction.Edit)]
+    public async Task<IActionResult> ClearPermission(int id, string menuKey, CancellationToken ct)
+    {
+        if (CurrentUserId() == id)
+        {
+            return Conflict(new { error = "self_permission_change", message = "You cannot change your own permissions." });
+        }
+
+        var menu = await _db.Menus.FirstOrDefaultAsync(m => m.MenuKey == menuKey, ct);
+        if (menu is null) return NotFound(new { error = "invalid_menu", message = "Menu does not exist." });
+
+        var over = await _db.UserMenuPermissions.FindAsync([id, menu.MenuId], ct);
+        if (over is null) return NoContent();
+
+        _db.UserMenuPermissions.Remove(over);
+        AddAudit("SETTING_CHANGE", id, menuKey, "user_menu_permission");
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }

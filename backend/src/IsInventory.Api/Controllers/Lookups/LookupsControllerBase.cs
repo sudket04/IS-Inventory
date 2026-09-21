@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -15,7 +17,7 @@ namespace IsInventory.Api.Controllers.Lookups;
 /// the field mapping, and which tables count as "in use".
 /// </summary>
 [ApiController]
-[Authorize(Policy = "Admin")]
+[Authorize]
 public abstract class LookupsControllerBase<TEntity, TDto> : ControllerBase
     where TEntity : class, new()
 {
@@ -44,10 +46,12 @@ public abstract class LookupsControllerBase<TEntity, TDto> : ControllerBase
     protected virtual IReadOnlyList<UsageCount> UsageCounts { get; } = Array.Empty<UsageCount>();
 
     [HttpGet]
+    [RequiresPermission("admin_master_data", PermissionAction.View)]
     public virtual async Task<ActionResult<IEnumerable<TEntity>>> List(CancellationToken ct) =>
         Ok(await Set.AsNoTracking().ToListAsync(ct));
 
     [HttpPost]
+    [RequiresPermission("admin_master_data", PermissionAction.Create)]
     public virtual async Task<ActionResult<TEntity>> Create([FromBody] TDto dto, CancellationToken ct)
     {
         var entity = new TEntity();
@@ -68,6 +72,7 @@ public abstract class LookupsControllerBase<TEntity, TDto> : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [RequiresPermission("admin_master_data", PermissionAction.Edit)]
     public virtual async Task<IActionResult> Update(int id, [FromBody] TDto dto, CancellationToken ct)
     {
         var entity = await Set.FindAsync([id], ct);
@@ -88,6 +93,7 @@ public abstract class LookupsControllerBase<TEntity, TDto> : ControllerBase
     }
 
     [HttpPatch("{id:int}/active")]
+    [RequiresPermission("admin_master_data", PermissionAction.Edit)]
     public virtual async Task<IActionResult> SetActive(int id, [FromBody] SetActiveRequest request, CancellationToken ct)
     {
         var entity = await Set.FindAsync([id], ct);
@@ -99,10 +105,12 @@ public abstract class LookupsControllerBase<TEntity, TDto> : ControllerBase
     }
 
     [HttpGet("{id:int}/usage")]
+    [RequiresPermission("admin_master_data", PermissionAction.View)]
     public async Task<ActionResult<IEnumerable<UsageResult>>> GetUsage(int id, CancellationToken ct) =>
         Ok(await ComputeUsageAsync(id, ct));
 
     [HttpDelete("{id:int}")]
+    [RequiresPermission("admin_master_data", PermissionAction.Delete)]
     public virtual async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var usages = await ComputeUsageAsync(id, ct);

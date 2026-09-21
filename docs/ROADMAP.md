@@ -425,6 +425,31 @@ Placeholder ที่ไม่ใช่ Hash จริงมาตั้งแ�
 
 ---
 
+### 1.19 🟡 นอก Sprint Plan — Self-protection + สิทธิ์ต่อเมนูรายคน Phase 1 (21 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.20 — สรุปสั้น:
+
+| ส่วน | สถานะ |
+|---|---|
+| Self-protection: Admin แก้ Role/Disable ตัวเองไม่ได้, ต้องเหลือ Admin Active อย่างน้อย 1 คนเสมอ | ✅ |
+| Database: `menus`/`role_menu_permissions`/`user_menu_permissions` (Role เป็นค่าเริ่มต้น + Override รายคน) | ✅ |
+| Backend: `IPermissionService` + `RequiresPermissionAttribute` แทนที่ `[Authorize(Policy=...)]` เดิมทั้งระบบ (~20 Controller) | ✅ |
+| Backend: `GET/PUT/DELETE api/users/{id}/permissions[/{menuKey}]` ให้ Admin ตั้ง Override รายเมนู | ✅ |
+| Frontend: `nav.ts`/`AuthContext` กรองเมนูด้วยสิทธิ์จริงจาก `/api/auth/me` แทน Role ตรงๆ | ✅ |
+| **ค้าง (Phase 2):** ซ่อนปุ่ม Add/Edit/Delete ในแต่ละหน้าตามสิทธิ์จริง (ตอนนี้ Backend เช็คจริง แต่ UI ยัง Hardcode ตาม Role) + หน้า Admin จัดการสิทธิ์แบบตาราง | ⬜ |
+
+**บั๊กที่พบระหว่างทดสอบและแก้แล้ว:** `RequiresPermissionAttribute` เดิม Implement เป็น Action Filter
+(`IAsyncActionFilter`) ซึ่งรันหลัง Model Validation ของ `[ApiController]` — ทำให้ User ที่ไม่มีสิทธิ์ยิง
+Body ไม่ครบยังเห็น `400` (บอก Field ที่ขาด) แทนที่จะโดน `403` ตั้งแต่แรก แก้โดยเปลี่ยนเป็น Authorization
+Filter (`IAsyncAuthorizationFilter`) ให้รันเร็วกว่า Model Binding เหมือน `[Authorize]` เดิม
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว (API เท่านั้น ยังไม่ผ่าน Playwright):** Role Default ตรงกับ Policy
+เดิม 100%, VIEWER โดนบล็อกจริงตอนยิง Endpoint ที่ไม่มีสิทธิ์ (`403`), Admin ตั้ง Override ให้สิทธิ์เพิ่ม
+ทันที (ทดสอบยิง `api/lookups/vendors` ผ่านจริงหลัง Override), ล้าง Override แล้วสิทธิ์กลับตาม Role ทันที,
+Admin แก้สิทธิ์ตัวเองโดนบล็อก (`409`) — ลบ/ปิดข้อมูลทดสอบออกหมดแล้ว
+
+---
+
 ## 2. Sprint Plan (Sprint 0–10, รวม ~49 วันทำงาน)
 
 > เรียงตามลำดับ Dependency จริง ไม่ใช่ลำดับความสำคัญ — บาง Sprint ทำคู่ขนานได้ถ้ามีมากกว่า 1 คน (ดู §3)

@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
@@ -16,7 +18,8 @@ namespace IsInventory.Api.Controllers.Relationships;
 /// forward/inverse name.
 /// </summary>
 [ApiController]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("assets", PermissionAction.View)]
 public sealed class AssetRelationshipsController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -41,7 +44,7 @@ public sealed class AssetRelationshipsController : ControllerBase
     }
 
     [HttpPost("api/assets/{assetId:int}/relationships")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("assets", PermissionAction.Create)]
     public async Task<ActionResult<AssetRelationshipItem>> Create(
         int assetId, [FromBody] AssetRelationshipRequest request, CancellationToken ct)
     {
@@ -92,7 +95,7 @@ public sealed class AssetRelationshipsController : ControllerBase
     }
 
     [HttpDelete("api/assets/{assetId:int}/relationships/{relationshipId:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("assets", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int assetId, int relationshipId, CancellationToken ct)
     {
         var entity = await _db.AssetRelationships.FirstOrDefaultAsync(

@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -14,7 +16,8 @@ namespace IsInventory.Api.Controllers.Servers;
 /// </summary>
 [ApiController]
 [Route("api/os-types")]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("server_inventory", PermissionAction.View)]
 public sealed class OsCatalogController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -35,7 +38,7 @@ public sealed class OsCatalogController : ControllerBase
             .Select(t => new OsTypeOption(t.OsTypeId, t.Code, t.Name)).ToListAsync(ct));
 
     [HttpPost]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("server_inventory", PermissionAction.Create)]
     public async Task<ActionResult<OsTypeOption>> CreateType([FromBody] CreateOsTypeRequest request, CancellationToken ct)
     {
         var name = request.Name.Trim();
@@ -62,7 +65,7 @@ public sealed class OsCatalogController : ControllerBase
     }
 
     [HttpPost("~/api/os-versions")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("server_inventory", PermissionAction.Create)]
     public async Task<ActionResult<OsVersionOption>> CreateVersion([FromBody] CreateOsVersionRequest request, CancellationToken ct)
     {
         var name = request.Name.Trim();

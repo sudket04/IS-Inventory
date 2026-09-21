@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Api.Controllers.Assets;
 using IsInventory.Infrastructure;
@@ -19,7 +21,8 @@ namespace IsInventory.Api.Controllers.Contracts;
 /// delete blocked with a friendly 409 when still referenced.
 /// </summary>
 [ApiController]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("contracts", PermissionAction.View)]
 public sealed class ContractsController : ControllerBase
 {
     private const int MaxPageSize = 100;
@@ -89,7 +92,7 @@ public sealed class ContractsController : ControllerBase
     }
 
     [HttpPost("api/contracts")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("contracts", PermissionAction.Create)]
     public async Task<ActionResult<ContractDetail>> Create([FromBody] ContractRequest request, CancellationToken ct)
     {
         var entity = new Contract();
@@ -116,7 +119,7 @@ public sealed class ContractsController : ControllerBase
     }
 
     [HttpPut("api/contracts/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("contracts", PermissionAction.Edit)]
     public async Task<ActionResult<ContractDetail>> Update(int id, [FromBody] ContractRequest request, CancellationToken ct)
     {
         var entity = await _db.Contracts.FirstOrDefaultAsync(c => c.ContractId == id, ct);
@@ -144,7 +147,7 @@ public sealed class ContractsController : ControllerBase
     }
 
     [HttpDelete("api/contracts/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("contracts", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var entity = await _db.Contracts.FirstOrDefaultAsync(c => c.ContractId == id, ct);
@@ -175,7 +178,7 @@ public sealed class ContractsController : ControllerBase
             .ToListAsync(ct));
 
     [HttpPost("api/contracts/{contractId:int}/assets")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("contracts", PermissionAction.Create)]
     public async Task<ActionResult<ContractAssetItem>> AddAsset(
         int contractId, [FromBody] ContractAssetCreateRequest request, CancellationToken ct)
     {
@@ -218,7 +221,7 @@ public sealed class ContractsController : ControllerBase
     }
 
     [HttpPut("api/contracts/{contractId:int}/assets/{contractAssetId:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("contracts", PermissionAction.Edit)]
     public async Task<ActionResult<ContractAssetItem>> UpdateAsset(
         int contractId, int contractAssetId, [FromBody] ContractAssetUpdateRequest request, CancellationToken ct)
     {
@@ -249,7 +252,7 @@ public sealed class ContractsController : ControllerBase
     }
 
     [HttpDelete("api/contracts/{contractId:int}/assets/{contractAssetId:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("contracts", PermissionAction.Delete)]
     public async Task<IActionResult> RemoveAsset(int contractId, int contractAssetId, CancellationToken ct)
     {
         var entity = await _db.ContractAssets.FirstOrDefaultAsync(

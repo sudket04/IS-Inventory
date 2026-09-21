@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
@@ -18,7 +20,8 @@ namespace IsInventory.Api.Controllers.Clusters;
 /// asset-owned (never shared) or cluster-owned (always shared).
 /// </summary>
 [ApiController]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("clusters", PermissionAction.View)]
 public sealed class StorageVolumesController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -33,7 +36,7 @@ public sealed class StorageVolumesController : ControllerBase
         Ok(await Query(v => v.AssetId == assetId).ToListAsync(ct));
 
     [HttpPost("api/assets/{assetId:int}/storage-volumes")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("clusters", PermissionAction.Create)]
     public async Task<ActionResult<StorageVolumeListItem>> CreateForAsset(int assetId, [FromBody] StorageVolumeRequest request, CancellationToken ct)
     {
         var asset = await _db.Assets.FirstOrDefaultAsync(a => a.AssetId == assetId && !a.IsDeleted, ct);
@@ -50,7 +53,7 @@ public sealed class StorageVolumesController : ControllerBase
         Ok(await Query(v => v.ClusterId == clusterId).ToListAsync(ct));
 
     [HttpPost("api/clusters/{clusterId:int}/storage-volumes")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("clusters", PermissionAction.Create)]
     public async Task<ActionResult<StorageVolumeListItem>> CreateForCluster(int clusterId, [FromBody] StorageVolumeRequest request, CancellationToken ct)
     {
         var cluster = await _db.Clusters.FirstOrDefaultAsync(c => c.ClusterId == clusterId, ct);
@@ -63,7 +66,7 @@ public sealed class StorageVolumesController : ControllerBase
     }
 
     [HttpPut("api/storage-volumes/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("clusters", PermissionAction.Edit)]
     public async Task<ActionResult<StorageVolumeListItem>> Update(int id, [FromBody] StorageVolumeRequest request, CancellationToken ct)
     {
         var entity = await _db.StorageVolumes.FirstOrDefaultAsync(v => v.VolumeId == id, ct);
@@ -106,7 +109,7 @@ public sealed class StorageVolumesController : ControllerBase
     }
 
     [HttpDelete("api/storage-volumes/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("clusters", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var entity = await _db.StorageVolumes.FirstOrDefaultAsync(v => v.VolumeId == id, ct);

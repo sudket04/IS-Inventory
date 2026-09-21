@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
@@ -23,7 +25,8 @@ namespace IsInventory.Api.Controllers.Servers;
 /// </summary>
 [ApiController]
 [Route("api/server-list")]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("server_list", PermissionAction.View)]
 public sealed class ServerListController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -104,7 +107,7 @@ public sealed class ServerListController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("server_list", PermissionAction.Create)]
     public async Task<ActionResult<ServerListDetail>> Create([FromBody] ServerListCreateRequest request, CancellationToken ct)
     {
         var userId = CurrentUserId();
@@ -233,7 +236,7 @@ public sealed class ServerListController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("server_list", PermissionAction.Edit)]
     public async Task<ActionResult<ServerListDetail>> Update(int id, [FromBody] ServerListUpdateRequest request, CancellationToken ct)
     {
         var asset = await LoadAssetAsync(id, ct);
@@ -307,7 +310,7 @@ public sealed class ServerListController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("server_list", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var asset = await LoadAssetAsync(id, ct);

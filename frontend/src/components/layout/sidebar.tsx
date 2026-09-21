@@ -10,12 +10,12 @@ import { NavIcon } from "@/components/layout/nav-icon";
 import { cn } from "@/lib/utils";
 
 export function Sidebar() {
-  const { user } = useAuth();
+  const { user, permissions } = useAuth();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = React.useState(false);
 
   if (!user) return null;
-  const items = visibleNavItems(user.roleCode);
+  const items = visibleNavItems(permissions);
 
   function isActive(href: string) {
     return href === "/" ? pathname === "/" : pathname.startsWith(href);

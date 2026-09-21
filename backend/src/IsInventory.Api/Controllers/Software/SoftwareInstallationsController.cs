@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
@@ -16,7 +18,8 @@ namespace IsInventory.Api.Controllers.Software;
 /// member leave/rejoin), so uninstall history survives.
 /// </summary>
 [ApiController]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("software", PermissionAction.View)]
 public sealed class SoftwareInstallationsController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -65,7 +68,7 @@ public sealed class SoftwareInstallationsController : ControllerBase
             .ToListAsync(ct));
 
     [HttpPost("api/assets/{softwareAssetId:int}/installations")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("software", PermissionAction.Create)]
     public async Task<ActionResult<SoftwareInstallationItem>> Install(
         int softwareAssetId, [FromBody] SoftwareInstallationRequest request, CancellationToken ct)
     {
@@ -111,7 +114,7 @@ public sealed class SoftwareInstallationsController : ControllerBase
     }
 
     [HttpDelete("api/software-installations/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("software", PermissionAction.Delete)]
     public async Task<IActionResult> Uninstall(int id, CancellationToken ct)
     {
         var entity = await _db.SoftwareInstallations.FirstOrDefaultAsync(i => i.InstallationId == id, ct);

@@ -39,6 +39,7 @@ export default function AdminUsersPage() {
   const [form, setForm] = React.useState(emptyForm);
   const [formError, setFormError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  const [rowError, setRowError] = React.useState<string | null>(null);
 
   const loadUsers = React.useCallback(async () => {
     const res = await apiFetch("/api/users");
@@ -78,7 +79,8 @@ export default function AdminUsersPage() {
   }
 
   async function toggleActive(u: UserListItem) {
-    await apiFetch(`/api/users/${u.userId}`, {
+    setRowError(null);
+    const res = await apiFetch(`/api/users/${u.userId}`, {
       method: "PUT",
       body: JSON.stringify({
         fullName: u.fullName,
@@ -88,6 +90,11 @@ export default function AdminUsersPage() {
         isActive: !u.isActive,
       }),
     });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setRowError(body.message ?? "Could not update this user.");
+      return;
+    }
     await loadUsers();
   }
 
@@ -193,6 +200,12 @@ export default function AdminUsersPage() {
             </Button>
           </div>
         </form>
+      )}
+
+      {rowError && (
+        <p role="alert" className="mt-3 text-sm text-red-600">
+          {rowError}
+        </p>
       )}
 
       <div className="mt-4 overflow-hidden rounded-md border border-border-default">

@@ -161,6 +161,10 @@ public partial class User
 
     public virtual User? UpdatedByNavigation { get; set; }
 
+    public virtual ICollection<UserMenuPermission> UserMenuPermissionUpdatedByNavigations { get; set; } = new List<UserMenuPermission>();
+
+    public virtual ICollection<UserMenuPermission> UserMenuPermissionUsers { get; set; } = new List<UserMenuPermission>();
+
     public virtual ICollection<Vlan> VlanCreatedByNavigations { get; set; } = new List<Vlan>();
 
     public virtual ICollection<VlanDevice> VlanDevices { get; set; } = new List<VlanDevice>();

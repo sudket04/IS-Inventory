@@ -1,5 +1,6 @@
 using System.Data;
 using System.Security.Claims;
+using IsInventory.Api.Authorization;
 using IsInventory.Domain.Security;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
@@ -23,7 +24,8 @@ namespace IsInventory.Api.Controllers.Assets;
 /// </summary>
 [ApiController]
 [Route("api/assets")]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("assets", PermissionAction.View)]
 public sealed class AssetsController : ControllerBase
 {
     private const int MaxPageSize = 100;
@@ -139,7 +141,7 @@ public sealed class AssetsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("assets", PermissionAction.Create)]
     public async Task<ActionResult<AssetDetail>> Create([FromBody] AssetCreateRequest request, CancellationToken ct)
     {
         var category = await _db.AssetCategories.FindAsync([request.CategoryId], ct);
@@ -267,7 +269,7 @@ public sealed class AssetsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("assets", PermissionAction.Edit)]
     public async Task<IActionResult> Update(int id, [FromBody] AssetUpdateRequest request, CancellationToken ct)
     {
         var asset = await _db.Assets
@@ -362,7 +364,7 @@ public sealed class AssetsController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("assets", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var asset = await _db.Assets.Include(a => a.Category).SingleOrDefaultAsync(a => a.AssetId == id && !a.IsDeleted, ct);

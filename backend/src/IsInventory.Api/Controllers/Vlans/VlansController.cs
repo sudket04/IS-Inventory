@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
@@ -19,7 +21,8 @@ namespace IsInventory.Api.Controllers.Vlans;
 /// the same "trust the database" approach used by Racks/Clusters.
 /// </summary>
 [ApiController]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("vlans", PermissionAction.View)]
 public sealed class VlansController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -68,7 +71,7 @@ public sealed class VlansController : ControllerBase
             .ToListAsync(ct));
 
     [HttpPost("api/vlans")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("vlans", PermissionAction.Create)]
     public async Task<ActionResult<VlanDetail>> Create([FromBody] VlanRequest request, CancellationToken ct)
     {
         var entity = new Vlan();
@@ -95,7 +98,7 @@ public sealed class VlansController : ControllerBase
     }
 
     [HttpPut("api/vlans/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("vlans", PermissionAction.Edit)]
     public async Task<ActionResult<VlanDetail>> Update(int id, [FromBody] VlanRequest request, CancellationToken ct)
     {
         var entity = await _db.Vlans.FirstOrDefaultAsync(v => v.VlanId == id, ct);
@@ -126,7 +129,7 @@ public sealed class VlansController : ControllerBase
     }
 
     [HttpDelete("api/vlans/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("vlans", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var entity = await _db.Vlans.FirstOrDefaultAsync(v => v.VlanId == id, ct);
@@ -157,7 +160,7 @@ public sealed class VlansController : ControllerBase
         Ok(await RangeQuery(_db.VlanIpRanges.Where(r => r.VlanId == vlanId)).ToListAsync(ct));
 
     [HttpPost("api/vlans/{vlanId:int}/ranges")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("vlans", PermissionAction.Create)]
     public async Task<ActionResult<VlanIpRangeItem>> AddRange(int vlanId, [FromBody] VlanIpRangeRequest request, CancellationToken ct)
     {
         if (!await _db.Vlans.AnyAsync(v => v.VlanId == vlanId, ct))
@@ -188,7 +191,7 @@ public sealed class VlansController : ControllerBase
     }
 
     [HttpPut("api/vlan-ranges/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("vlans", PermissionAction.Edit)]
     public async Task<ActionResult<VlanIpRangeItem>> UpdateRange(int id, [FromBody] VlanIpRangeRequest request, CancellationToken ct)
     {
         var entity = await _db.VlanIpRanges.FirstOrDefaultAsync(r => r.RangeId == id, ct);
@@ -216,7 +219,7 @@ public sealed class VlansController : ControllerBase
     }
 
     [HttpDelete("api/vlan-ranges/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("vlans", PermissionAction.Delete)]
     public async Task<IActionResult> DeleteRange(int id, CancellationToken ct)
     {
         var entity = await _db.VlanIpRanges.FirstOrDefaultAsync(r => r.RangeId == id, ct);
@@ -246,7 +249,7 @@ public sealed class VlansController : ControllerBase
         Ok(await DeviceQuery(_db.VlanDevices.Where(d => d.VlanId == vlanId)).ToListAsync(ct));
 
     [HttpPost("api/vlans/{vlanId:int}/devices")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("vlans", PermissionAction.Create)]
     public async Task<ActionResult<VlanDeviceItem>> AddDevice(int vlanId, [FromBody] VlanDeviceRequest request, CancellationToken ct)
     {
         if (!await _db.Vlans.AnyAsync(v => v.VlanId == vlanId, ct))
@@ -289,7 +292,7 @@ public sealed class VlansController : ControllerBase
     }
 
     [HttpDelete("api/vlan-devices/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("vlans", PermissionAction.Delete)]
     public async Task<IActionResult> DeleteDevice(int id, CancellationToken ct)
     {
         var entity = await _db.VlanDevices.FirstOrDefaultAsync(d => d.VlanDeviceId == id, ct);

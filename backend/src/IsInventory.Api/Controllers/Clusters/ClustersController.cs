@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
@@ -16,7 +18,8 @@ namespace IsInventory.Api.Controllers.Clusters;
 /// ON DELETE CASCADE anywhere in this schema (decision #10).
 /// </summary>
 [ApiController]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("clusters", PermissionAction.View)]
 public sealed class ClustersController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -49,7 +52,7 @@ public sealed class ClustersController : ControllerBase
     }
 
     [HttpPost("api/clusters")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("clusters", PermissionAction.Create)]
     public async Task<ActionResult<ClusterDetail>> Create([FromBody] ClusterRequest request, CancellationToken ct)
     {
         var entity = new Cluster();
@@ -86,7 +89,7 @@ public sealed class ClustersController : ControllerBase
     }
 
     [HttpPut("api/clusters/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("clusters", PermissionAction.Edit)]
     public async Task<ActionResult<ClusterDetail>> Update(int id, [FromBody] ClusterRequest request, CancellationToken ct)
     {
         var entity = await _db.Clusters.FirstOrDefaultAsync(c => c.ClusterId == id, ct);
@@ -127,7 +130,7 @@ public sealed class ClustersController : ControllerBase
     }
 
     [HttpDelete("api/clusters/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("clusters", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var entity = await _db.Clusters.FirstOrDefaultAsync(c => c.ClusterId == id, ct);
@@ -178,7 +181,7 @@ public sealed class ClustersController : ControllerBase
     }
 
     [HttpPost("api/clusters/{clusterId:int}/members")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("clusters", PermissionAction.Create)]
     public async Task<ActionResult<ClusterMemberItem>> AddMember(int clusterId, [FromBody] ClusterMemberRequest request, CancellationToken ct)
     {
         var cluster = await _db.Clusters.FirstOrDefaultAsync(c => c.ClusterId == clusterId, ct);
@@ -235,7 +238,7 @@ public sealed class ClustersController : ControllerBase
     }
 
     [HttpPut("api/cluster-members/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("clusters", PermissionAction.Edit)]
     public async Task<IActionResult> UpdateMember(int id, [FromBody] ClusterMemberUpdateRequest request, CancellationToken ct)
     {
         var entity = await _db.ClusterMembers.FirstOrDefaultAsync(m => m.MemberId == id, ct);
@@ -256,7 +259,7 @@ public sealed class ClustersController : ControllerBase
     /// row, so cluster membership history is preserved — is_active is a computed column
     /// derived from left_date in the schema itself.</summary>
     [HttpPost("api/cluster-members/{id:int}/leave")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("clusters", PermissionAction.Edit)]
     public async Task<IActionResult> LeaveMember(int id, CancellationToken ct)
     {
         var entity = await _db.ClusterMembers.FirstOrDefaultAsync(m => m.MemberId == id, ct);
@@ -283,7 +286,7 @@ public sealed class ClustersController : ControllerBase
     }
 
     [HttpDelete("api/cluster-members/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("clusters", PermissionAction.Delete)]
     public async Task<IActionResult> RemoveMember(int id, CancellationToken ct)
     {
         var entity = await _db.ClusterMembers.FirstOrDefaultAsync(m => m.MemberId == id, ct);

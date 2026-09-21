@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
@@ -17,7 +19,8 @@ namespace IsInventory.Api.Controllers.ServerApplications;
 /// genuine hard delete, not soft-delete.
 /// </summary>
 [ApiController]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("server_list", PermissionAction.View)]
 public sealed class ServerApplicationsController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -54,7 +57,7 @@ public sealed class ServerApplicationsController : ControllerBase
     }
 
     [HttpPost("api/assets/{assetId:int}/applications")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("server_list", PermissionAction.Create)]
     public async Task<ActionResult<ServerApplicationListItem>> Create(int assetId, [FromBody] ServerApplicationRequest request, CancellationToken ct)
     {
         var asset = await _db.Assets.Include(a => a.Category)
@@ -98,7 +101,7 @@ public sealed class ServerApplicationsController : ControllerBase
     }
 
     [HttpPut("api/applications/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("server_list", PermissionAction.Edit)]
     public async Task<ActionResult<ServerApplicationListItem>> Update(int id, [FromBody] ServerApplicationRequest request, CancellationToken ct)
     {
         var entity = await _db.ServerApplications.FirstOrDefaultAsync(a => a.ApplicationId == id, ct);
@@ -135,7 +138,7 @@ public sealed class ServerApplicationsController : ControllerBase
     }
 
     [HttpDelete("api/applications/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("server_list", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var entity = await _db.ServerApplications.FirstOrDefaultAsync(a => a.ApplicationId == id, ct);

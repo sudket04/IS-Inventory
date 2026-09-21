@@ -24,6 +24,7 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
 
 // One-time install-time bootstrap: `dotnet IsInventory.Api.dll seed-admin` sets the initial
 // admin password (Argon2id-hashed via the real IPasswordHasher, never a hand-rolled hash) and

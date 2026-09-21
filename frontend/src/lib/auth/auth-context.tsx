@@ -14,24 +14,39 @@ export interface AuthUser {
   mustChangePassword: boolean;
 }
 
+/** Mirrors backend IsInventory.Domain.Security.MenuPermission — effective permission
+ * (role default with any per-user override already applied) for one menu. */
+export interface MenuPermission {
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+/** Keyed by dbo.menus.menu_key (see frontend/src/lib/nav.ts). */
+export type PermissionsMap = Record<string, MenuPermission>;
+
 export type LoginOutcome =
   | { ok: true }
   | { ok: false; error: string; message: string; lockedUntil?: string };
 
 interface AuthContextValue {
   user: AuthUser | null;
+  permissions: PermissionsMap;
   status: "loading" | "authenticated" | "unauthenticated";
   login: (username: string, password: string) => Promise<LoginOutcome>;
   logout: () => Promise<void>;
-  /** Applies a fresh access token + user straight from a LoginResponse-shaped API result —
-   * used after a forced password change to clear mustChangePassword without a full reload. */
-  applySession: (accessToken: string, user: AuthUser) => void;
+  /** Applies a fresh access token + user + permissions straight from a LoginResponse-shaped
+   * API result — used after a forced password change to clear mustChangePassword without a
+   * full reload. */
+  applySession: (accessToken: string, user: AuthUser, permissions: PermissionsMap) => void;
 }
 
 const AuthContext = React.createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<AuthUser | null>(null);
+  const [permissions, setPermissions] = React.useState<PermissionsMap>({});
   const [status, setStatus] = React.useState<AuthContextValue["status"]>("loading");
 
   // On first load, a refresh cookie from a previous session may still be valid —
@@ -49,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const body = await res.json();
           setAccessToken(body.accessToken);
           setUser(body.user);
+          setPermissions(body.permissions ?? {});
           setStatus("authenticated");
         } else {
           setAccessToken(null);
@@ -87,6 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setAccessToken(body.accessToken);
     setUser(body.user);
+    setPermissions(body.permissions ?? {});
     setStatus("authenticated");
     return { ok: true };
   }, []);
@@ -95,18 +112,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await fetch(`${getApiUrl()}/api/auth/logout`, { method: "POST", credentials: "include" }).catch(() => {});
     setAccessToken(null);
     setUser(null);
+    setPermissions({});
     setStatus("unauthenticated");
   }, []);
 
-  const applySession = React.useCallback((accessToken: string, nextUser: AuthUser) => {
+  const applySession = React.useCallback((accessToken: string, nextUser: AuthUser, nextPermissions: PermissionsMap) => {
     setAccessToken(accessToken);
     setUser(nextUser);
+    setPermissions(nextPermissions);
     setStatus("authenticated");
   }, []);
 
   const value = React.useMemo(
-    () => ({ user, status, login, logout, applySession }),
-    [user, status, login, logout, applySession],
+    () => ({ user, permissions, status, login, logout, applySession }),
+    [user, permissions, status, login, logout, applySession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

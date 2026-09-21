@@ -1,3 +1,5 @@
+using IsInventory.Api.Authorization;
+using IsInventory.Domain.Security;
 using System.Security.Claims;
 using IsInventory.Infrastructure;
 using IsInventory.Infrastructure.Entities;
@@ -24,7 +26,8 @@ namespace IsInventory.Api.Controllers.PermissionControl;
 /// event in this system is a write).
 /// </summary>
 [ApiController]
-[Authorize(Policy = "AnyRole")]
+[Authorize]
+[RequiresPermission("file_shares", PermissionAction.View)]
 public sealed class FileSharesController : ControllerBase
 {
     private readonly IsInventoryDbContext _db;
@@ -89,7 +92,7 @@ public sealed class FileSharesController : ControllerBase
     }
 
     [HttpPost("api/file-shares")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("file_shares", PermissionAction.Create)]
     public async Task<ActionResult<FileShareDetail>> Create([FromBody] FileShareRequest request, CancellationToken ct)
     {
         if (!await CanEditClassificationAsync(request.ClassificationId, ct))
@@ -137,7 +140,7 @@ public sealed class FileSharesController : ControllerBase
     }
 
     [HttpPut("api/file-shares/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("file_shares", PermissionAction.Edit)]
     public async Task<ActionResult<FileShareDetail>> Update(int id, [FromBody] FileShareRequest request, CancellationToken ct)
     {
         var share = await _db.FileShares.FirstOrDefaultAsync(s => s.ShareId == id && !s.IsDeleted, ct);
@@ -190,7 +193,7 @@ public sealed class FileSharesController : ControllerBase
     }
 
     [HttpDelete("api/file-shares/{id:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("file_shares", PermissionAction.Delete)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var share = await _db.FileShares.FirstOrDefaultAsync(s => s.ShareId == id && !s.IsDeleted, ct);
@@ -232,7 +235,7 @@ public sealed class FileSharesController : ControllerBase
     }
 
     [HttpPost("api/file-shares/{shareId:int}/permissions")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("file_shares", PermissionAction.Create)]
     public async Task<ActionResult<FileSharePermissionItem>> AddPermission(int shareId, [FromBody] FileSharePermissionRequest request, CancellationToken ct)
     {
         var share = await _db.FileShares.FirstOrDefaultAsync(s => s.ShareId == shareId && !s.IsDeleted, ct);
@@ -268,7 +271,7 @@ public sealed class FileSharesController : ControllerBase
     }
 
     [HttpDelete("api/file-shares/{shareId:int}/permissions/{permissionId:int}")]
-    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequiresPermission("file_shares", PermissionAction.Delete)]
     public async Task<IActionResult> RemovePermission(int shareId, int permissionId, CancellationToken ct)
     {
         var permission = await _db.FileSharePermissions

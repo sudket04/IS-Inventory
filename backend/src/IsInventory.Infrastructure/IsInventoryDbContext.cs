@@ -81,6 +81,8 @@ public partial class IsInventoryDbContext : DbContext
 
     public virtual DbSet<Manufacturer> Manufacturers { get; set; }
 
+    public virtual DbSet<Menu> Menus { get; set; }
+
     public virtual DbSet<MobileIotDetail> MobileIotDetails { get; set; }
 
     public virtual DbSet<NetworkDetail> NetworkDetails { get; set; }
@@ -108,6 +110,8 @@ public partial class IsInventoryDbContext : DbContext
     public virtual DbSet<RelationshipType> RelationshipTypes { get; set; }
 
     public virtual DbSet<Role> Roles { get; set; }
+
+    public virtual DbSet<RoleMenuPermission> RoleMenuPermissions { get; set; }
 
     public virtual DbSet<ServerApplication> ServerApplications { get; set; }
 
@@ -146,6 +150,8 @@ public partial class IsInventoryDbContext : DbContext
     public virtual DbSet<Tally> Tallies { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
+
+    public virtual DbSet<UserMenuPermission> UserMenuPermissions { get; set; }
 
     public virtual DbSet<Vendor> Vendors { get; set; }
 
@@ -2340,6 +2346,23 @@ public partial class IsInventoryDbContext : DbContext
                 .HasColumnName("support_url");
         });
 
+        modelBuilder.Entity<Menu>(entity =>
+        {
+            entity.ToTable("menus");
+
+            entity.HasIndex(e => e.MenuKey, "UX_menus_key").IsUnique();
+
+            entity.Property(e => e.MenuId).HasColumnName("menu_id");
+            entity.Property(e => e.MenuKey)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasColumnName("menu_key");
+            entity.Property(e => e.Name)
+                .HasMaxLength(100)
+                .HasColumnName("name");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+        });
+
         modelBuilder.Entity<MobileIotDetail>(entity =>
         {
             entity.HasKey(e => e.AssetId);
@@ -2991,6 +3014,30 @@ public partial class IsInventoryDbContext : DbContext
                 .HasMaxLength(50)
                 .HasColumnName("name");
             entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+        });
+
+        modelBuilder.Entity<RoleMenuPermission>(entity =>
+        {
+            entity.HasKey(e => new { e.RoleId, e.MenuId });
+
+            entity.ToTable("role_menu_permissions");
+
+            entity.Property(e => e.RoleId).HasColumnName("role_id");
+            entity.Property(e => e.MenuId).HasColumnName("menu_id");
+            entity.Property(e => e.CanCreate).HasColumnName("can_create");
+            entity.Property(e => e.CanDelete).HasColumnName("can_delete");
+            entity.Property(e => e.CanEdit).HasColumnName("can_edit");
+            entity.Property(e => e.CanView).HasColumnName("can_view");
+
+            entity.HasOne(d => d.Menu).WithMany(p => p.RoleMenuPermissions)
+                .HasForeignKey(d => d.MenuId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_rmp_menu");
+
+            entity.HasOne(d => d.Role).WithMany(p => p.RoleMenuPermissions)
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_rmp_role");
         });
 
         modelBuilder.Entity<ServerApplication>(entity =>
@@ -3989,6 +4036,38 @@ public partial class IsInventoryDbContext : DbContext
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.InverseUpdatedByNavigation)
                 .HasForeignKey(d => d.UpdatedBy)
                 .HasConstraintName("FK_users_updated_by");
+        });
+
+        modelBuilder.Entity<UserMenuPermission>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.MenuId });
+
+            entity.ToTable("user_menu_permissions");
+
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.MenuId).HasColumnName("menu_id");
+            entity.Property(e => e.CanCreate).HasColumnName("can_create");
+            entity.Property(e => e.CanDelete).HasColumnName("can_delete");
+            entity.Property(e => e.CanEdit).HasColumnName("can_edit");
+            entity.Property(e => e.CanView).HasColumnName("can_view");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("(sysdatetimeoffset())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.Menu).WithMany(p => p.UserMenuPermissions)
+                .HasForeignKey(d => d.MenuId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ump_menu");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.UserMenuPermissionUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_ump_updated_by");
+
+            entity.HasOne(d => d.User).WithMany(p => p.UserMenuPermissionUsers)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ump_user");
         });
 
         modelBuilder.Entity<Vendor>(entity =>
