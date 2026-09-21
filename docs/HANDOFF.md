@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-21 · commit `a1b403b` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI เสร็จแล้ว)** |
-| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด + Audit Log UI (List/Filter/Detail) ทำงานจริง** (ดู §4.5, §4.6, §4.7, §4.8) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, Attachment, Rack, VLAN/Site, Application ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) |
+| **อัปเดตล่าสุด** | 2569-09-21 · commit `fcfdaa4` |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment เสร็จแล้ว)** |
+| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment (Upload/Download/Delete) ทำงานจริง** (ดู §4.5–§4.9) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, Storage/Cluster, Rack, VLAN/Site, Application ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) |
 
 ---
 
@@ -52,7 +52,7 @@
 | **1. Requirement** | ✅ เสร็จ | `docs/PRD.md` |
 | **2. UI/UX Design** | ✅ เสร็จ | `docs/design/01` `02` `03` |
 | **3. Database** | ✅ เสร็จ (v1.0 → v1.6) — ทดสอบรันจริงบน SQL Server แล้ว | `docs/database/01`–`15` |
-| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ | `docs/ROADMAP.md` §1.3–§1.7 |
+| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ | `docs/ROADMAP.md` §1.3–§1.8 |
 
 ---
 
@@ -255,6 +255,47 @@ Filter ตาม Action, ค้นหาด้วย Search Box ของหน�
 Before/After Panel — ผลลัพธ์ตรงกับ curl ทุกกรณี
 
 **ยังไม่ทำ:** Diff Tracking จริง (Before/After JSON), Export Audit Log เป็นไฟล์, การแจ้งเตือน Anomaly
+
+---
+
+### 4.9 Backend/Frontend — Sprint 3 (บางส่วน): Attachment + แก้ RBAC Audit Log (21 ก.ย. 2569)
+
+**พบบั๊กก่อนเริ่มงานใหม่:** ระหว่างอ่านทวน Permission Matrix (`docs/PRD.md` §5.2) พบว่าแถว "ดู Audit Log
+ทั้งระบบ" ระบุไว้ว่า **IT Staff ควรเห็นเฉพาะรายการที่ตนเองแก้ไข** แต่ `AuditLogsController` ที่สร้างใน §4.8
+ใช้ Policy `AuditorOrAbove` เฉยๆ ไม่ได้กรองตาม User เลย ทำให้ IT Staff เห็น Audit Log ของทุกคนได้ —
+เป็นช่องโหว่ข้อมูลจริง แก้โดยเพิ่มเงื่อนไข Server-side บังคับ `WHERE user_id = <current user>` เมื่อ Role
+เป็น IT_STAFF (ไม่สนใจว่า Client จะส่ง `userId` Query Param มาพยายามข้ามเงื่อนไขหรือไม่ เพราะ Query Param
+เป็น Input จากฝั่ง Client ไว้ใจไม่ได้) ทั้งที่ `GET /api/audit-logs` และ `GET /api/audit-logs/{id}` — ทดสอบแล้วว่า
+IT Staff ส่ง `?userId=1` (ID ของ admin) ก็ยังเห็นแค่รายการของตัวเอง (หรือ 0 รายการถ้าไม่ตรง) — เพิ่มข้อความ
+Subtitle ในหน้า `/audit-logs` ให้ต่างกันตาม Role ด้วย
+
+**งานหลักรอบนี้ — Attachment (FR-AT-01 ถึง FR-AT-05):**
+
+| ส่วน | รายละเอียด |
+|---|---|
+| Backend — Controller ใหม่ | `AttachmentsController.cs` — `GET/POST /api/assets/{assetId}/attachments` (List/Upload), `GET /api/attachments/{id}/download`, `DELETE /api/attachments/{id}` |
+| Policy | List/Download = `AnyRole` (PRD: ทุก Role ดูไฟล์แนบได้) · Upload/Delete = `ItStaffOrAbove` (PRD: เฉพาะ Admin/IT Staff) |
+| FR-AT-02 จำกัดชนิด+ขนาดไฟล์ | Whitelist `.pdf .jpg .jpeg .png .xlsx .docx` เท่านั้น ขนาดสูงสุด 10 MB (ตรงกับ `CK_attachments_size` ในฐานข้อมูลที่กำหนดไว้ตั้งแต่ตอนออกแบบ Schema — Q4 ใน PRD §ท้ายเอกสารจึงถือว่าตอบไปแล้วในทางปฏิบัติ ไม่ใช่คำถามค้างจริง) |
+| FR-AT-03 ตรวจ Magic Number | อ่าน Byte แรกของไฟล์เทียบ Signature จริง (PDF `%PDF`, JPEG `FFD8FF`, PNG Signature 8 Byte) — ไม่เชื่อนามสกุลไฟล์หรือ Content-Type ที่ Browser ส่งมาเลย สำหรับ XLSX/DOCX (เป็น ZIP ข้างใน) ตรวจ Signature ZIP (`PK..`) แล้วเปิดด้วย `System.IO.Compression.ZipArchive` เช็คว่ามี Entry `xl/workbook.xml` (XLSX) หรือ `word/document.xml` (DOCX) จริง กัน ZIP ธรรมดาสวมชื่อ .xlsx |
+| FR-AT-04 เก็บนอก Web Root | API นี้ไม่มี `wwwroot`/`UseStaticFiles()` เลยตั้งแต่ต้น (ดู `Program.cs`) ไฟล์เก็บใต้ `App_Data/attachments/{assetId}/{GUID}.{ext}` (Path จริงไม่เปิดเผยให้ Client เห็น) เข้าถึงได้ทางเดียวคือผ่าน Endpoint ที่ตรวจสิทธิ์ก่อนเสมอ — เพิ่ม `App_Data/` เข้า `.gitignore` |
+| FR-AT-05 แสดงผู้อัปโหลด+วันที่ | `AttachmentListItem` Join กับ `users.full_name` |
+| Soft Delete | ลบไฟล์แนบ = ตั้ง `is_deleted = 1` เท่านั้น ไฟล์จริงบนดิสก์ยังอยู่ (Decision #11 Soft Delete ทุกที่) |
+| Audit Log | Upload/Delete เขียน Audit Log `entityType = "attachment"` ทุกครั้ง |
+| Frontend | Component ใหม่ `AttachmentsPanel` แปะไว้ใต้ `AssetForm` ในหน้า Edit Asset — Upload Form (เฉพาะ Admin/IT Staff เห็น), รายการไฟล์ + ปุ่ม Download/Delete |
+| **พบบั๊กระหว่างเขียน Frontend** | `apiFetch` เดิม Set `Content-Type: application/json` ให้ทุก Request ที่มี Body รวมถึง `FormData` ด้วย ซึ่งทำให้ Browser ไม่ได้ใส่ Multipart Boundary เอง — Upload ไฟล์จะพังทันที แก้โดยเพิ่มเงื่อนไขข้าม `FormData` ใน `frontend/src/lib/api.ts` (แก้ก่อนเขียน UI Component เสร็จ ไม่กระทบ Fetch อื่นที่เป็น JSON) |
+| Download ผ่าน Browser | ปุ่ม Download ต้องแนบ Bearer Token (ไม่ได้ใช้ Cookie Auth) จึงทำ `<a href>` ตรงไม่ได้ — ใช้ `apiFetch` ดึงเป็น Blob แล้วสร้าง Object URL ชั่วคราวเพื่อ Trigger การดาวน์โหลด |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** curl ทดสอบครบทุกเคส — Upload PDF/PNG/XLSX ที่ถูกต้อง (201),
+ไฟล์ปลอม (เนื้อหาไม่ตรงนามสกุล .pdf/.xlsx) ถูกปฏิเสธ (400), นามสกุลที่ไม่อนุญาต (.exe) ถูกปฏิเสธ (400),
+ไฟล์เกิน 10 MB ถูกปฏิเสธ (400), Download แล้วเทียบ Byte กับไฟล์ต้นฉบับตรงกัน, ลบไฟล์แล้ว Download ซ้ำได้ 404,
+สร้าง User ทดสอบ Role VIEWER ยืนยันว่า List/Download ทำได้แต่ Upload/Delete โดน 403, สร้าง User ทดสอบ Role
+IT_STAFF ยืนยันว่าเห็น Audit Log แค่ของตัวเอง — ทดสอบซ้ำผ่าน UI จริงด้วย Playwright: เปิดหน้า Edit Asset
+เห็น Attachment Panel, Upload ไฟล์ผ่านฟอร์มจริงสำเร็จ, Upload ไฟล์ผิดชนิดเห็น Error Message บนหน้าเว็บ —
+ลบข้อมูลทดสอบ (Attachment/Asset/User ปิดใช้งาน) หลังทดสอบเสร็จเช่นเดิม
+
+**ยังไม่ทำ:** Attachment บน Contract (ตาราง `attachments.contract_id` รองรับแล้วแต่ยังไม่มี Contract CRUD
+เพราะ Contract เป็นงาน Sprint 4), ตั้งค่าขนาดไฟล์สูงสุด/พื้นที่จัดเก็บผ่านหน้า Settings แบบ Runtime (ตอนนี้
+Hardcode 10 MB + Whitelist ในโค้ด ไม่ใช่ค่าที่ Admin ปรับได้จาก UI)
 
 ---
 
