@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-21 · commit `09d1da2` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment + Application บน Server + Storage/Cluster + Rack + Location Tree Picker เสร็จแล้ว)** |
-| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume + Rack พร้อมผังกราฟิก ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.13) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, VLAN/Site UI ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) — **บล็อก Location Tree Picker ที่เคยพบใน §4.12 แก้แล้ว (ดู §4.13) — สร้าง Rack ผ่านหน้าเว็บได้จริงแล้วโดยไม่ต้องพึ่ง SQL** |
+| **อัปเดตล่าสุด** | 2569-09-21 · commit `f421159` |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 + Sprint 3 เสร็จครบทั้งหมด** (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM) — เหลือ Software License ที่เลื่อนไป Sprint 4 ตามแผนเดิม |
+| **โค้ดโปรแกรม** | 🟢 **Login/RBAC + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.14) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล — **Sprint 3 ปิดครบทุกรายการ** เหลือ Software License รอ Sprint 4 |
 
 ---
 
@@ -52,7 +52,7 @@
 | **1. Requirement** | ✅ เสร็จ | `docs/PRD.md` |
 | **2. UI/UX Design** | ✅ เสร็จ | `docs/design/01` `02` `03` |
 | **3. Database** | ✅ เสร็จ (v1.0 → v1.6) — ทดสอบรันจริงบน SQL Server แล้ว | `docs/database/01`–`15` |
-| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ | `docs/ROADMAP.md` §1.3–§1.11 |
+| **4. Development** | 🟢 Sprint 0 + Sprint 1 + Sprint 2 + Sprint 3 เสร็จครบ | `docs/ROADMAP.md` §1.3–§1.12 |
 
 ---
 
@@ -416,6 +416,34 @@ Playwright: หน้า List เห็นเปอร์เซ็นต์ใ�
 สำเร็จ; ตรวจ Audit Logs และ Admin Users เห็นวันที่รูปแบบ `dd/mm/yyyy HH:mm` (เช่น `21/09/2026 03:39`) ถูกต้อง
 
 **ยังไม่ทำ:** VLAN + Site UI ยังเป็นงาน Sprint 3 ที่เหลือ — Software License รอ Sprint 4
+
+### 4.14 Backend/Frontend — Sprint 3 (ปิดครบ): VLAN + IPAM Module (v1.1.1) (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** งานชิ้นสุดท้ายของ Sprint 3 — โมดูล v1.1.1 (`docs/database/04-vlan-module.sql`) — `dbo.vlans`
+(VLAN/Subnet, รองรับ Untagged และ Secondary Subnet หลายชุดต่อ VLAN), `dbo.vlan_ip_ranges` (Pool
+Static/DHCP/Reserved/Excluded), `dbo.vlan_devices` (อุปกรณ์ที่ทำหน้าที่ Gateway/DHCP Server/Trunk/Access)
+— EF Entity + View (`vw_vlan_summary`, `vw_vlan_ip_allocation`, `vw_vlan_validation_issues`) มีอยู่แล้ว
+เหลือแค่ Controller/UI เช่นเดียวกับโมดูลก่อนหน้า
+
+| ส่วน | รายละเอียด |
+|---|---|
+| Backend — Controller ใหม่ | `VlansController.cs` — CRUD VLAN + IP Ranges (sub-resource) + Devices (sub-resource) + Validation Issues (read-only) |
+| **กติกาเครือข่ายเกือบทั้งหมด (~20 CHECK Constraint) มีอยู่ใน Database อยู่แล้ว** | IP Format ถูกต้อง, Network Address ต้องเป็น Base Address ของ Subnet (ไม่ใช่ Host Address), Gateway ต้องอยู่ใน Subnet ของตัวเอง, VLAN Number ช่วง 1–4094, Untagged ต้องไม่มีเลข VLAN, ความสัมพันธ์ฟิลด์ DHCP (STATIC_ONLY ต้องไม่มีข้อมูล DHCP ค้าง / DHCP_ONLY-MIXED ต้องระบุแหล่งที่มา) ฯลฯ — Controller เขียน Helper `TryGetCheckViolationMessage()` แปล Error 547 เป็นข้อความบอกกติกาที่พังตรงๆ ตาม Constraint Name ที่ SQL Server แจ้งมา ไม่ต้อง Validate ซ้ำฝั่ง C# |
+| Frontend — หน้าใหม่ | เมนู "VLANs" ใหม่ → `/vlans` (List พร้อม % Pool Coverage/Static Utilization, Badge สี Zone), `/vlans/new`, `/vlans/{id}` (ฟอร์มแก้ไข + IP Ranges Panel + Devices Panel + **Validation Issues Warning Banner**) |
+| Validation Issues Banner | อ่านจาก `vw_vlan_validation_issues` (Range ซ้อนทับ, Range อยู่นอก Subnet, Gateway/DHCP ยังไม่ผูก Asset ฯลฯ) แสดงเป็นแถบเตือนสีเหลือง/แดงบนหัวฟอร์ม Edit ไม่บล็อกการบันทึก เป็นแค่ตัวช่วยสังเกตความผิดปกติ |
+| Picker ใหม่ | `/api/pickers/network-zones`, `/api/pickers/assets` (List Asset ทั้งหมดแบบ id+label ใช้เลือก Gateway/DHCP Server/Device — ยังเป็น Dropdown ธรรมดา ไม่ใช่ Autocomplete Search ตามช่องว่างที่รู้อยู่แล้วจาก Sprint 2) |
+| **บั๊กที่พบและแก้ระหว่างทดสอบ** | EF Core แปล Query เป็น SQL ไม่ได้เมื่อทำ `.Where()`/`.First()` ต่อจาก Query ที่ Project เป็น DTO Record ที่มี Conditional Navigation Property (`r.DhcpServerAsset != null ? ... : null`) อยู่ข้างใน — เกิด `InvalidOperationException` ตอนเรียกจริง (ไม่ใช่ตอน Build) — แก้โดยกรองข้อมูลที่ระดับ Entity Query ก่อนเสมอ แล้วค่อย Project เป็น DTO ทีหลัง (ไม่กรองต่อจาก DTO ที่ Project แล้ว) |
+| Site UI | Site (1st/2nd) เป็น Lookup คงที่ 2 แถวอยู่แล้ว (`dbo.vlan_sites`) ไม่ได้เพิ่ม CRUD แยก — ใช้ Dropdown เลือกผ่าน Picker เดิมที่มีอยู่แล้วในฟอร์ม VLAN ตรงตามที่ ROADMAP ระบุขอบเขตไว้ ("VLAN + Site UI") |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** curl ทดสอบครบ (Duplicate Subnet 409, Host Address แทน Network
+Address 400, Gateway นอก Subnet 400, VLAN Number ผิดช่วง 400, DHCP Consistency 400, Range Start>End 400,
+Duplicate Device Role 409, Delete VLAN ที่ยังมี Range/Device ค้าง 409) — ทดสอบผ่าน UI จริงด้วย Playwright
+ครบทุกจุด: List แสดง % Utilization, สร้าง VLAN ใหม่ผ่านฟอร์มจริงสำเร็จ, เพิ่ม/แก้ไข IP Range ผ่าน Modal
+เห็น Error จาก Constraint ตรงๆ, เพิ่ม Device แล้วเห็น Duplicate ถูกบล็อกด้วยข้อความอ่านง่าย, Warning Banner
+แสดง Validation Issues ถูกต้อง
+
+**Sprint 3 ปิดครบทุกรายการแล้ว** — เหลือ Software License (`SFT` Category) ที่เลื่อนไป Sprint 4 ตามแผนเดิม
+(ต้องรอตัดสินใจเรื่อง Seat Counting และการเข้ารหัส `license_key_encrypted`)
 
 ---
 

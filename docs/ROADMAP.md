@@ -14,15 +14,15 @@
 | Database Design | ✅ เสร็จ **และทดสอบรันจริงผ่านแล้ว** — 66 ตาราง · 45 Temporal · 45 View · 10 Trigger บน SQL Server 2022 จริง (ล่าสุด 20 ก.ย. 2569 รวม VLAN Secondary Subnet + Application Module) |
 | UI/UX Design | ✅ เสร็จ — User Flow · Wireframe 9 หน้า · Design System · หน้าตั้งค่า 25 หน้า |
 | Tech Stack | ✅ ตัดสินใจแล้ว — ASP.NET Core (.NET 8) + EF Core + Next.js |
-| **โค้ดจริง** | 🟡 **Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ** — Login/RBAC/จัดการผู้ใช้/Master Data/Location Tree Picker/Asset CRUD ครบ 7/8 หมวด/Audit Log UI/Attachment/Application บน Server/Cluster/Storage Volume/Rack ใช้งานได้จริง (§1.4–§1.12) · วันที่แสดงผลเป็น `dd/mm/yyyy` ทั้งโปรเจกต์ (§1.12) · Software License/VLAN Site UI ยังไม่เริ่ม (ส่วนที่เหลือของ Sprint 3 + Sprint 4) · **บล็อก Location Tree Picker ที่เคยพบตอนทำ Rack (§1.11) แก้แล้ว (§1.12)** |
+| **โค้ดจริง** | 🟢 **Sprint 0 + Sprint 1 + Sprint 2 + Sprint 3 เสร็จครบทั้งหมด** — Login/RBAC/จัดการผู้ใช้/Master Data/Location Tree Picker/Asset CRUD ครบ 7/8 หมวด/Audit Log UI/Attachment/Application บน Server/Cluster/Storage Volume/Rack/VLAN-IPAM ใช้งานได้จริง (§1.4–§1.13) · วันที่แสดงผลเป็น `dd/mm/yyyy` ทั้งโปรเจกต์ (§1.12) · เหลือ Software License เลื่อนไป Sprint 4 ตามแผนเดิม |
 
 **สรุป 1 บรรทัด:** Design เสร็จหมดแล้ว ฐานข้อมูลทดสอบผ่านแล้ว Backend/Frontend เชื่อมต่อกันจริง
 Login + RBAC + จัดการผู้ใช้ + Layout ใช้งานได้ (Sprint 1) บันทึก/ค้นหา Master Data ได้จริง (Sprint 2)
 Asset CRUD ครบ 7 ใน 8 หมวด ดู Audit Log แนบ/ดาวน์โหลดไฟล์ จัดการ Application บน Server, Cluster/Storage
-Volume, Rack พร้อมผังกราฟิก และตอนนี้ Location เองก็จัดการผ่าน UI ได้จริงแล้ว (Sprint 3 บางส่วน
-§1.6–§1.12) — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริงที่ยังไม่ได้รับ** (§1.2) และ **Windows Server ทดสอบ
-AD/FSRM** (§1.1) — ไม่ใช่การตัดสินใจสถาปัตยกรรมหรือความเสี่ยงจาก Schema/Stack ที่ไม่เคยพิสูจน์แล้วอีก
-ต่อไป
+Volume, Rack พร้อมผังกราฟิก, Location และตอนนี้ VLAN/IPAM ก็จัดการผ่าน UI ได้จริงครบแล้ว **(Sprint 3 ปิด
+ครบทุกรายการ — §1.6–§1.13)** — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริงที่ยังไม่ได้รับ** (§1.2) และ **Windows
+Server ทดสอบ AD/FSRM** (§1.1) — ไม่ใช่การตัดสินใจสถาปัตยกรรมหรือความเสี่ยงจาก Schema/Stack ที่ไม่เคย
+พิสูจน์แล้วอีกต่อไป
 
 ---
 
@@ -276,6 +276,26 @@ NULL) ก็ตาม เพราะยังอ้างอิง `rack_id` �
 Cycle Guard 400, ลบตอนมีลูก/มี Rack อ้างอิง 409 ทั้งคู่) — Playwright ผ่าน UI จริงครบ รวมสร้าง Rack ใหม่
 ทั้งกระบวนการผ่านหน้าเว็บโดยไม่พึ่ง SQL — ตรวจ Audit Logs/Admin Users เห็นวันที่ `dd/mm/yyyy HH:mm` ถูกต้อง
 
+### 1.13 ✅ Sprint 3 (ปิดครบ) — VLAN + IPAM Module v1.1.1 (21 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.14 — สรุปสั้น:
+
+| ส่วน | สถานะ |
+|---|---|
+| `VlansController` — CRUD `dbo.vlans` + IP Ranges (sub-resource) + Devices (sub-resource) + Validation Issues | ✅ ทดสอบกับ SQL Server จริง |
+| **กติกาเครือข่าย ~20 CHECK Constraint มีอยู่ใน Database อยู่แล้ว** — Controller แปล Error 547 เป็นข้อความอ่านง่ายตาม Constraint Name | ✅ |
+| หน้าใหม่ `/vlans` (List พร้อม % Utilization), `/vlans/new`, `/vlans/{id}` พร้อม IP Ranges Panel, Devices Panel, Validation Issues Warning Banner | ✅ |
+| Site UI — ใช้ Dropdown จาก `dbo.vlan_sites` (Lookup คงที่ 2 แถวอยู่แล้ว) ในฟอร์ม VLAN ตรงตามขอบเขตที่กำหนดไว้ | ✅ |
+| **บั๊กที่พบและแก้:** EF Core แปล Query ไม่ได้เมื่อ `.Where()`/`.First()` ต่อจาก Query ที่ Project เป็น DTO Record ที่มี Conditional Navigation Property — แก้โดยกรองที่ระดับ Entity ก่อน Project เสมอ | ✅ แก้แล้วและยืนยันด้วยการทดสอบจริง |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** curl ครบ (Duplicate Subnet 409, Host Address แทน Network Address
+400, Gateway นอก Subnet 400, VLAN Number ผิดช่วง 400, DHCP Consistency 400, Range Start>End 400,
+Duplicate Device Role 409, Delete ตอนยังมี Range/Device ค้าง 409) — Playwright ผ่าน UI จริงครบทุกจุด
+รวมสร้าง VLAN ใหม่, เพิ่ม/แก้ไข IP Range เห็น Error จาก Constraint ตรงๆ, เพิ่ม Device เห็น Duplicate ถูก
+บล็อก, Warning Banner แสดง Validation Issues ถูกต้อง
+
+**🎉 Sprint 3 ปิดครบทุกรายการแล้ว** — เหลือ Software License (`SFT` Category) เลื่อนไป Sprint 4 ตามแผนเดิม
+
 ---
 
 ## 2. Sprint Plan (Sprint 0–10, รวม ~49 วันทำงาน)
@@ -287,7 +307,7 @@ Cycle Guard 400, ลบตอนมีลูก/มี Rack อ้างอิ�
 | **0** | ~~รัน SQL 8 ไฟล์ · Setup .NET Solution + Next.js Project~~ ✅ เสร็จแล้ว (ดู §1.3) — เหลือ Seed Data ชุดจริง + Deploy Pipeline | Repo พร้อมพัฒนา · Backend↔DB↔Frontend ต่อกันจริงแล้ว | 1 |
 | **1** | ~~Auth (Argon2id+JWT ตาม Schema เดิม แทน ASP.NET Core Identity โดยตรง) · RBAC 4 บทบาท · จัดการผู้ใช้ · Layout + Dark Mode + กันจอขาววาบ~~ ✅ เสร็จแล้ว (ดู §1.4) | Login และควบคุมสิทธิ์ได้ | 4 |
 | **2** | ~~Master Data CRUD (11/12 หน้า — เหลือ `device_models` รอผังต้นไม้ `asset_type`) · Asset CRUD (Server/Network) · ค้นหา-กรอง~~ ✅ เสร็จแล้ว (ดู §1.5) | บันทึก/ค้นหาทรัพย์สินหลักได้ · หน้าตั้งค่าพื้นฐานครบ | 5 |
-| **3** | ~~Asset ประเภทที่เหลือ 5 หมวด (Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT)~~ ✅ เสร็จแล้ว (ดู §1.6) · ~~Audit Log UI~~ ✅ เสร็จแล้ว (ดู §1.7) · ~~Attachment~~ ✅ เสร็จแล้ว (ดู §1.8) · ~~Application บน Server (v1.6)~~ ✅ เสร็จแล้ว (ดู §1.9) · ~~Storage/Cluster~~ ✅ เสร็จแล้ว (ดู §1.10) · ~~Rack (พร้อมผังกราฟิก)~~ ✅ เสร็จแล้ว (ดู §1.11) · ~~Location Tree Picker~~ ✅ เสร็จแล้ว (ดู §1.12) — เหลือ Software License (เลื่อนไป Sprint 4) · VLAN + Site UI (1st/2nd, รองรับ Secondary Subnet/Untagged) | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
+| **3** | ~~Asset ประเภทที่เหลือ 5 หมวด (Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT)~~ ✅ เสร็จแล้ว (ดู §1.6) · ~~Audit Log UI~~ ✅ เสร็จแล้ว (ดู §1.7) · ~~Attachment~~ ✅ เสร็จแล้ว (ดู §1.8) · ~~Application บน Server (v1.6)~~ ✅ เสร็จแล้ว (ดู §1.9) · ~~Storage/Cluster~~ ✅ เสร็จแล้ว (ดู §1.10) · ~~Rack (พร้อมผังกราฟิก)~~ ✅ เสร็จแล้ว (ดู §1.11) · ~~Location Tree Picker~~ ✅ เสร็จแล้ว (ดู §1.12) · ~~VLAN + Site UI (v1.1.1)~~ ✅ เสร็จแล้ว (ดู §1.13) — **ปิด Sprint 3 ครบทุกรายการ** เหลือ Software License เลื่อนไป Sprint 4 | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
 | **4** | Software License · Seat Counting · CMDB Relationship · Contracts (เครื่องเดียว/หลายเครื่อง) | บริหาร License และความสัมพันธ์ได้ | 4 |
 | **5** | Dashboard · Reports · Export Excel | เห็นภาพรวมและออกรายงานได้ | 3 |
 | **6** | Excel Import + Validation · Notification (Email + In-app) · Settings หน้า SMTP/เกณฑ์แจ้งเตือน | นำเข้าข้อมูลเดิมและแจ้งเตือนอัตโนมัติได้ | 3 |
