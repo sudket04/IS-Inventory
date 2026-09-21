@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-21 · commit `fcfdaa4` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment เสร็จแล้ว)** |
-| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment (Upload/Download/Delete) ทำงานจริง** (ดู §4.5–§4.9) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, Storage/Cluster, Rack, VLAN/Site, Application ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) |
+| **อัปเดตล่าสุด** | 2569-09-21 · commit `f71f7b0` |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment + Application บน Server เสร็จแล้ว)** |
+| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment + Application บน Server ทำงานจริง** (ดู §4.5–§4.10) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, Storage/Cluster, Rack, VLAN/Site UI ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) |
 
 ---
 
@@ -52,7 +52,7 @@
 | **1. Requirement** | ✅ เสร็จ | `docs/PRD.md` |
 | **2. UI/UX Design** | ✅ เสร็จ | `docs/design/01` `02` `03` |
 | **3. Database** | ✅ เสร็จ (v1.0 → v1.6) — ทดสอบรันจริงบน SQL Server แล้ว | `docs/database/01`–`15` |
-| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ | `docs/ROADMAP.md` §1.3–§1.8 |
+| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ | `docs/ROADMAP.md` §1.3–§1.9 |
 
 ---
 
@@ -296,6 +296,37 @@ IT_STAFF ยืนยันว่าเห็น Audit Log แค่ของต
 **ยังไม่ทำ:** Attachment บน Contract (ตาราง `attachments.contract_id` รองรับแล้วแต่ยังไม่มี Contract CRUD
 เพราะ Contract เป็นงาน Sprint 4), ตั้งค่าขนาดไฟล์สูงสุด/พื้นที่จัดเก็บผ่านหน้า Settings แบบ Runtime (ตอนนี้
 Hardcode 10 MB + Whitelist ในโค้ด ไม่ใช่ค่าที่ Admin ปรับได้จาก UI)
+
+---
+
+### 4.10 Backend/Frontend — Sprint 3 (บางส่วน): Application บน Server (v1.6) (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** โมดูล `dbo.server_applications` (`docs/database/15-module-v1.6-server-applications.sql`)
+— ทะเบียน Application ที่รันอยู่บน Server แต่ละเครื่อง (Server/ประเภท/ชื่อ App/Port/Link/ผู้รับผิดชอบ/
+แผนก/สาขา) ตามที่ผู้ใช้ขอไว้ตอนออกแบบ Schema (§4.4.2 ข้อ 5) — EF Entity (`ServerApplication`,
+`VwServerApplication`) มีอยู่แล้วตั้งแต่ก่อนหน้านี้ เหลือแค่ Controller/UI
+
+| ส่วน | รายละเอียด |
+|---|---|
+| Backend — Controller ใหม่ | `ServerApplicationsController.cs` — `GET/POST /api/assets/{assetId}/applications`, `PUT/DELETE /api/applications/{id}` |
+| Policy | List = `AnyRole` · Create/Update/Delete = `ItStaffOrAbove` (ตาม Permission Matrix กลุ่มเดียวกับ Asset/Attachment) |
+| ผูกกับ Server เท่านั้น | Create ตรวจว่า `asset.Category.Code == "SRV"` ก่อนเสมอ — สร้าง Application บน Asset หมวดอื่นจะได้ 400 |
+| UNIQUE (asset_id, application_name) | จับ `DbUpdateException` แปลงเป็น 409 พร้อมข้อความเจาะจง แทนที่จะโยน SQL Error ดิบออกไป (Pattern เดียวกับ `LookupsControllerBase.IsUniqueViolation`) |
+| **ไม่ใช่ Soft Delete** | ตาราง `server_applications` ไม่มีคอลัมน์ `is_deleted` เลยตั้งแต่ตอนออกแบบ Schema (ต่างจากตารางอื่นเกือบทั้งหมด) — Delete ในนี้จึงเป็น Hard Delete จริง ตรงตามที่ Schema ออกแบบไว้ ไม่ใช่การมองข้าม Decision #11 |
+| Picker ใหม่ | เพิ่ม `GET /api/pickers/server-roles` (ใช้ `dbo.server_roles` ซ้ำเป็น "Server Type" ตามที่ Schema ตั้งใจ) และ `GET /api/pickers/vlan-sites` (คงที่ 2 รายการ: สาขาที่ 1/2 — ไม่มีหน้า CRUD เพราะ Site เป็น Lookup ปิดตายตัว ไม่ใช่ Master Data ที่ผู้ใช้แก้ไขได้) |
+| Frontend | Component ใหม่ `ServerApplicationsPanel` แปะใต้ `AssetForm` **เฉพาะเมื่อ `categoryCode === "SRV"`** เท่านั้น (Asset หมวดอื่นไม่เห็น Section นี้เลย) — ปุ่ม Add เปิด Modal Form (Server Type/Port/Link/In Charge/Department/Site/Active/Notes), รายการแสดงเป็น List พร้อมลิงก์เปิด Application จริงถ้ามี `linkUrl` |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** curl ทดสอบ Create/Update/Delete/List ครบ, ทดสอบ Unique
+Constraint ซ้ำชื่อบนเครื่องเดียวกัน (409), ทดสอบสร้าง Application บน Asset หมวด Computer (400 ถูกต้อง),
+ทดสอบ RBAC ด้วย User Role VIEWER (List/ดู 200, Create/Delete 403), ตรวจ Audit Log บันทึก
+CREATE/UPDATE/DELETE ครบ — ทดสอบซ้ำผ่าน UI จริงด้วย Playwright: เห็น Panel บน Server Asset, เพิ่ม
+Application ผ่านฟอร์มจริงสำเร็จ (ระหว่างทดสอบเจอ Unique Constraint ทำงานถูกต้องโดยบังเอิญเพราะรันซ้ำ
+ชื่อเดิม ยืนยันว่า Error Message ในหน้าเว็บแสดงถูกต้อง), ยืนยันว่า Asset หมวด Computer **ไม่เห็น** Section
+Applications เลย — ลบข้อมูลทดสอบหลังทดสอบเสร็จเช่นเดิม
+
+**ยังไม่ทำ:** หน้า Browse Application แบบรวมทุก Server (ตอนนี้ดูได้ทีละเครื่องผ่านหน้า Edit Asset เท่านั้น
+ตาม Scope ที่ตกลงไว้ว่า Site จำกัดเฉพาะโมดูลนี้กับ VLAN — ยังไม่มีหน้า Master Data สำหรับ Site เพราะเป็น
+Lookup 2 ค่าคงที่ ไม่ใช่ข้อมูลที่ผู้ใช้ต้องจัดการเอง)
 
 ---
 
