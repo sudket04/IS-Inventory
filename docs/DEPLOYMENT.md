@@ -37,7 +37,7 @@ Build จาก branch `claude/zealous-hamilton-hn3ggp` (commit ล่าสุ�
 
 | ไฟล์ | เนื้อหา | คำสั่งที่ใช้สร้าง |
 |---|---|---|
-| `kknd-backend-win-x64.zip` | Backend Self-Contained (.NET Runtime ฝังในตัว ไม่ต้องลง .NET แยก) + `web.config` (ตั้ง `AspNetCoreModuleV2` ให้แล้ว) | `dotnet publish -c Release -r win-x64 --self-contained true` |
+| `kknd-backend-win-x64.zip` | Backend Framework-Dependent (win-x64) + `web.config` (ตั้ง `AspNetCoreModuleV2` ให้แล้ว) — ต้องมี ASP.NET Core Hosting Bundle บน Server อยู่แล้ว (ข้อ 2 ใน §1 ซึ่งเป็น Prerequisite อยู่แล้วไม่ว่าจะ Self-Contained หรือไม่ เพราะ In-Process Hosting Model ต้องพึ่ง Shared Runtime ที่ Hosting Bundle ติดตั้งไว้) — เลือกแบบนี้เพราะไฟล์เล็กกว่า Self-Contained ~3 เท่า โดยไม่เพิ่ม Internet Dependency ใดๆ | `dotnet publish -c Release -r win-x64 --self-contained false` |
 | `kknd-frontend-standalone.zip` | Frontend Next.js โหมด `output: standalone` (เฉพาะไฟล์ที่ต้องใช้จริง + `.next/static` + `public`) | `npm run build` (`next.config.ts` ตั้ง `output: "standalone"` แล้ว) |
 | `deploy/windows/install-backend.ps1` | Script สร้าง IIS App Pool + Site ให้ Backend | — |
 | `deploy/windows/install-frontend-service.ps1` | Script ผูก Frontend เป็น Windows Service ด้วย NSSM | — |
