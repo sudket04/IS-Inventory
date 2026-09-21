@@ -14,14 +14,15 @@
 | Database Design | ✅ เสร็จ **และทดสอบรันจริงผ่านแล้ว** — 66 ตาราง · 45 Temporal · 45 View · 10 Trigger บน SQL Server 2022 จริง (ล่าสุด 20 ก.ย. 2569 รวม VLAN Secondary Subnet + Application Module) |
 | UI/UX Design | ✅ เสร็จ — User Flow · Wireframe 9 หน้า · Design System · หน้าตั้งค่า 25 หน้า |
 | Tech Stack | ✅ ตัดสินใจแล้ว — ASP.NET Core (.NET 8) + EF Core + Next.js |
-| **โค้ดจริง** | 🟡 **Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ** — Login/RBAC/จัดการผู้ใช้/Master Data/Asset CRUD ครบ 7/8 หมวด/Audit Log UI/Attachment/Application บน Server/Cluster/Storage Volume ใช้งานได้จริง (§1.4–§1.10) · Software License/Rack/VLAN Site UI ยังไม่เริ่ม (ส่วนที่เหลือของ Sprint 3 + Sprint 4) |
+| **โค้ดจริง** | 🟡 **Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ** — Login/RBAC/จัดการผู้ใช้/Master Data/Asset CRUD ครบ 7/8 หมวด/Audit Log UI/Attachment/Application บน Server/Cluster/Storage Volume/Rack ใช้งานได้จริง (§1.4–§1.11) · Software License/VLAN Site UI ยังไม่เริ่ม (ส่วนที่เหลือของ Sprint 3 + Sprint 4) · **พบบล็อกจริง: ไม่มี Location Tree Picker ทำให้สร้าง Rack ใหม่ผ่านหน้าเว็บไม่ได้ (§1.11)** |
 
 **สรุป 1 บรรทัด:** Design เสร็จหมดแล้ว ฐานข้อมูลทดสอบผ่านแล้ว Backend/Frontend เชื่อมต่อกันจริง
 Login + RBAC + จัดการผู้ใช้ + Layout ใช้งานได้ (Sprint 1) บันทึก/ค้นหา Master Data ได้จริง (Sprint 2)
-Asset CRUD ครบ 7 ใน 8 หมวด ดู Audit Log แนบ/ดาวน์โหลดไฟล์ จัดการ Application บน Server และ Cluster/
-Storage Volume ได้จริงแล้ว (Sprint 3 บางส่วน §1.6–§1.10) — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริงที่ยังไม่ได้รับ**
-(§1.2) กับ **Windows Server ทดสอบ AD/FSRM** (§1.1) ไม่ใช่การตัดสินใจสถาปัตยกรรมหรือความเสี่ยงจาก Schema/
-Stack ที่ไม่เคยพิสูจน์แล้วอีกต่อไป
+Asset CRUD ครบ 7 ใน 8 หมวด ดู Audit Log แนบ/ดาวน์โหลดไฟล์ จัดการ Application บน Server, Cluster/Storage
+Volume และ Rack พร้อมผังกราฟิกได้จริงแล้ว (Sprint 3 บางส่วน §1.6–§1.11) — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริง
+ที่ยังไม่ได้รับ** (§1.2), **Windows Server ทดสอบ AD/FSRM** (§1.1), และ **Location Tree Picker ที่เพิ่งพบว่า
+เป็นบล็อกจริง** (§1.11) — ไม่ใช่การตัดสินใจสถาปัตยกรรมหรือความเสี่ยงจาก Schema/Stack ที่ไม่เคยพิสูจน์แล้ว
+อีกต่อไป
 
 ---
 
@@ -237,6 +238,29 @@ Constraint (กรองเฉพาะสมาชิกที่ยัง Acti
 
 ---
 
+### 1.11 🟡 Sprint 3 (บางส่วน) — Rack พร้อมผังกราฟิก (21 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.12 — สรุปสั้น:
+
+| ส่วน | สถานะ |
+|---|---|
+| `RacksController` — CRUD Rack + Mount/Remove/Delete อุปกรณ์ | ✅ ทดสอบกับ SQL Server จริง |
+| Database Trigger ตรวจตำแหน่งซ้อนทับ/เกินความสูงตู้ (มีอยู่แล้วในสคีมา) | ✅ Controller จับ Error 51030/51031 แปลงเป็น 400 |
+| หน้าใหม่ `/racks` (List พร้อมเตือน Over Weight/Power), `/racks/new`, `/racks/{id}` | ✅ |
+| **ผังกราฟิก Elevation** — CSS Grid วาดตำแหน่งอุปกรณ์ตาม U จริง สีตาม Asset Status | ✅ ทดสอบ BOTTOM_UP ถูกต้อง |
+
+**พบบล็อกจริงระหว่างทดสอบ (สำคัญ):** Rack ต้องเลือก Location เสมอ แต่ระบบยังไม่มีหน้าจัดการ Location
+เลยสักหน้า (Location Tree Picker เป็นช่องว่างที่รู้อยู่แล้วตั้งแต่ Sprint 2) — ทดสอบรอบนี้ต้อง Insert
+Location ผ่าน SQL ตรงๆ ก่อนถึงจะสร้าง Rack ผ่าน UI ได้ นี่ไม่ใช่แค่ข้อจำกัดของการทดสอบ แต่เป็นบล็อกจริง
+ที่ทำให้ผู้ใช้จริงสร้าง Rack ผ่านหน้าเว็บไม่ได้เลยในตอนนี้ — **ควรหยิบ Location Tree Picker เป็นงานแรกของ
+รอบถัดไป** ก่อนงาน VLAN + Site UI ที่เหลือ
+
+**หมายเหตุ Hard Delete:** เหมือน Cluster/Server Applications — Rack ไม่มี `is_deleted` จึงลบแบบ Hard
+Delete บล็อกด้วย FK ถ้ายังมีแถว `rack_mounts` residual แม้เป็นแถวที่ "ถอดออกแล้ว" (`removed_date` ไม่
+NULL) ก็ตาม เพราะยังอ้างอิง `rack_id` อยู่ — ต้อง Hard Delete แถวประวัติด้วยถ้าต้องการลบ Rack จริงๆ
+
+---
+
 ## 2. Sprint Plan (Sprint 0–10, รวม ~49 วันทำงาน)
 
 > เรียงตามลำดับ Dependency จริง ไม่ใช่ลำดับความสำคัญ — บาง Sprint ทำคู่ขนานได้ถ้ามีมากกว่า 1 คน (ดู §3)
@@ -246,7 +270,7 @@ Constraint (กรองเฉพาะสมาชิกที่ยัง Acti
 | **0** | ~~รัน SQL 8 ไฟล์ · Setup .NET Solution + Next.js Project~~ ✅ เสร็จแล้ว (ดู §1.3) — เหลือ Seed Data ชุดจริง + Deploy Pipeline | Repo พร้อมพัฒนา · Backend↔DB↔Frontend ต่อกันจริงแล้ว | 1 |
 | **1** | ~~Auth (Argon2id+JWT ตาม Schema เดิม แทน ASP.NET Core Identity โดยตรง) · RBAC 4 บทบาท · จัดการผู้ใช้ · Layout + Dark Mode + กันจอขาววาบ~~ ✅ เสร็จแล้ว (ดู §1.4) | Login และควบคุมสิทธิ์ได้ | 4 |
 | **2** | ~~Master Data CRUD (11/12 หน้า — เหลือ `device_models` รอผังต้นไม้ `asset_type`) · Asset CRUD (Server/Network) · ค้นหา-กรอง~~ ✅ เสร็จแล้ว (ดู §1.5) | บันทึก/ค้นหาทรัพย์สินหลักได้ · หน้าตั้งค่าพื้นฐานครบ | 5 |
-| **3** | ~~Asset ประเภทที่เหลือ 5 หมวด (Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT)~~ ✅ เสร็จแล้ว (ดู §1.6) · ~~Audit Log UI~~ ✅ เสร็จแล้ว (ดู §1.7) · ~~Attachment~~ ✅ เสร็จแล้ว (ดู §1.8) · ~~Application บน Server (v1.6)~~ ✅ เสร็จแล้ว (ดู §1.9) · ~~Storage/Cluster~~ ✅ เสร็จแล้ว (ดู §1.10) — เหลือ Software License (เลื่อนไป Sprint 4) · Rack (พร้อมผังกราฟิก) · VLAN + Site UI (1st/2nd, รองรับ Secondary Subnet/Untagged) | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
+| **3** | ~~Asset ประเภทที่เหลือ 5 หมวด (Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT)~~ ✅ เสร็จแล้ว (ดู §1.6) · ~~Audit Log UI~~ ✅ เสร็จแล้ว (ดู §1.7) · ~~Attachment~~ ✅ เสร็จแล้ว (ดู §1.8) · ~~Application บน Server (v1.6)~~ ✅ เสร็จแล้ว (ดู §1.9) · ~~Storage/Cluster~~ ✅ เสร็จแล้ว (ดู §1.10) · ~~Rack (พร้อมผังกราฟิก)~~ ✅ เสร็จแล้ว (ดู §1.11) — เหลือ Software License (เลื่อนไป Sprint 4) · VLAN + Site UI (1st/2nd, รองรับ Secondary Subnet/Untagged) · **Location Tree Picker (บล็อกจริงที่พบระหว่างทดสอบ Rack — ควรทำก่อน)** | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
 | **4** | Software License · Seat Counting · CMDB Relationship · Contracts (เครื่องเดียว/หลายเครื่อง) | บริหาร License และความสัมพันธ์ได้ | 4 |
 | **5** | Dashboard · Reports · Export Excel | เห็นภาพรวมและออกรายงานได้ | 3 |
 | **6** | Excel Import + Validation · Notification (Email + In-app) · Settings หน้า SMTP/เกณฑ์แจ้งเตือน | นำเข้าข้อมูลเดิมและแจ้งเตือนอัตโนมัติได้ | 3 |

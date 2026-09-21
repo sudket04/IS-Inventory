@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-21 · commit `ba10077` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment + Application บน Server + Storage/Cluster เสร็จแล้ว)** |
-| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume ทำงานจริง** (ดู §4.5–§4.11) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, Rack, VLAN/Site UI ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) |
+| **อัปเดตล่าสุด** | 2569-09-21 · commit `928d81c` |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment + Application บน Server + Storage/Cluster + Rack เสร็จแล้ว)** |
+| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume + Rack พร้อมผังกราฟิก ทำงานจริง** (ดู §4.5–§4.12) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, VLAN/Site UI ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) — **พบบล็อกจริง: ยังไม่มี Location Tree Picker UI ทำให้สร้าง Rack ใหม่ผ่านหน้าเว็บไม่ได้จริง (ดู §4.12)** |
 
 ---
 
@@ -52,7 +52,7 @@
 | **1. Requirement** | ✅ เสร็จ | `docs/PRD.md` |
 | **2. UI/UX Design** | ✅ เสร็จ | `docs/design/01` `02` `03` |
 | **3. Database** | ✅ เสร็จ (v1.0 → v1.6) — ทดสอบรันจริงบน SQL Server แล้ว | `docs/database/01`–`15` |
-| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ | `docs/ROADMAP.md` §1.3–§1.10 |
+| **4. Development** | 🟡 Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ | `docs/ROADMAP.md` §1.3–§1.11 |
 
 ---
 
@@ -360,6 +360,37 @@ Playwright: หน้า List เห็น Badge Degraded และสรุป 
 Panel ปรากฏถูกต้องบนหน้า Server Asset — ลบข้อมูลทดสอบหลังทดสอบเสร็จเช่นเดิม
 
 **ยังไม่ทำ:** Rack พร้อมผังกราฟิก, VLAN + Site UI (Entity/Schema มีอยู่แล้วแต่ยังไม่มี Controller/หน้าเว็บ)
+
+---
+
+### 4.12 Backend/Frontend — Sprint 3 (บางส่วน): Rack พร้อมผังกราฟิก (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** โมดูล v1.3b (`docs/database/11-module-v1.3b-details-rack-ipam.sql` §5) — `dbo.racks`
+(ตู้ Rack จริง) และ `dbo.rack_mounts` (อุปกรณ์ที่ติดตั้งในตู้ พร้อมตำแหน่ง U) — EF Entity + View
+(`vw_rack_elevation`, `vw_rack_utilization`) มีอยู่แล้วตั้งแต่ก่อนหน้า เหลือแค่ Controller/UI เช่นเดียวกับ
+Application บน Server และ Storage/Cluster
+
+| ส่วน | รายละเอียด |
+|---|---|
+| Backend — Controller ใหม่ | `RacksController.cs` — CRUD Rack + Mount/Update/Remove/Delete อุปกรณ์ในตู้ |
+| **กติกาตำแหน่ง U ไม่ซ้อนทับ/ไม่เกินความสูงตู้ อยู่ใน Database Trigger อยู่แล้ว** | `trg_rack_mounts_validate` (สร้างไว้ตั้งแต่ตอนออกแบบ Schema) ยิง Custom Error 51030 (เกินความสูงตู้) / 51031 (ซ้อนทับอุปกรณ์อื่น) ผ่าน `THROW` — Controller แค่จับ `SqlException` ตาม Error Number แล้วส่ง Message ที่ Trigger เขียนไว้กลับไปตรงๆ (ข้อความอ่านง่ายอยู่แล้ว) ไม่ต้องเขียน Validation ซ้ำฝั่ง C# เลย |
+| Mount Lifecycle | "ถอดอุปกรณ์ออกจากตู้" ไม่ลบแถว แต่ตั้ง `removed_date` (รูปแบบเดียวกับ Cluster Member "Leave") — ประวัติการติดตั้งยังอยู่ครบ, มี Hard Delete แยกไว้กรณีกรอกผิด |
+| Rack ไม่มี `is_deleted` | เหมือน Cluster/Server Applications — Delete เป็น Hard Delete บล็อกด้วย FK 409 ถ้ายังมี `rack_mounts` residual แม้เป็นแถวที่ถูก "ถอดออก" (`removed_date` ไม่ใช่ NULL) แล้วก็ตาม เพราะแถวยังอ้างอิง `rack_id` อยู่ — **พบระหว่างทดสอบ**: ต้อง Hard Delete แถว `rack_mounts` ที่ถอดออกไปแล้วด้วย ไม่ใช่แค่แถวที่ยัง Active ถึงจะลบ Rack ได้ |
+| Frontend — หน้าใหม่ | เมนู "Racks" ใหม่ → `/racks` (List จาก `vw_rack_utilization` พร้อมเตือน Over Weight/Over Power), `/racks/new`, `/racks/{id}` (ฟอร์มแก้ไข + **ผังกราฟิก Elevation**) |
+| **ผังกราฟิก Elevation** | CSS Grid ธรรมดา (ไม่ใช้ Library วาดภาพ) — แถวละ 1U ตาม `total_u` ของตู้ ตำแหน่งอุปกรณ์คำนวณจาก `numbering_direction` (`BOTTOM_UP`/`TOP_DOWN`) เองฝั่ง Frontend เพื่อวาง U1 ให้อยู่ล่างสุดของภาพเมื่อเป็น `BOTTOM_UP` (ตรงกับตู้ Rack จริง) สีของแต่ละอุปกรณ์ใช้ `status_color` จาก View เดียวกับ Badge สถานะ Asset (Design System เดิม) คลิก Asset Tag เชื่อมไปหน้า Edit Asset ได้ทันที |
+| **พบช่องว่างจริงระหว่างทดสอบ (ยังไม่แก้ในรอบนี้)** | Rack ต้องเลือก Location เสมอ (`location_id NOT NULL`) แต่ระบบยังไม่มีหน้าจัดการ Location เลย (Location Tree Picker เป็นช่องว่างที่รู้อยู่แล้วตั้งแต่ Sprint 2 — ดู §8) ทดสอบรอบนี้ต้อง Insert Location ผ่าน SQL ตรงๆ ก่อน — เป็นตัวบล็อกจริงสำหรับการใช้งาน Rack Module ในทางปฏิบัติ ไม่ใช่แค่ตัวอย่างทดสอบ ควรหยิบเป็นงานสำคัญของ Sprint ถัดไป |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** curl ทดสอบ Rack CRUD ครบ, Mount อุปกรณ์ในตำแหน่งที่ถูกต้อง,
+ทดสอบ Trigger จริงทั้ง 2 กรณี (ซ้อนทับ → 400, เกินความสูงตู้ 42U → 400), Unique Index กันอุปกรณ์เดียวถูก
+Mount 2 ที่พร้อมกัน (409), Remove แล้ว Mount ใหม่ที่อื่นได้ (History ไม่หาย), Delete Rack ที่ยังมี Mount
+Residual ถูกบล็อก 409, RBAC ด้วย VIEWER (List/ดู 200, Mount/Create 403) — ทดสอบซ้ำผ่าน UI จริงด้วย
+Playwright: หน้า List เห็นเปอร์เซ็นต์ใช้งาน U, ผังกราฟิกวาดตำแหน่งอุปกรณ์ถูกต้องตาม BOTTOM_UP (U ต่ำอยู่
+ล่างภาพ), Mount อุปกรณ์ซ้อนทับผ่านฟอร์มจริงเห็น Error Message จาก Trigger ตรงๆ, Mount ในตำแหน่งว่างสำเร็จ
+เห็นบล็อกใหม่ปรากฏถูกต้อง — ลบข้อมูลทดสอบหลังทดสอบเสร็จเช่นเดิม (คง Location ทดสอบ 1 แถวไว้เพราะยังไม่มี
+ทางลบผ่าน UI และเป็นข้อมูลที่ไม่กระทบอะไร)
+
+**ยังไม่ทำ:** VLAN + Site UI — Software License รอ Sprint 4 — **Location Tree Picker เป็นบล็อกจริงที่ควร
+ทำก่อนงานอื่นใน Sprint 3 ที่เหลือ** เพราะทั้ง Rack และ Asset เองก็ต้องพึ่ง Location
 
 ---
 
