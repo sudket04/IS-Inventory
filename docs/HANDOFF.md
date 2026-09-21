@@ -5,7 +5,7 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-21 · commit (ดู §4.13) |
+| **อัปเดตล่าสุด** | 2569-09-21 · commit `09d1da2` |
 | **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment + Application บน Server + Storage/Cluster + Rack + Location Tree Picker เสร็จแล้ว)** |
 | **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume + Rack พร้อมผังกราฟิก ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.13) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, VLAN/Site UI ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) — **บล็อก Location Tree Picker ที่เคยพบใน §4.12 แก้แล้ว (ดู §4.13) — สร้าง Rack ผ่านหน้าเว็บได้จริงแล้วโดยไม่ต้องพึ่ง SQL** |
 
