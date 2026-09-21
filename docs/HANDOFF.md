@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-21 · commit `5afa31a` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–4 เสร็จครบทั้งหมด** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts) — Sprint Plan เดิมเหลือ Sprint 5–10 |
-| **โค้ดโปรแกรม** | 🟢 **Login/RBAC + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.15) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล — **Sprint 4 ปิดครบทุกรายการ** |
+| **อัปเดตล่าสุด** | 2569-09-21 · commit (ดูท้ายสุดของ `git log`) |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–5, 7 เสร็จครบ** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts + Dashboard/Reports/Export Excel + Permission Control v1.5) — Sprint Plan เดิมเหลือ Sprint 6, 8–10 |
+| **โค้ดโปรแกรม** | 🟢 **Login/RBAC + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) + Dashboard/Reports/Export Excel + File Share/Internet Policy Permission Control ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.17) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล — **Sprint 5, 7 ปิดครบทุกรายการ** |
 
 ---
 
@@ -482,6 +482,73 @@ License Key, เปิดหน้าแก้ไขเห็น Placeholder "�
 ถูกต้อง (1/10), อัปโหลดไฟล์แนบบนสัญญาสำเร็จ, ข้อความ Error จาก Constraint/Trigger ขึ้นตรงบนฟอร์มถูกต้อง
 
 **🎉 Sprint 4 ปิดครบทุกรายการแล้ว** — Sprint Plan เดิม (§2) เหลือ Sprint 5–10
+
+---
+
+### 4.16 Backend/Frontend — Sprint 5 (ปิดครบ): Dashboard · Reports · Export Excel (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** ผู้ใช้สั่ง "ทำ 5, 7 ให้เสร็จก่อนแล้วจะทดลองใช้งาน" — Sprint 5 ทั้ง 3 รายการตามแผนเดิม
+(FR-DB-01..06): การ์ดสรุป, กราฟ, การ์ดแจ้งเตือนใกล้หมดอายุ/License เกินสิทธิ์, รายงานสำเร็จรูป 4 ชุด,
+Export ทุกรายงานเป็น Excel
+
+| ส่วน | รายละเอียด |
+|---|---|
+| **พบระหว่างค้นข้อมูล (สำคัญ ต้องจำไว้)** | `assets.coverage_end_date` ที่ออกแบบไว้ตอนแรกถูก **DROP ไปแล้วตั้งแต่ Migration v1.4** เมื่อย้าย Coverage ไปอยู่ที่ `contract_assets` — วันหมดอายุที่ถูกต้องต้องอ่านจาก View ที่สร้างไว้แล้วเพื่อจุดประสงค์นี้โดยเฉพาะคือ `vw_expiring_assets` (และ `vw_asset_tco` สำหรับมูลค่า) ไม่ใช่คอลัมน์บน Entity `Asset` ตรงๆ |
+| Backend — `DashboardController` (ใหม่) | `GET /api/dashboard/summary` รวมทุกอย่างในเรียกเดียว: การ์ด Action Required (Expired/Expiring≤30d จาก `vw_expiring_assets.Severity`, License Over-deployed จาก `vw_software_seat_usage`, Under Repair จาก Status Code), การ์ด Overview (Total/In Use/In Stock/Total Value/New This Month), Breakdown ตามหมวด/สถานะ (ใช้ `asset_categories.icon_name`/`asset_statuses.color_token` ที่มีอยู่แล้วในฐานข้อมูลตรงๆ ไม่ Hardcode สี), Expiring Soon Top 10, Recent Activity (Scope ตาม RBAC เดียวกับ Audit Log — IT_STAFF เห็นแค่ของตัวเอง, VIEWER ไม่เห็นเลย) |
+| Backend — `ReportsController` (ใหม่) | 4 รายงานสำเร็จรูปตาม FR-DB-05: Expiring Coverage (`vw_expiring_assets`), License Compliance (`vw_software_seat_usage`), Assets by Status (Category × Status Pivot), Asset Value/TCO (`vw_asset_tco`) — แต่ละรายงานมี `/export` แยกคืนไฟล์ `.xlsx` จริง |
+| **`ExcelExporter`** (ใหม่ — Shared) | ติดตั้ง Library `ClosedXML` (MIT License) — Helper กลางตัวเดียว `Build(sheetName, headers, rows)` ที่ทุก Controller Export ใช้ร่วมกัน จัดรูปแบบวันที่เป็น `dd/mm/yyyy` ในไฟล์ Excel เองด้วย (ไม่ใช่แค่หน้าเว็บ) |
+| Backend — `AssetsController` เพิ่ม Filter `status` (Code) | เดิมมีแค่ `statusId` — เพิ่ม `?status=CODE` แบบเดียวกับ `?category=CODE` ที่มีอยู่แล้ว เพื่อให้การ์ด Dashboard ลิงก์ไปหน้า Asset List แบบกรองไว้ให้ได้ (เช่น "Under Repair" → `/assets?status=UNDER_REPAIR`) |
+| Frontend — หน้าแรก (`/`) เขียนใหม่ทั้งหมด | แทนที่ Placeholder เดิม ("Dashboard widgets ship in Sprint 5") ด้วย Widget จริงตาม Wireframe §2 ของ `02-wireframes.md`: การ์ด Action Required 4 ใบ (คลิกไปหน้า Asset/Reports ที่กรองไว้แล้ว), ตาราง Expiring Soon, การ์ด Overview 4 ใบ, กราฟแท่งแนวนอน Category (CSS Bar ไม่ใช้ Chart Library เพิ่ม), Donut Chart Status (SVG `stroke-dasharray` มือ), Recent Activity |
+| Frontend — หน้าใหม่ `/reports` | 4 Tab ตาม Report ข้างต้น แต่ละ Tab มีตารางผลลัพธ์ + ปุ่ม "Export to Excel" (ดาวน์โหลดไฟล์จริงผ่าน `downloadFile()` Helper ใหม่ใน `lib/api.ts`) |
+| **Component ที่แยกออกมาใช้ร่วม** | ดึง `StatusBadge`/`colorTokenHex` ออกจากหน้า `/assets` (เดิม Local ในไฟล์เดียว) ไปเป็น `components/status-badge.tsx` เพราะตอนนี้มีคนใช้ 3 จุด (Assets List, Dashboard Donut, Reports Assets-by-Status) |
+| **Icon เพิ่มใน `NavIcon`** | เติม `laptop`/`hard-drive`/`printer`/`zap`/`smartphone` (ใช้กับ Category Bar บน Dashboard) และ `folder`/`globe`/`shield-check` (เตรียมไว้สำหรับ Sprint 7) |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** curl ครบทุก Endpoint รวม Export (`GET .../export` คืน
+`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` และไฟล์เปิดได้จริง
+ตรวจด้วย `file` command เห็น "Microsoft Excel 2007+") — ทดสอบผ่าน UI จริงด้วย Playwright ครบ: Dashboard
+โหลด Widget ทั้งหมด, คลิกการ์ด "In Use" ไปหน้า `/assets?status=IN_USE` ถูกต้อง, สลับ 4 Tab บน `/reports`
+ครบ, กดปุ่ม Export ได้ไฟล์ `.xlsx` จริงผ่าน Browser Download
+
+**🎉 Sprint 5 ปิดครบทุกรายการแล้ว**
+
+---
+
+### 4.17 Backend/Frontend — Sprint 7 (ปิดครบ): Permission Control v1.5 — File Share · Internet Policy · Classification Visibility (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** ผู้ใช้สั่งข้าม Sprint 6 (Import/Notification) ไปทำ Sprint 7 ก่อนตามลำดับที่ขอ — ครบ 4
+รายการตาม Sprint Plan เดิม: File Share Permission CRUD, Internet Policy CRUD, ตารางการมองเห็นตามชั้น
+ความลับ, ประวัติสิทธิ์ 3 version — Schema `14-module-v1.5-permission-control.sql` (13 ตาราง + 15 View +
+3 Trigger) Scaffold เป็น Entity ไว้ครบแล้วตั้งแต่ Phase 0 เหมือนโมดูลก่อนหน้า ไม่ต้องเขียน Migration ใหม่
+เลย — **ขอบเขตนี้ไม่รวม Collector Agent/AD Sync จริง (Sprint 8)** ตามที่ Sprint Plan แยกไว้ชัดเจน
+
+| ส่วน | รายละเอียด |
+|---|---|
+| **ช่องว่างที่พบและวิธีรับมือ #1 — FILE Server Role ไม่เคยถูกกำหนดที่ไหนเลย** | `trg_file_shares_validate` (THROW 51050) บังคับว่า Asset ต้องมีแถว `server_role_assignments` บทบาท `FILE` ก่อนถึงจะลงทะเบียนโฟลเดอร์ได้ — แต่ตาราง `server_role_assignments` (v1.2) ไม่เคยมี Controller ไหนเขียนถึงเลยตั้งแต่ต้นโปรเจกต์ (ต่างจาก `server_applications` ของ v1.6 คนละตารางกัน) แก้ด้วยการให้ `FileSharesController.EnsureFileServerRoleAsync` แทรกแถว Role นี้ให้อัตโนมัติตอนบันทึกโฟลเดอร์แรกบน Server นั้น (ถ้ายังไม่มี) แทนที่จะสร้างหน้าจอ "Server Roles" แยกต่างหากที่ไม่ได้อยู่ใน Sprint นี้ — **ต้อง `SaveChangesAsync` แยกก่อนสร้าง `FileShare`เสมอ** เพราะ EF Core ไม่รับประกันลำดับ Insert ระหว่าง Entity ที่ไม่มีความสัมพันธ์กันในการ `SaveChanges` ครั้งเดียว และ Trigger ทำงานทันทีหลัง `INSERT` |
+| **ช่องว่างที่พบและวิธีรับมือ #2 — Internet Policy ผูก Proxy Asset ไม่ได้จริงในตอนนี้** | `trg_internet_policies_validate` (THROW 51051) ต้องการให้ `proxy_asset_id` ชี้ไปที่ Asset ที่มี `asset_type` เป็น `NET_PROXY`/`NET_FIREWALL`/`NET_UTM`/`NET_WAF` — แต่ **`assets.asset_type_id` ยังไม่มีช่องกรอกในหน้าเว็บเลยสักจุด** (Asset Type Tree Picker เป็นช่องว่างที่รู้ตัวมาตั้งแต่ Sprint 2 §1.5) ทางแก้ที่ใช้: ไม่เปิดช่องเลือก Proxy Asset ในฟอร์มรอบนี้เลย (`proxyAssetId` ฝั่ง Backend ยังรองรับแต่ไม่มีจุดเขียนจาก Frontend) ตรงตามที่ข้อเสนอ v1.5 §1 ข้อ 3 ออกแบบไว้แล้วว่าเป็น "ช่องเสริม" — นโยบาย Internet ใช้งานได้ครบโดยไม่ต้องมีช่องนี้ (ชื่อ + AD Group Binding ก็เพียงพอ) รอ Asset Type Tree Picker มาเปิดใช้ทีหลัง |
+| Backend — `FileSharesController` (ใหม่) | CRUD `dbo.file_shares` + Sub-resource `permissions` (`dbo.file_share_permissions`) — Visibility บังคับที่ชั้น API (ไม่ใช้ SQL Row-Level Security ตามที่เคยตัดสินใจไว้ตั้งแต่ต้นโปรเจกต์): อ่าน `dbo.classification_role_visibility` ตาม Role ของผู้เรียกทุกครั้ง โฟลเดอร์ที่ Role มองไม่เห็นจะถูกกรองออกจาก List/Get ทั้งหมด (ไม่โชว์แม้แต่ชื่อ ตรงตามข้อเสนอ §9) — เปิดดูโฟลเดอร์ชั้น 1–3 (`requires_view_audit = 1`) บันทึก Audit Log Action `VIEW_SENSITIVE` อัตโนมัติ |
+| Backend — Permission History | `GET /api/file-shares/{id}/history?all=` อ่านจาก `vw_share_permission_timeline` (ไทม์ไลน์รวมทุกสิทธิ์ของโฟลเดอร์นั้น) ค่าเริ่มต้นจำกัด 3 รายการล่าสุดตาม Sprint Plan ("ประวัติสิทธิ์ 3 version") มีปุ่ม "View All" ขยับไปเอาแบบไม่จำกัดจาก View เดียวกัน |
+| Backend — `InternetPoliciesController` (ใหม่) | CRUD `dbo.internet_policies` + Sub-resource `groups` (AD Group Binding) และ `categories` (Web Category Rule เสริม ไม่บังคับกรอก) — ไม่ผูก Classification จึงไม่ต้องกรอง Visibility เหมือน File Share |
+| Backend — `ClassificationVisibilityController` (ใหม่ — Admin Only) | `GET/PUT /api/admin/classification-visibility` อ่าน/แก้ Matrix 7 ชั้น × 4 บทบาท (Seed ไว้แล้วเต็มทุกช่องตั้งแต่ Migration เป็น `CROSS JOIN` จึงเป็นแค่การ Update ไม่มีการ Insert ใหม่) — บังคับกฎที่ API: ปิด `canView` แล้ว `canEdit`/`canExport` ต้องปิดตามเสมอ |
+| Backend — `PickersController` เพิ่ม 5 Endpoint | `file-servers` (Asset หมวด SRV), `classification-levels`, `access-levels`, `ad-groups` (ว่างจนกว่า Sprint 8 จะ Sync), `web-categories` |
+| Frontend — หน้าใหม่ `/file-shares`, `/file-shares/new`, `/file-shares/{id}` | List + Form + `FileSharePermissionsPanel` (Grant/Revoke AD Group พร้อม Badge เตือน "Orphan Group" เมื่อ `ad_group_id` เป็น NULL หรือกลุ่มหายจาก AD) + Panel ประวัติสิทธิ์ 3 version พร้อมปุ่ม View All |
+| Frontend — หน้าใหม่ `/internet-policies`, `/internet-policies/new`, `/internet-policies/{id}` | List + Form + `InternetPolicyBindingsPanel` (AD Group + Web Category Rule) |
+| Frontend — หน้าใหม่ `/admin/classification-visibility` (Admin Only) | Matrix 7×4 พร้อม Checkbox View/Edit/Export ต่อช่อง บันทึกทันทีเมื่อกด (ไม่มีปุ่ม Save รวม) |
+| Frontend — Nav | เพิ่ม "File Shares"/"Internet Policies" เป็นเมนูหลัก (ทุก Role ตาม Visibility ที่กรองในชั้น API อยู่แล้ว) และ "Classification Visibility" ใต้ Administration |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** curl ครบทุกเส้นทาง (ลงทะเบียนโฟลเดอร์สำเร็จพร้อม Auto-assign FILE
+Role, บันทึกโฟลเดอร์ซ้ำ Path เดิมเจอ 409, Path ไม่ขึ้นต้นด้วย `\\` เจอ 400 ข้อความจาก `CK_fs_path`, Grant/
+Revoke AD Group Permission, ประวัติสิทธิ์ 3 version ถูกต้อง, สร้าง Internet Policy + Bind AD Group + Web
+Category Rule, สร้าง Default Policy ซ้ำสองอันเจอ 409, แก้ Matrix Classification Visibility สำเร็จ) —
+ทดสอบผ่าน UI จริงด้วย Playwright ครบ: หน้า List/Detail ของทั้งสองโมดูล, Grant Permission ผ่านฟอร์มเห็นผล
+ทันที, Matrix Visibility render ตรงกับค่าเริ่มต้นที่ Migration Seed ไว้ (ADMIN เห็น/แก้ได้ทุกชั้น, AUDITOR
+เห็น/Export ได้ทุกชั้นแต่แก้ไม่ได้, IT_STAFF เห็น/แก้ได้ตั้งแต่ชั้น 3 ลงมา, VIEWER เห็นได้ตั้งแต่ชั้น 4)
+
+**คงเหลือ (ตั้งใจเลื่อนไป Sprint 8 ตามแผนเดิม):** Collector Agent จริง, AD/FSRM Sync งานจริง (`ad_groups`/
+`ad_users`/`file_share_usage_snapshots` ยังว่างจนกว่าจะ Sync) — และ **Asset Type Tree Picker** (ช่องว่าง
+เดิมจาก Sprint 2 ที่ตอนนี้บล็อกฟีเจอร์เพิ่มเติม 2 จุด: Proxy Asset Binding ของ Internet Policy และหน้า
+"Server Roles" แบบเต็มรูปแบบที่ไม่ต้องพึ่ง Auto-assign)
+
+**🎉 Sprint 7 ปิดครบทุกรายการแล้ว**
 
 ---
 

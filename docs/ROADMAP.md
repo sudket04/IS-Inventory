@@ -2,7 +2,7 @@
 
 > เอกสารนี้เป็น Master Plan ต่อจาก `HANDOFF.md` §11 เดิม (ซึ่งครอบคลุมแค่ v1.0–v1.4)
 > ขยายให้ครบทั้ง v1.5 Permission Control และ Administration Settings ที่เพิ่งออกแบบเสร็จ
-> อัปเดตล่าสุด: 2569-09-21 — Sprint 4 ปิดครบ: Software License + Seat Counting + CMDB Relationship + Contracts
+> อัปเดตล่าสุด: 2569-09-21 — Sprint 5 ปิดครบ: Dashboard + Reports + Export Excel · Sprint 7 ปิดครบ: Permission Control v1.5 (File Share/Internet Policy/Classification Visibility)
 
 ---
 
@@ -14,15 +14,17 @@
 | Database Design | ✅ เสร็จ **และทดสอบรันจริงผ่านแล้ว** — 66 ตาราง · 45 Temporal · 45 View · 10 Trigger บน SQL Server 2022 จริง (ล่าสุด 20 ก.ย. 2569 รวม VLAN Secondary Subnet + Application Module) |
 | UI/UX Design | ✅ เสร็จ — User Flow · Wireframe 9 หน้า · Design System · หน้าตั้งค่า 25 หน้า |
 | Tech Stack | ✅ ตัดสินใจแล้ว — ASP.NET Core (.NET 8) + EF Core + Next.js |
-| **โค้ดจริง** | 🟢 **Sprint 0–4 เสร็จครบทั้งหมด** — Login/RBAC/จัดการผู้ใช้/Master Data/Location Tree Picker/Asset CRUD ครบ 8/8 หมวด (รวม Software License เข้ารหัส)/Audit Log UI/Attachment (Asset+Contract)/Application บน Server/Cluster/Storage Volume/Rack/VLAN-IPAM/CMDB Relationship/Contracts (เครื่องเดียว-หลายเครื่อง) ใช้งานได้จริง (§1.4–§1.14) · วันที่แสดงผลเป็น `dd/mm/yyyy` ทั้งโปรเจกต์ (§1.12) |
+| **โค้ดจริง** | 🟢 **Sprint 0–5, 7 เสร็จครบ** — Login/RBAC/จัดการผู้ใช้/Master Data/Location Tree Picker/Asset CRUD ครบ 8/8 หมวด (รวม Software License เข้ารหัส)/Audit Log UI/Attachment (Asset+Contract)/Application บน Server/Cluster/Storage Volume/Rack/VLAN-IPAM/CMDB Relationship/Contracts (เครื่องเดียว-หลายเครื่อง)/Dashboard+Reports+Export Excel/Permission Control (File Share+Internet Policy+Classification Visibility) ใช้งานได้จริง (§1.4–§1.16) · วันที่แสดงผลเป็น `dd/mm/yyyy` ทั้งโปรเจกต์ (§1.12) |
 
 **สรุป 1 บรรทัด:** Design เสร็จหมดแล้ว ฐานข้อมูลทดสอบผ่านแล้ว Backend/Frontend เชื่อมต่อกันจริง
 Login + RBAC + จัดการผู้ใช้ + Layout ใช้งานได้ (Sprint 1) บันทึก/ค้นหา Master Data ได้จริง (Sprint 2)
 Asset CRUD ครบทั้ง 8 หมวด ดู Audit Log แนบ/ดาวน์โหลดไฟล์ จัดการ Application บน Server, Cluster/Storage
 Volume, Rack พร้อมผังกราฟิก, Location, VLAN/IPAM, Software License พร้อม Seat Counting, CMDB
-Relationship และ Contracts ทั้งเครื่องเดียว/หลายเครื่องก็จัดการผ่าน UI ได้จริงครบแล้ว **(Sprint 3–4 ปิด
-ครบทุกรายการ — §1.6–§1.14)** — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริงที่ยังไม่ได้รับ** (§1.2) และ **Windows
-Server ทดสอบ AD/FSRM** (§1.1) — ไม่ใช่การตัดสินใจสถาปัตยกรรมหรือความเสี่ยงจาก Schema/Stack ที่ไม่เคย
+Relationship, Contracts ทั้งเครื่องเดียว/หลายเครื่อง, Dashboard พร้อมกราฟและรายงานสำเร็จรูป Export Excel
+ได้ และทะเบียน File Share/Internet Policy พร้อมตารางการมองเห็นตามชั้นความลับก็จัดการผ่าน UI ได้จริงครบแล้ว
+**(Sprint 3–5, 7 ปิดครบทุกรายการ — §1.6–§1.16)** — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริงที่ยังไม่ได้รับ** (§1.2)
+และ **Windows Server ทดสอบ AD/FSRM** (§1.1) สำหรับ Sprint 8 — Sprint 6 (Import/Notification) ยังไม่ได้ทำ
+ตามลำดับที่ผู้ใช้ขอให้ข้ามไปก่อน ไม่ใช่การตัดสินใจสถาปัตยกรรมหรือความเสี่ยงจาก Schema/Stack ที่ไม่เคย
 พิสูจน์แล้วอีกต่อไป
 
 ---
@@ -323,6 +325,48 @@ Usage สะท้อนถูกต้อง, อัปโหลดไฟล์
 
 **🎉 Sprint 4 ปิดครบทุกรายการแล้ว** — Sprint Plan เดิม (§2) เหลือ Sprint 5–10
 
+### 1.15 ✅ Sprint 5 (ปิดครบ) — Dashboard · Reports · Export Excel (21 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.16 — สรุปสั้น:
+
+| ส่วน | สถานะ |
+|---|---|
+| `DashboardController` — การ์ด Action Required/Overview, Breakdown ตามหมวด/สถานะ, Expiring Soon, Recent Activity (Scope ตาม RBAC) | ✅ ทดสอบกับ SQL Server จริง |
+| `ReportsController` — 4 รายงานสำเร็จรูป (Expiring Coverage, License Compliance, Assets by Status, Asset Value/TCO) พร้อม Export `.xlsx` ทุกรายงาน (`ExcelExporter` ใช้ `ClosedXML`) | ✅ |
+| หน้าแรก (`/`) เขียนใหม่ตาม Wireframe §2 — Action Cards คลิกไปหน้าที่กรองไว้แล้ว, กราฟแท่ง/Donut มือ (ไม่พึ่ง Chart Library) | ✅ |
+| หน้าใหม่ `/reports` — 4 Tab พร้อมปุ่ม Export to Excel ดาวน์โหลดไฟล์จริง | ✅ |
+
+**พบระหว่างเขียนโค้ด (สำคัญ):** `assets.coverage_end_date` ที่แผนเดิมอ้างถึงถูก DROP ไปแล้วตั้งแต่ v1.4
+Migration ตอนย้าย Coverage ไปที่ `contract_assets` — ใช้ `vw_expiring_assets`/`vw_asset_tco` แทนซึ่งสร้างไว้
+รองรับจุดประสงค์นี้อยู่แล้ว ไม่ต้องเขียน Query ใหม่
+
+**🎉 Sprint 5 ปิดครบทุกรายการแล้ว**
+
+### 1.16 ✅ Sprint 7 (ปิดครบ) — Permission Control v1.5 (21 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.17 — สรุปสั้น (ทำก่อน Sprint 6 ตามลำดับที่ผู้ใช้ขอ):
+
+| ส่วน | สถานะ |
+|---|---|
+| `FileSharesController` — CRUD `file_shares` + `file_share_permissions`, กรอง Visibility ตามชั้นความลับที่ชั้น API, บันทึก `VIEW_SENSITIVE` Audit ตอนเปิดดูชั้น 1–3 | ✅ ทดสอบกับ SQL Server จริง |
+| Permission History — `GET /api/file-shares/{id}/history` (Default 3 version ล่าสุด + View All) จาก `vw_share_permission_timeline` | ✅ |
+| `InternetPoliciesController` — CRUD + AD Group Binding + Web Category Rule เสริม | ✅ |
+| `ClassificationVisibilityController` (Admin) — Matrix 7 ชั้น × 4 บทบาท | ✅ |
+| หน้าใหม่ `/file-shares`, `/internet-policies`, `/admin/classification-visibility` | ✅ |
+
+**พบและแก้ 2 ช่องว่างสำคัญระหว่างเขียนโค้ด:**
+1. `server_role_assignments` (บทบาท FILE ที่ Trigger บังคับ) ไม่เคยมี Controller เขียนถึงมาก่อน —
+   `FileSharesController` แทรกแถวนี้ให้อัตโนมัติตอนบันทึกโฟลเดอร์แรกของ Server นั้น (ต้อง `SaveChanges`
+   แยกก่อนเสมอ เพราะ EF Core ไม่รับประกันลำดับ Insert ข้าม Entity ที่ไม่มีความสัมพันธ์กัน)
+2. Internet Policy ผูก Proxy Asset ไม่ได้จริงเพราะ `asset_type_id` ยังไม่มีช่องกรอกในเว็บเลย (Asset Type
+   Tree Picker เป็นช่องว่างเดิมจาก Sprint 2) — ไม่เปิดช่องนี้ในฟอร์มรอบนี้ตามที่ข้อเสนอ v1.5 ออกแบบไว้ว่า
+   เป็นช่องเสริม ใช้แค่ชื่อ + AD Group Binding ก็ทำงานได้ครบ
+
+**คงเหลือ (ตั้งใจเลื่อนไป Sprint 8):** Collector Agent/AD-FSRM Sync งานจริง, Asset Type Tree Picker
+(ตอนนี้บล็อก Proxy Asset Binding ของ Internet Policy ด้วย)
+
+**🎉 Sprint 7 ปิดครบทุกรายการแล้ว** — Sprint Plan เดิม (§2) เหลือ Sprint 6, 8–10
+
 ---
 
 ## 2. Sprint Plan (Sprint 0–10, รวม ~49 วันทำงาน)
@@ -336,9 +380,9 @@ Usage สะท้อนถูกต้อง, อัปโหลดไฟล์
 | **2** | ~~Master Data CRUD (11/12 หน้า — เหลือ `device_models` รอผังต้นไม้ `asset_type`) · Asset CRUD (Server/Network) · ค้นหา-กรอง~~ ✅ เสร็จแล้ว (ดู §1.5) | บันทึก/ค้นหาทรัพย์สินหลักได้ · หน้าตั้งค่าพื้นฐานครบ | 5 |
 | **3** | ~~Asset ประเภทที่เหลือ 5 หมวด (Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT)~~ ✅ เสร็จแล้ว (ดู §1.6) · ~~Audit Log UI~~ ✅ เสร็จแล้ว (ดู §1.7) · ~~Attachment~~ ✅ เสร็จแล้ว (ดู §1.8) · ~~Application บน Server (v1.6)~~ ✅ เสร็จแล้ว (ดู §1.9) · ~~Storage/Cluster~~ ✅ เสร็จแล้ว (ดู §1.10) · ~~Rack (พร้อมผังกราฟิก)~~ ✅ เสร็จแล้ว (ดู §1.11) · ~~Location Tree Picker~~ ✅ เสร็จแล้ว (ดู §1.12) · ~~VLAN + Site UI (v1.1.1)~~ ✅ เสร็จแล้ว (ดู §1.13) — **ปิด Sprint 3 ครบทุกรายการ** เหลือ Software License เลื่อนไป Sprint 4 | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
 | **4** | ~~Software License · Seat Counting · CMDB Relationship · Contracts (เครื่องเดียว/หลายเครื่อง)~~ ✅ เสร็จแล้ว (ดู §1.14) | บริหาร License และความสัมพันธ์ได้ | 4 |
-| **5** | Dashboard · Reports · Export Excel | เห็นภาพรวมและออกรายงานได้ | 3 |
+| **5** | ~~Dashboard · Reports · Export Excel~~ ✅ เสร็จแล้ว (ดู §1.15) | เห็นภาพรวมและออกรายงานได้ | 3 |
 | **6** | Excel Import + Validation · Notification (Email + In-app) · Settings หน้า SMTP/เกณฑ์แจ้งเตือน | นำเข้าข้อมูลเดิมและแจ้งเตือนอัตโนมัติได้ | 3 |
-| **7** | **Permission Control (v1.5)** — File Share Permission CRUD · Internet Policy CRUD · ตารางการมองเห็นตามชั้นความลับ (Authorization Policy) · ประวัติสิทธิ์ 3 version | ดูสิทธิ์ File Share/Internet และประวัติการเปลี่ยนแปลงได้ | 6 |
+| **7** | ~~**Permission Control (v1.5)** — File Share Permission CRUD · Internet Policy CRUD · ตารางการมองเห็นตามชั้นความลับ (Authorization Policy) · ประวัติสิทธิ์ 3 version~~ ✅ เสร็จแล้ว (ดู §1.16 — ทำก่อน Sprint 6 ตามที่ผู้ใช้ขอ) | ดูสิทธิ์ File Share/Internet และประวัติการเปลี่ยนแปลงได้ | 6 |
 | **8** | **AD/FSRM Integration** — Collector Agent (.NET Console App แยก Solution) · Sync Job Scheduler · หน้า Collector Agent/OU Scope/Sync Job ในหน้าตั้งค่า · ทดสอบกับ AD+FSRM จริงจาก §1.1 | Sync ผู้ใช้/กลุ่ม/Quota อัตโนมัติได้จริง | 7 |
 | **9** | หน้าตั้งค่าที่เหลือ (System, Retention, Audit) · หน้าแรก Settings (Status Panel) · ปิดช่องโหว่จาก Code Review | หน้าตั้งค่าครบ 25 หน้าตามที่ออกแบบ | 3 |
 | **10** | Integration Test · Performance Test (2,000+ รายการ < 2 วิ) · Security Review · คู่มือผู้ใช้ · Deploy จริง (§4) | **ระบบพร้อมใช้งานจริง (Go-Live)** | 6 |
