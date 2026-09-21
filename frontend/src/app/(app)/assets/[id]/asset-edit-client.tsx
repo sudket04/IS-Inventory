@@ -4,6 +4,7 @@ import * as React from "react";
 import { apiFetch } from "@/lib/api";
 import { AssetForm } from "@/components/assets/asset-form";
 import { AttachmentsPanel } from "@/components/assets/attachments-panel";
+import { ServerApplicationsPanel } from "@/components/assets/server-applications-panel";
 import type { AssetDetail } from "@/lib/assets/types";
 
 export function AssetEditClient({ assetId }: { assetId: string }) {
@@ -46,6 +47,11 @@ export function AssetEditClient({ assetId }: { assetId: string }) {
       <div className="mt-4">
         <AssetForm existing={asset} />
       </div>
+      {asset.categoryCode === "SRV" && (
+        <div className="mt-4">
+          <ServerApplicationsPanel assetId={asset.assetId} />
+        </div>
+      )}
       <div className="mt-4">
         <AttachmentsPanel assetId={asset.assetId} />
       </div>

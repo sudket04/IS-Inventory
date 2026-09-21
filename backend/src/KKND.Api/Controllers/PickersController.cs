@@ -57,4 +57,14 @@ public sealed class PickersController : ControllerBase
     public async Task<ActionResult<IEnumerable<Option>>> Users(CancellationToken ct) =>
         Ok(await _db.Users.Where(u => u.IsActive).OrderBy(u => u.FullName)
             .Select(u => new Option(u.UserId, u.FullName)).ToListAsync(ct));
+
+    [HttpGet("server-roles")]
+    public async Task<ActionResult<IEnumerable<Option>>> ServerRoles(CancellationToken ct) =>
+        Ok(await _db.ServerRoles.Where(r => r.IsActive).OrderBy(r => r.SortOrder)
+            .Select(r => new Option(r.ServerRoleId, r.Name)).ToListAsync(ct));
+
+    [HttpGet("vlan-sites")]
+    public async Task<ActionResult<IEnumerable<Option>>> VlanSites(CancellationToken ct) =>
+        Ok(await _db.VlanSites.Where(s => s.IsActive).OrderBy(s => s.SortOrder)
+            .Select(s => new Option(s.SiteId, s.Name)).ToListAsync(ct));
 }

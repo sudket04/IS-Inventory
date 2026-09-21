@@ -4,7 +4,7 @@ import * as React from "react";
 import { apiFetch } from "@/lib/api";
 import type { Option } from "@/lib/assets/types";
 
-function usePicker(path: string): Option[] {
+export function usePicker(path: string): Option[] {
   const [options, setOptions] = React.useState<Option[]>([]);
   React.useEffect(() => {
     apiFetch(`/api/pickers/${path}`)
