@@ -18,9 +18,12 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function AttachmentsPanel({ assetId }: { assetId: number }) {
+type Owner = { assetId: number } | { contractId: number };
+
+export function AttachmentsPanel({ owner }: { owner: Owner }) {
   const { user } = useAuth();
   const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  const basePath = "assetId" in owner ? `/api/assets/${owner.assetId}/attachments` : `/api/contracts/${owner.contractId}/attachments`;
 
   const [items, setItems] = React.useState<AttachmentListItem[] | null>(null);
   const [description, setDescription] = React.useState("");
@@ -29,9 +32,9 @@ export function AttachmentsPanel({ assetId }: { assetId: number }) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const load = React.useCallback(async () => {
-    const res = await apiFetch(`/api/assets/${assetId}/attachments`);
+    const res = await apiFetch(basePath);
     if (res.ok) setItems(await res.json());
-  }, [assetId]);
+  }, [basePath]);
 
   React.useEffect(() => {
     load();
@@ -58,7 +61,7 @@ export function AttachmentsPanel({ assetId }: { assetId: number }) {
     if (description.trim()) formData.append("description", description.trim());
 
     setUploading(true);
-    const res = await apiFetch(`/api/assets/${assetId}/attachments`, { method: "POST", body: formData });
+    const res = await apiFetch(basePath, { method: "POST", body: formData });
     setUploading(false);
 
     if (res.ok) {

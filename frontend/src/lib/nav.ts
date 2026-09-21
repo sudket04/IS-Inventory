@@ -17,6 +17,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Racks", href: "/racks", icon: "warehouse", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
   { label: "VLANs", href: "/vlans", icon: "network", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
   { label: "Software", href: "/software", icon: "disc", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
+  { label: "Contracts", href: "/contracts", icon: "file-text", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
   { label: "Reports", href: "/reports", icon: "bar-chart-3", roles: ["ADMIN", "IT_STAFF", "AUDITOR"] },
   { label: "Import", href: "/import", icon: "upload", roles: ["ADMIN", "IT_STAFF"] },
   { label: "Audit Logs", href: "/audit-logs", icon: "search", roles: ["ADMIN", "IT_STAFF", "AUDITOR"] },

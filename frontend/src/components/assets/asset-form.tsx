@@ -15,6 +15,7 @@ import type {
   PowerDetailsForm,
   PeripheralDetailsForm,
   MobileIotDetailsForm,
+  SoftwareDetailsForm,
 } from "@/lib/assets/types";
 
 const str = (v: string) => (v.trim() === "" ? null : v.trim());
@@ -29,6 +30,7 @@ const MOUNT_TYPES = ["DESK", "VESA", "WALL", "CEILING", "FLOOR"];
 const MAX_PAPER_SIZES = ["A4", "A3", "A2", "A1", "A0", "LETTER", "LEGAL"];
 const DEVICE_PROTOCOLS = ["MODBUS", "OPC_UA", "BACNET", "MQTT", "PROFINET", "ETHERNET_IP", "SNMP", "ONVIF", "OTHER"];
 const IOT_STORAGE_TYPES = ["SD_CARD", "NVR", "CLOUD", "NAS", "NONE"];
+const LICENSE_TYPES = ["PERPETUAL", "SUBSCRIPTION", "OEM", "VOLUME", "CORE_BASED", "OPEN_SOURCE"];
 
 const SUPPORTED_CATEGORY_LABELS = [
   "Server",
@@ -38,6 +40,7 @@ const SUPPORTED_CATEGORY_LABELS = [
   "Power & Cooling",
   "Peripheral",
   "Mobile & IoT/OT",
+  "Software License",
 ];
 
 interface CoreFormState {
@@ -113,6 +116,11 @@ const emptyMobileIot: MobileIotDetailsForm = {
   isMdmEnrolled: false, mdmPlatform: "", hostname: "", macAddress: "", firmwareVersion: "",
   deviceProtocol: "", controllerModel: "", ioPointCount: "", resolution: "",
   hasPtz: false, hasIr: false, storageType: "", assignedToName: "", assignedDate: "",
+};
+
+const emptySoftware: SoftwareDetailsForm = {
+  publisher: "", version: "", edition: "", licenseType: "", licenseKey: "",
+  isPerDevice: true, supportLevel: "", autoRenew: false, licensePortalUrl: "",
 };
 
 function coreFromExisting(a: AssetDetail): CoreFormState {
@@ -292,6 +300,21 @@ export function AssetForm({ existing }: { existing?: AssetDetail }) {
         }
       : emptyMobileIot
   );
+  const [softwareDetails, setSoftwareDetails] = React.useState<SoftwareDetailsForm>(
+    existing?.softwareDetails
+      ? {
+          publisher: existing.softwareDetails.publisher ?? "",
+          version: existing.softwareDetails.version ?? "",
+          edition: existing.softwareDetails.edition ?? "",
+          licenseType: existing.softwareDetails.licenseType ?? "",
+          licenseKey: "",
+          isPerDevice: existing.softwareDetails.isPerDevice ?? true,
+          supportLevel: existing.softwareDetails.supportLevel ?? "",
+          autoRenew: existing.softwareDetails.autoRenew ?? false,
+          licensePortalUrl: existing.softwareDetails.licensePortalUrl ?? "",
+        }
+      : emptySoftware
+  );
 
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -307,6 +330,7 @@ export function AssetForm({ existing }: { existing?: AssetDetail }) {
   const isPower = isEdit ? activeCode === "PWR" : activeLabel === "Power & Cooling";
   const isPeripheral = isEdit ? activeCode === "PER" : activeLabel === "Peripheral";
   const isMobileIot = isEdit ? activeCode === "IOT" : activeLabel === "Mobile & IoT/OT";
+  const isSoftware = isEdit ? activeCode === "SFT" : activeLabel === "Software License";
 
   function set<K extends keyof CoreFormState>(key: K, value: string) {
     setCore((c) => ({ ...c, [key]: value }));
@@ -466,6 +490,19 @@ export function AssetForm({ existing }: { existing?: AssetDetail }) {
             storageType: str(mobileIotDetails.storageType),
             assignedToName: str(mobileIotDetails.assignedToName),
             assignedDate: str(mobileIotDetails.assignedDate),
+          }
+        : null,
+      softwareDetails: isSoftware
+        ? {
+            publisher: str(softwareDetails.publisher),
+            version: str(softwareDetails.version),
+            edition: str(softwareDetails.edition),
+            licenseType: softwareDetails.licenseType,
+            licenseKey: str(softwareDetails.licenseKey),
+            isPerDevice: softwareDetails.isPerDevice,
+            supportLevel: str(softwareDetails.supportLevel),
+            autoRenew: softwareDetails.autoRenew,
+            licensePortalUrl: str(softwareDetails.licensePortalUrl),
           }
         : null,
     };
@@ -675,6 +712,33 @@ export function AssetForm({ existing }: { existing?: AssetDetail }) {
           <EnumSelectField id="id-storage-type" label="Storage Type" value={mobileIotDetails.storageType} onChange={(v) => setMobileIotDetails((s) => ({ ...s, storageType: v }))} options={IOT_STORAGE_TYPES} />
           <TextField id="id-assigned-to" label="Assigned To" value={mobileIotDetails.assignedToName} onChange={(v) => setMobileIotDetails((s) => ({ ...s, assignedToName: v }))} />
           <TextField id="id-assigned-date" label="Assigned Date" type="date" value={mobileIotDetails.assignedDate} onChange={(v) => setMobileIotDetails((s) => ({ ...s, assignedDate: v }))} />
+        </Section>
+      )}
+
+      {isSoftware && (
+        <Section title="Software License Details">
+          <TextField id="swd-publisher" label="Publisher" value={softwareDetails.publisher} onChange={(v) => setSoftwareDetails((s) => ({ ...s, publisher: v }))} />
+          <TextField id="swd-version" label="Version" value={softwareDetails.version} onChange={(v) => setSoftwareDetails((s) => ({ ...s, version: v }))} />
+          <TextField id="swd-edition" label="Edition" value={softwareDetails.edition} onChange={(v) => setSoftwareDetails((s) => ({ ...s, edition: v }))} />
+          <EnumSelectField id="swd-license-type" label="License Type" required value={softwareDetails.licenseType} onChange={(v) => setSoftwareDetails((s) => ({ ...s, licenseType: v }))} options={LICENSE_TYPES} />
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-secondary" htmlFor="swd-license-key">
+              License Key {isEdit && existing?.softwareDetails?.hasLicenseKey ? "(a key is already stored — leave blank to keep it)" : ""}
+            </label>
+            <input
+              id="swd-license-key"
+              type="text"
+              autoComplete="off"
+              placeholder={isEdit && existing?.softwareDetails?.hasLicenseKey ? "•••••••••••••••• (unchanged)" : ""}
+              value={softwareDetails.licenseKey}
+              onChange={(e) => setSoftwareDetails((s) => ({ ...s, licenseKey: e.target.value }))}
+              className="h-9 w-full rounded-md border border-border-default bg-bg-surface px-3 text-sm text-text-primary"
+            />
+          </div>
+          <CheckboxField id="swd-per-device" label="Per Device" checked={softwareDetails.isPerDevice} onChange={(v) => setSoftwareDetails((s) => ({ ...s, isPerDevice: v }))} />
+          <TextField id="swd-support-level" label="Support Level" value={softwareDetails.supportLevel} onChange={(v) => setSoftwareDetails((s) => ({ ...s, supportLevel: v }))} />
+          <CheckboxField id="swd-auto-renew" label="Auto Renew" checked={softwareDetails.autoRenew} onChange={(v) => setSoftwareDetails((s) => ({ ...s, autoRenew: v }))} />
+          <TextField id="swd-portal-url" label="License Portal URL" value={softwareDetails.licensePortalUrl} onChange={(v) => setSoftwareDetails((s) => ({ ...s, licensePortalUrl: v }))} />
         </Section>
       )}
 

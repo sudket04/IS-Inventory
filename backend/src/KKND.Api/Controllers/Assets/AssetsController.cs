@@ -1,5 +1,6 @@
 using System.Data;
 using System.Security.Claims;
+using KKND.Domain.Security;
 using KKND.Infrastructure;
 using KKND.Infrastructure.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -10,12 +11,13 @@ using Microsoft.EntityFrameworkCore;
 namespace KKND.Api.Controllers.Assets;
 
 /// <summary>
-/// Covers 7 of the 8 asset categories (Server, Network Device, Computer, Storage,
-/// Power &amp; Cooling, Peripheral, Mobile &amp; IoT/OT). Software License (SFT) is
-/// deliberately excluded — it needs Sprint 4's seat-counting logic and a decision on
-/// how license_key_encrypted gets encrypted, so it isn't a same-shape extension.
-/// Uses the existing stored procedures for the two operations that need concurrency
-/// safety or cross-table cleanup rather than re-implementing them in C#:
+/// Covers all 8 asset categories (Server, Network Device, Computer, Storage,
+/// Power &amp; Cooling, Peripheral, Mobile &amp; IoT/OT, Software License). Software
+/// License (SFT) joined in Sprint 4 once seat-counting moved to contract_assets.seat_count
+/// (v1.4) and license_key_encrypted got an application-side AES-256-GCM protector
+/// (ILicenseKeyProtector) — see SoftwareInstallationsController for the seat-tracking
+/// sub-resource. Uses the existing stored procedures for the two operations that need
+/// concurrency safety or cross-table cleanup rather than re-implementing them in C#:
 /// sp_generate_asset_tag (UPDLOCK-guarded sequence) and sp_soft_delete_asset (also
 /// releases software seats per FR-AS-10).
 /// </summary>
@@ -25,13 +27,15 @@ namespace KKND.Api.Controllers.Assets;
 public sealed class AssetsController : ControllerBase
 {
     private const int MaxPageSize = 100;
-    private static readonly string[] SupportedCategoryCodes = ["SRV", "NET", "PC", "STG", "PWR", "PER", "IOT"];
+    private static readonly string[] SupportedCategoryCodes = ["SRV", "NET", "PC", "STG", "PWR", "PER", "IOT", "SFT"];
 
     private readonly KkndDbContext _db;
+    private readonly ILicenseKeyProtector _licenseKeyProtector;
 
-    public AssetsController(KkndDbContext db)
+    public AssetsController(KkndDbContext db, ILicenseKeyProtector licenseKeyProtector)
     {
         _db = db;
+        _licenseKeyProtector = licenseKeyProtector;
     }
 
     [HttpGet]
@@ -116,6 +120,7 @@ public sealed class AssetsController : ControllerBase
             .Include(a => a.PowerDetail)
             .Include(a => a.PeripheralDetail)
             .Include(a => a.MobileIotDetail)
+            .Include(a => a.SoftwareDetail)
             .SingleOrDefaultAsync(a => a.AssetId == id && !a.IsDeleted, ct);
 
         if (asset is null) return NotFound();
@@ -147,6 +152,7 @@ public sealed class AssetsController : ControllerBase
             "PWR" when request.PowerDetails is null => "Power & Cooling Details are required for a Power & Cooling asset.",
             "PER" when request.PeripheralDetails is null => "Peripheral Details are required for a Peripheral asset.",
             "IOT" when request.MobileIotDetails is null => "Mobile & IoT/OT Details are required for a Mobile & IoT/OT asset.",
+            "SFT" when request.SoftwareDetails is null => "Software Details are required for a Software License asset.",
             _ => null,
         };
         if (detailsError is not null)
@@ -215,6 +221,10 @@ public sealed class AssetsController : ControllerBase
                 asset.MobileIotDetail = new MobileIotDetail();
                 Apply(asset.MobileIotDetail, id_);
                 break;
+            case "SFT" when request.SoftwareDetails is { } swd:
+                asset.SoftwareDetail = new SoftwareDetail();
+                Apply(asset.SoftwareDetail, swd, _licenseKeyProtector);
+                break;
         }
 
         _db.Assets.Add(asset);
@@ -240,6 +250,7 @@ public sealed class AssetsController : ControllerBase
             .Include(a => a.PowerDetail)
             .Include(a => a.PeripheralDetail)
             .Include(a => a.MobileIotDetail)
+            .Include(a => a.SoftwareDetail)
             .SingleAsync(a => a.AssetId == asset.AssetId, ct);
 
         return CreatedAtAction(nameof(Get), new { id = asset.AssetId }, ToDetail(created));
@@ -258,6 +269,7 @@ public sealed class AssetsController : ControllerBase
             .Include(a => a.PowerDetail)
             .Include(a => a.PeripheralDetail)
             .Include(a => a.MobileIotDetail)
+            .Include(a => a.SoftwareDetail)
             .SingleOrDefaultAsync(a => a.AssetId == id && !a.IsDeleted, ct);
 
         if (asset is null) return NotFound();
@@ -317,6 +329,10 @@ public sealed class AssetsController : ControllerBase
             case "IOT" when request.MobileIotDetails is { } id_:
                 asset.MobileIotDetail ??= new MobileIotDetail { AssetId = asset.AssetId };
                 Apply(asset.MobileIotDetail, id_);
+                break;
+            case "SFT" when request.SoftwareDetails is { } swd:
+                asset.SoftwareDetail ??= new SoftwareDetail { AssetId = asset.AssetId };
+                Apply(asset.SoftwareDetail, swd, _licenseKeyProtector);
                 break;
         }
 
@@ -489,6 +505,24 @@ public sealed class AssetsController : ControllerBase
         e.AssignedDate = d.AssignedDate;
     }
 
+    private static void Apply(SoftwareDetail e, SoftwareDetailsDto d, ILicenseKeyProtector protector)
+    {
+        e.Publisher = d.Publisher;
+        e.Version = d.Version;
+        e.Edition = d.Edition;
+        e.LicenseType = d.LicenseType;
+        e.IsPerDevice = d.IsPerDevice ?? true;
+        e.SupportLevel = d.SupportLevel;
+        e.AutoRenew = d.AutoRenew ?? false;
+        e.LicensePortalUrl = d.LicensePortalUrl;
+
+        // Write-only: a blank/omitted key on Update leaves the stored key untouched.
+        if (!string.IsNullOrWhiteSpace(d.LicenseKey))
+        {
+            e.LicenseKeyEncrypted = protector.Encrypt(d.LicenseKey);
+        }
+    }
+
     private async Task<string> GenerateAssetTagAsync(int categoryId, CancellationToken ct)
     {
         var connection = _db.Database.GetDbConnection();
@@ -558,5 +592,9 @@ public sealed class AssetsController : ControllerBase
             id_.Imei, id_.PhoneNumber, id_.SimProvider, id_.OsName, id_.OsVersion,
             id_.IsMdmEnrolled, id_.MdmPlatform, id_.Hostname, id_.MacAddress, id_.FirmwareVersion,
             id_.DeviceProtocol, id_.ControllerModel, id_.IoPointCount, id_.Resolution,
-            id_.HasPtz, id_.HasIr, id_.StorageType, id_.AssignedToName, id_.AssignedDate) : null);
+            id_.HasPtz, id_.HasIr, id_.StorageType, id_.AssignedToName, id_.AssignedDate) : null,
+        a.SoftwareDetail is { } swd ? new SoftwareDetailsDto(
+            swd.Publisher, swd.Version, swd.Edition, swd.LicenseType, null,
+            swd.IsPerDevice, swd.SupportLevel, swd.AutoRenew, swd.LicensePortalUrl,
+            swd.LicenseKeyEncrypted is not null) : null);
 }

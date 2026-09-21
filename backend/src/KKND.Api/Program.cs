@@ -33,6 +33,15 @@ if (string.IsNullOrWhiteSpace(jwtOptions.Secret) && !builder.Environment.IsEnvir
         "or an environment variable / Key Vault in production (NFR-07).");
 }
 
+if (string.IsNullOrWhiteSpace(builder.Configuration["Licensing:EncryptionKeyBase64"]) && !builder.Environment.IsEnvironment("Testing"))
+{
+    throw new InvalidOperationException(
+        "Licensing:EncryptionKeyBase64 is not configured. Set it via " +
+        "'dotnet user-secrets set Licensing:EncryptionKeyBase64 \"<base64 of 32 random bytes>\"' locally, " +
+        "or an environment variable / Key Vault in production (NFR-07). Generate one with: openssl rand -base64 32");
+}
+builder.Services.AddSingleton<ILicenseKeyProtector, AesGcmLicenseKeyProtector>();
+
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

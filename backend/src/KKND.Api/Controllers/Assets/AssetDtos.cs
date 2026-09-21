@@ -48,6 +48,18 @@ public sealed record MobileIotDetailsDto(
     string? DeviceProtocol, string? ControllerModel, short? IoPointCount, string? Resolution,
     bool? HasPtz, bool? HasIr, string? StorageType, string? AssignedToName, DateOnly? AssignedDate);
 
+/// <summary>
+/// LicenseKey is write-only: sent in on Create/Update (null/omitted = leave unchanged on
+/// Update, or "no key" on Create) and encrypted server-side (FR-SW-06). It is never
+/// returned — HasLicenseKey is the read-side signal instead. Seats moved to
+/// contract_assets.seat_count in v1.4 (see vw_software_seat_usage), so there is no seat
+/// field here any more.
+/// </summary>
+public sealed record SoftwareDetailsDto(
+    string? Publisher, string? Version, string? Edition, string LicenseType, string? LicenseKey,
+    bool? IsPerDevice, string? SupportLevel, bool? AutoRenew, string? LicensePortalUrl,
+    bool HasLicenseKey = false);
+
 public sealed record AssetCreateRequest(
     int CategoryId, string Name, int? ManufacturerId, string? Model, string? SerialNumber,
     int StatusId, int? LocationId, int? DepartmentId, int? OwnerUserId, int? VendorId,
@@ -56,7 +68,8 @@ public sealed record AssetCreateRequest(
     string? FixedAssetNo, string? ServiceTag, string? SystemUuid, string? CostCenter, string? Notes,
     ServerDetailsDto? ServerDetails, NetworkDetailsDto? NetworkDetails,
     ComputerDetailsDto? ComputerDetails, StorageDetailsDto? StorageDetails, PowerDetailsDto? PowerDetails,
-    PeripheralDetailsDto? PeripheralDetails, MobileIotDetailsDto? MobileIotDetails);
+    PeripheralDetailsDto? PeripheralDetails, MobileIotDetailsDto? MobileIotDetails,
+    SoftwareDetailsDto? SoftwareDetails = null);
 
 public sealed record AssetUpdateRequest(
     string Name, int? ManufacturerId, string? Model, string? SerialNumber,
@@ -66,7 +79,8 @@ public sealed record AssetUpdateRequest(
     string? FixedAssetNo, string? ServiceTag, string? SystemUuid, string? CostCenter, string? Notes,
     ServerDetailsDto? ServerDetails, NetworkDetailsDto? NetworkDetails,
     ComputerDetailsDto? ComputerDetails, StorageDetailsDto? StorageDetails, PowerDetailsDto? PowerDetails,
-    PeripheralDetailsDto? PeripheralDetails, MobileIotDetailsDto? MobileIotDetails);
+    PeripheralDetailsDto? PeripheralDetails, MobileIotDetailsDto? MobileIotDetails,
+    SoftwareDetailsDto? SoftwareDetails = null);
 
 public sealed record AssetDetail(
     int AssetId, string AssetTag, string Name, int CategoryId, string CategoryCode, string CategoryName,
@@ -78,4 +92,5 @@ public sealed record AssetDetail(
     DateTimeOffset CreatedAt, DateTimeOffset? UpdatedAt,
     ServerDetailsDto? ServerDetails, NetworkDetailsDto? NetworkDetails,
     ComputerDetailsDto? ComputerDetails, StorageDetailsDto? StorageDetails, PowerDetailsDto? PowerDetails,
-    PeripheralDetailsDto? PeripheralDetails, MobileIotDetailsDto? MobileIotDetails);
+    PeripheralDetailsDto? PeripheralDetails, MobileIotDetailsDto? MobileIotDetails,
+    SoftwareDetailsDto? SoftwareDetails);

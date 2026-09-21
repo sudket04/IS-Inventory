@@ -44,18 +44,12 @@ public sealed class AttachmentsController : ControllerBase
     }
 
     [HttpGet("api/assets/{assetId:int}/attachments")]
-    public async Task<ActionResult<IReadOnlyList<AttachmentListItem>>> List(int assetId, CancellationToken ct)
-    {
-        var items = await _db.Attachments
-            .Where(a => a.AssetId == assetId && !a.IsDeleted)
-            .OrderByDescending(a => a.UploadedAt)
-            .Select(a => new AttachmentListItem(
-                a.AttachmentId, a.OriginalFileName, a.MimeType, a.FileSizeBytes,
-                a.Description, a.UploadedAt, a.UploadedByNavigation != null ? a.UploadedByNavigation.FullName : null))
-            .ToListAsync(ct);
+    public async Task<ActionResult<IReadOnlyList<AttachmentListItem>>> List(int assetId, CancellationToken ct) =>
+        Ok(await ListInternal(a => a.AssetId == assetId, ct));
 
-        return Ok(items);
-    }
+    [HttpGet("api/contracts/{contractId:int}/attachments")]
+    public async Task<ActionResult<IReadOnlyList<AttachmentListItem>>> ListForContract(int contractId, CancellationToken ct) =>
+        Ok(await ListInternal(a => a.ContractId == contractId, ct));
 
     [HttpPost("api/assets/{assetId:int}/attachments")]
     [Authorize(Policy = "ItStaffOrAbove")]
@@ -68,6 +62,37 @@ public sealed class AttachmentsController : ControllerBase
             return NotFound(new { message = "Asset not found." });
         }
 
+        return await UploadInternal(assetId: assetId, contractId: null, $"asset-{assetId}", file, description, ct);
+    }
+
+    [HttpPost("api/contracts/{contractId:int}/attachments")]
+    [Authorize(Policy = "ItStaffOrAbove")]
+    [RequestSizeLimit(MaxFileSizeBytes + 1024)]
+    public async Task<ActionResult<AttachmentListItem>> UploadForContract(int contractId, [FromForm] IFormFile file, [FromForm] string? description, CancellationToken ct)
+    {
+        var contract = await _db.Contracts.FirstOrDefaultAsync(c => c.ContractId == contractId, ct);
+        if (contract is null)
+        {
+            return NotFound(new { message = "Contract not found." });
+        }
+
+        return await UploadInternal(assetId: null, contractId: contractId, $"contract-{contractId}", file, description, ct);
+    }
+
+    private async Task<List<AttachmentListItem>> ListInternal(
+        System.Linq.Expressions.Expression<Func<Attachment, bool>> ownerFilter, CancellationToken ct) =>
+        await _db.Attachments
+            .Where(a => !a.IsDeleted)
+            .Where(ownerFilter)
+            .OrderByDescending(a => a.UploadedAt)
+            .Select(a => new AttachmentListItem(
+                a.AttachmentId, a.OriginalFileName, a.MimeType, a.FileSizeBytes,
+                a.Description, a.UploadedAt, a.UploadedByNavigation != null ? a.UploadedByNavigation.FullName : null))
+            .ToListAsync(ct);
+
+    private async Task<ActionResult<AttachmentListItem>> UploadInternal(
+        int? assetId, int? contractId, string storageDir, IFormFile file, string? description, CancellationToken ct)
+    {
         if (file is null || file.Length == 0)
         {
             return BadRequest(new { message = "No file was uploaded." });
@@ -104,18 +129,19 @@ public sealed class AttachmentsController : ControllerBase
         var hash = Convert.ToHexString(SHA256.HashData(buffer)).ToLowerInvariant();
         var storedFileName = $"{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
         var storageRoot = ResolveStorageRoot();
-        var assetDir = Path.Combine(storageRoot, assetId.ToString());
-        Directory.CreateDirectory(assetDir);
-        var fullPath = Path.Combine(assetDir, storedFileName);
+        var ownerDir = Path.Combine(storageRoot, storageDir);
+        Directory.CreateDirectory(ownerDir);
+        var fullPath = Path.Combine(ownerDir, storedFileName);
         await System.IO.File.WriteAllBytesAsync(fullPath, buffer, ct);
 
         var userId = CurrentUserId();
         var attachment = new Attachment
         {
             AssetId = assetId,
+            ContractId = contractId,
             OriginalFileName = file.FileName,
             StoredFileName = storedFileName,
-            StoragePath = Path.Combine(assetId.ToString(), storedFileName),
+            StoragePath = Path.Combine(storageDir, storedFileName),
             MimeType = expectedMime,
             FileSizeBytes = (int)file.Length,
             FileHash = hash,
@@ -140,9 +166,13 @@ public sealed class AttachmentsController : ControllerBase
 
         var uploaderName = await _db.Users.Where(u => u.UserId == userId).Select(u => u.FullName).FirstOrDefaultAsync(ct);
 
-        return CreatedAtAction(nameof(List), new { assetId }, new AttachmentListItem(
+        var item = new AttachmentListItem(
             attachment.AttachmentId, attachment.OriginalFileName, attachment.MimeType, attachment.FileSizeBytes,
-            attachment.Description, attachment.UploadedAt, uploaderName));
+            attachment.Description, attachment.UploadedAt, uploaderName);
+
+        return assetId.HasValue
+            ? CreatedAtAction(nameof(List), new { assetId }, item)
+            : CreatedAtAction(nameof(ListForContract), new { contractId }, item);
     }
 
     [HttpGet("api/attachments/{id:int}/download")]

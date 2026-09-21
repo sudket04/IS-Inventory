@@ -77,4 +77,16 @@ public sealed class PickersController : ControllerBase
     public async Task<ActionResult<IEnumerable<Option>>> Assets(CancellationToken ct) =>
         Ok(await _db.Assets.Where(a => !a.IsDeleted).OrderBy(a => a.AssetTag)
             .Select(a => new Option(a.AssetId, a.AssetTag + " — " + a.Name)).ToListAsync(ct));
+
+    public sealed record RelationshipTypeOption(int Id, string ForwardName, string InverseName);
+
+    [HttpGet("relationship-types")]
+    public async Task<ActionResult<IEnumerable<RelationshipTypeOption>>> RelationshipTypes(CancellationToken ct) =>
+        Ok(await _db.RelationshipTypes.Where(t => t.IsActive).OrderBy(t => t.ForwardName)
+            .Select(t => new RelationshipTypeOption(t.RelationshipTypeId, t.ForwardName, t.InverseName)).ToListAsync(ct));
+
+    [HttpGet("contracts")]
+    public async Task<ActionResult<IEnumerable<Option>>> Contracts(CancellationToken ct) =>
+        Ok(await _db.Contracts.OrderByDescending(c => c.CreatedAt)
+            .Select(c => new Option(c.ContractId, c.ContractNo)).ToListAsync(ct));
 }

@@ -6,6 +6,8 @@ import { AssetForm } from "@/components/assets/asset-form";
 import { AttachmentsPanel } from "@/components/assets/attachments-panel";
 import { ServerApplicationsPanel } from "@/components/assets/server-applications-panel";
 import { StorageVolumesPanel } from "@/components/storage/storage-volumes-panel";
+import { InstallationsPanel } from "@/components/assets/installations-panel";
+import { RelationshipsPanel } from "@/components/assets/relationships-panel";
 import type { AssetDetail } from "@/lib/assets/types";
 
 const STORAGE_VOLUME_CATEGORIES = ["SRV", "STG"];
@@ -60,8 +62,16 @@ export function AssetEditClient({ assetId }: { assetId: string }) {
           <StorageVolumesPanel owner={{ assetId: asset.assetId }} />
         </div>
       )}
+      {asset.categoryCode === "SFT" && (
+        <div className="mt-4">
+          <InstallationsPanel softwareAssetId={asset.assetId} />
+        </div>
+      )}
       <div className="mt-4">
-        <AttachmentsPanel assetId={asset.assetId} />
+        <RelationshipsPanel assetId={asset.assetId} />
+      </div>
+      <div className="mt-4">
+        <AttachmentsPanel owner={{ assetId: asset.assetId }} />
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import {
   Warehouse,
   MapPin,
   Network,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +32,7 @@ const ICONS: Record<string, LucideIcon> = {
   warehouse: Warehouse,
   "map-pin": MapPin,
   network: Network,
+  "file-text": FileText,
 };
 
 export function NavIcon({ name, className }: { name: string; className?: string }) {

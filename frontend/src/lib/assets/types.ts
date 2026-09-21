@@ -87,6 +87,13 @@ export interface MobileIotDetailsForm {
   hasPtz: boolean; hasIr: boolean; storageType: string; assignedToName: string; assignedDate: string;
 }
 
+// licenseKey is write-only — sent on submit, never populated from the server (see
+// hasLicenseKey below for the read-side signal).
+export interface SoftwareDetailsForm {
+  publisher: string; version: string; edition: string; licenseType: string; licenseKey: string;
+  isPerDevice: boolean; supportLevel: string; autoRenew: boolean; licensePortalUrl: string;
+}
+
 export interface AssetDetail {
   assetId: number;
   assetTag: string;
@@ -173,5 +180,10 @@ export interface AssetDetail {
     deviceProtocol: string | null; controllerModel: string | null; ioPointCount: number | null;
     resolution: string | null; hasPtz: boolean | null; hasIr: boolean | null; storageType: string | null;
     assignedToName: string | null; assignedDate: string | null;
+  } | null;
+  softwareDetails: {
+    publisher: string | null; version: string | null; edition: string | null; licenseType: string;
+    licenseKey: string | null; isPerDevice: boolean | null; supportLevel: string | null;
+    autoRenew: boolean | null; licensePortalUrl: string | null; hasLicenseKey: boolean;
   } | null;
 }

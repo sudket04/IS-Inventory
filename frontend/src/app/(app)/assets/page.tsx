@@ -48,7 +48,7 @@ export default function AssetsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-text-primary">Assets {result ? `(${result.totalCount})` : ""}</h1>
-          <p className="mt-1 text-sm text-text-secondary">Server, Network Device, Computer, Storage, Power & Cooling, Peripheral, Mobile & IoT/OT. Software License arrives in Sprint 4.</p>
+          <p className="mt-1 text-sm text-text-secondary">Server, Network Device, Computer, Storage, Power & Cooling, Peripheral, Mobile & IoT/OT, Software License.</p>
         </div>
         <Link href="/assets/new">
           <Button size="sm">+ New Asset</Button>
@@ -85,6 +85,7 @@ export default function AssetsPage() {
           <option value="PWR">Power & Cooling</option>
           <option value="PER">Peripheral</option>
           <option value="IOT">Mobile & IoT/OT</option>
+          <option value="SFT">Software License</option>
         </select>
       </div>
 
