@@ -120,7 +120,7 @@ public sealed partial class AuthController : ControllerBase
 
     [HttpPut("password")]
     [Authorize]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken ct)
+    public async Task<ActionResult<LoginResponse>> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken ct)
     {
         if (!PasswordPolicyRegex().IsMatch(request.NewPassword ?? string.Empty))
         {
@@ -152,7 +152,18 @@ public sealed partial class AuthController : ControllerBase
         });
 
         await _db.SaveChangesAsync(ct);
-        return NoContent();
+
+        // Mint a fresh token pair so the "must change password" claim/flag clears immediately —
+        // otherwise the caller stays locked out by the password-change-required gate (Program.cs)
+        // until their old access token naturally expires and a refresh picks up the new state.
+        var reissued = await _authService.ReissueForUserAsync(
+            userId,
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            Request.Headers.UserAgent.ToString(),
+            ct);
+
+        SetRefreshCookie(reissued.RefreshToken!, reissued.RefreshTokenExpiresAt!.Value);
+        return Ok(new LoginResponse(reissued.AccessToken!, reissued.AccessTokenExpiresAt!.Value, reissued.User!));
     }
 
     [GeneratedRegex(@"^(?=.*[A-Za-z])(?=.*\d).{8,}$")]

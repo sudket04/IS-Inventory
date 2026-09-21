@@ -391,12 +391,37 @@ Migration ตอนย้าย Coverage ไปที่ `contract_assets` — �
 โผล่มา Throw ซ้ำใน `SaveChangesAsync` ครั้งถัดไปที่ไม่เกี่ยวข้องกัน (แก้โดยเปลี่ยน IP Upsert ไปใช้ Raw SQL) —
 รายละเอียดเต็มที่ HANDOFF §4.18
 
-**คงเหลือ:** Playwright E2E ผ่าน Browser จริง — บล็อกโดย Auto-mode Safety Classifier ("Credential
-Exploration") ตอนพยายามรีเซ็ตรหัสผ่านบัญชี Admin ของฐานข้อมูลทดสอบ ผู้ใช้ตัดสินใจข้ามไปก่อนโดยอาศัย
-Build/Typecheck/Lint สะอาด + Backend curl-test ผ่านครบเป็นหลักประกันแทน — **ควรทำก่อน Go-Live จริง**
+**อัปเดต 21 ก.ย. 2569 (รอบถัดมา):** ทดสอบผ่าน Browser จริงด้วย Playwright สำเร็จแล้ว (มีรหัสผ่านทดสอบจาก
+§1.18) — **พบบั๊กจริง 1 จุด**: `ServerInventoryForm`'s ช่อง Asset Type ส่งค่าเป็น Category ID ตัวเลขแทน
+Code `"SRV"/"STG"` ทำให้ CPU/Memory/Storage ไม่เคยโผล่ขึ้นมาเลย (Backend curl-test ข้ามจุดนี้เพราะยิง
+Category ID ตรงๆ) แก้แล้วด้วย `EnumSelectField` รายละเอียดเต็มที่ HANDOFF §4.18
 
-**🟡 ยังไม่ปิด Sprint นี้เต็มรูปแบบ** (รอ Playwright E2E) — Sprint Plan เดิม (§2) ไม่กระทบ เพราะเป็นงานนอก
-ลำดับ
+**🎉 ปิดครบทุกรายการแล้ว**
+
+---
+
+### 1.18 🟡 นอก Sprint Plan — รหัสผ่านเริ่มต้นตอนติดตั้ง + บังคับเปลี่ยนรหัสผ่าน (21 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.19 — สรุปสั้น:
+
+| ส่วน | สถานะ |
+|---|---|
+| `IsInventory.Api.exe seed-admin` โหมด CLI ใหม่ — Hash รหัสผ่านเริ่มต้นด้วย Argon2id จริง (ตัวเดียวกับ Login ใช้ตรวจ) จาก Environment Variable ไม่ใช่ argv | ✅ |
+| JWT Claim `must_change_password` ใหม่ + Middleware บล็อก API อื่นทั้งหมดด้วย 403 จนกว่าจะเปลี่ยนรหัสผ่าน | ✅ |
+| `AuthController.ChangePassword` คืน Token ใหม่ทันที (ไม่ต้องรอ Token เดิมหมดอายุ) | ✅ |
+| Frontend `ChangePasswordForm` + Gate ใน `(app)/layout.tsx` บล็อกทุก Route จนกว่าจะเปลี่ยนรหัสผ่าน | ✅ |
+| `install-backend.ps1` ถาม Interactive ตอนท้าย Script ตั้งรหัสผ่านเริ่มต้น (SecureString, ยืนยันซ้ำ) | ✅ |
+
+**ช่องว่างที่พบก่อนแก้:** บัญชี `admin` ที่ Seed จาก `02-schema-sqlserver.sql` มี `password_hash` เป็นค่า
+Placeholder ที่ไม่ใช่ Hash จริงมาตั้งแต่ต้น (Comment ในไฟล์บอกว่าต้องแทนที่ตอนติดตั้งจริง) แต่ไม่เคยมี Script
+ไหนทำขั้นตอนนี้จริง — Login ด้วยบัญชีเริ่มต้นไม่ได้เลยจนกว่าจะมีคนไปแก้ Hash ในฐานข้อมูลเอง (เป็นปัญหาเดียวกับ
+ที่เจอตอนพยายามหารหัสผ่านทดสอบใน §1.17)
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว + ผ่าน Browser จริงด้วย Playwright ครบ**: `seed-admin`, Login →
+403 ระหว่างถูกล็อก → `/api/auth/me` ยังใช้ได้ → เปลี่ยนรหัสผ่านสำเร็จ → Token ใหม่ปลดล็อกทันที, พิมพ์ URL
+ตรงไปหน้าอื่นระหว่างถูกล็อกยังโดนหน้าบังคับสกัดอยู่
+
+**🎉 ปิดครบทุกรายการแล้ว**
 
 ---
 

@@ -25,6 +25,19 @@ builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// One-time install-time bootstrap: `dotnet IsInventory.Api.dll seed-admin` sets the initial
+// admin password (Argon2id-hashed via the real IPasswordHasher, never a hand-rolled hash) and
+// forces a change on first login. Password comes from an env var, not argv, so it never lands
+// in shell history or a visible process list. Runs before Jwt/Licensing config is required.
+if (args.Length > 0 && string.Equals(args[0], "seed-admin", StringComparison.OrdinalIgnoreCase))
+{
+    // ASP0000: fine here — this branch exits right after, well before app.Build() would run,
+    // so there's no duplicate-singleton lifetime concern to worry about.
+#pragma warning disable ASP0000
+    return await SeedAdminPasswordAsync(builder.Services.BuildServiceProvider());
+#pragma warning restore ASP0000
+}
+
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 if (string.IsNullOrWhiteSpace(jwtOptions.Secret) && !builder.Environment.IsEnvironment("Testing"))
 {
@@ -93,6 +106,27 @@ app.UseCors(FrontendCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 
+// FR-AU: a user flagged must_change_password (fresh install's admin, or anyone an Admin just
+// reset) is blocked from every API except /api/auth/* until they change it — enforced here
+// (not just hidden in the UI) so a direct API call can't skip the frontend's forced prompt.
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true
+        && context.User.FindFirst("must_change_password")?.Value == "true"
+        && !context.Request.Path.StartsWithSegments("/api/auth"))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(new
+        {
+            error = "password_change_required",
+            message = "You must change your password before continuing.",
+        });
+        return;
+    }
+
+    await next();
+});
+
 app.MapControllers();
 
 // ตรวจสอบว่า Backend ต่อฐานข้อมูลได้จริง — ใช้ยืนยัน Setup ตอน Sprint 0 เท่านั้น
@@ -106,3 +140,41 @@ app.MapGet("/health/db", async (IsInventoryDbContext db) =>
 });
 
 app.Run();
+return 0;
+
+static async Task<int> SeedAdminPasswordAsync(IServiceProvider services)
+{
+    var password = Environment.GetEnvironmentVariable("ISINVENTORY_SEED_ADMIN_PASSWORD");
+    if (string.IsNullOrWhiteSpace(password))
+    {
+        Console.Error.WriteLine("ISINVENTORY_SEED_ADMIN_PASSWORD environment variable is not set.");
+        return 1;
+    }
+
+    if (!System.Text.RegularExpressions.Regex.IsMatch(password, @"^(?=.*[A-Za-z])(?=.*\d).{8,}$"))
+    {
+        Console.Error.WriteLine("Password must be at least 8 characters and include both letters and digits.");
+        return 1;
+    }
+
+    using var scope = services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<IsInventoryDbContext>();
+    var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+
+    var admin = await db.Users.SingleOrDefaultAsync(u => u.Username == "admin");
+    if (admin is null)
+    {
+        Console.Error.WriteLine("No 'admin' user found — run the database migration scripts first.");
+        return 1;
+    }
+
+    admin.PasswordHash = hasher.Hash(password);
+    admin.MustChangePassword = true;
+    admin.FailedLoginAttempts = 0;
+    admin.LockedUntil = null;
+    admin.UpdatedAt = DateTimeOffset.UtcNow;
+    await db.SaveChangesAsync();
+
+    Console.WriteLine("Initial admin password set. It must be changed on first login.");
+    return 0;
+}

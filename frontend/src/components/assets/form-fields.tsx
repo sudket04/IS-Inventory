@@ -46,10 +46,10 @@ export function SelectField({
 }
 
 export function EnumSelectField({
-  id, label, value, onChange, options, required,
+  id, label, value, onChange, options, required, placeholder = "— None —",
 }: {
   id: string; label: string; value: string; onChange: (v: string) => void;
-  options: readonly (string | { value: string; label: string })[]; required?: boolean;
+  options: readonly (string | { value: string; label: string })[]; required?: boolean; placeholder?: string;
 }) {
   return (
     <div className="space-y-1.5">
@@ -61,7 +61,7 @@ export function EnumSelectField({
         onChange={(e) => onChange(e.target.value)}
         className="h-9 w-full rounded-md border border-border-default bg-bg-surface px-3 text-sm text-text-primary"
       >
-        <option value="">— None —</option>
+        <option value="">{placeholder}</option>
         {options.map((opt) => {
           const v = typeof opt === "string" ? opt : opt.value;
           const l = typeof opt === "string" ? opt : opt.label;

@@ -31,7 +31,7 @@ public sealed class JwtTokenService : IJwtTokenService
         _options = options.Value;
     }
 
-    public JwtAccessToken GenerateAccessToken(int userId, string username, string fullName, string roleCode)
+    public JwtAccessToken GenerateAccessToken(int userId, string username, string fullName, string roleCode, bool mustChangePassword)
     {
         var expiresAt = DateTimeOffset.UtcNow.AddMinutes(_options.AccessTokenMinutes);
 
@@ -42,6 +42,7 @@ public sealed class JwtTokenService : IJwtTokenService
             new Claim(ClaimTypes.Name, username),
             new Claim("full_name", fullName),
             new Claim(ClaimTypes.Role, roleCode),
+            new Claim("must_change_password", mustChangePassword ? "true" : "false"),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
         };
 

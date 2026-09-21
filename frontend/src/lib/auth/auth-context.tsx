@@ -23,6 +23,9 @@ interface AuthContextValue {
   status: "loading" | "authenticated" | "unauthenticated";
   login: (username: string, password: string) => Promise<LoginOutcome>;
   logout: () => Promise<void>;
+  /** Applies a fresh access token + user straight from a LoginResponse-shaped API result —
+   * used after a forced password change to clear mustChangePassword without a full reload. */
+  applySession: (accessToken: string, user: AuthUser) => void;
 }
 
 const AuthContext = React.createContext<AuthContextValue | null>(null);
@@ -95,7 +98,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus("unauthenticated");
   }, []);
 
-  const value = React.useMemo(() => ({ user, status, login, logout }), [user, status, login, logout]);
+  const applySession = React.useCallback((accessToken: string, nextUser: AuthUser) => {
+    setAccessToken(accessToken);
+    setUser(nextUser);
+    setStatus("authenticated");
+  }, []);
+
+  const value = React.useMemo(
+    () => ({ user, status, login, logout, applySession }),
+    [user, status, login, logout, applySession],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

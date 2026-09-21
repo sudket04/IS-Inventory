@@ -68,8 +68,6 @@ export function ServerInventoryForm({ existing }: { existing?: ServerInventoryDe
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const categoryOptions = categories.filter((c) => c.label === "Server" || c.label === "Storage");
-
   function num(v: string): number | null {
     const n = Number(v);
     return v.trim() === "" || Number.isNaN(n) ? null : n;
@@ -148,10 +146,9 @@ export function ServerInventoryForm({ existing }: { existing?: ServerInventoryDe
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Section title="Asset Type">
-        <SelectField id="category" label="Asset Type" required
+        <EnumSelectField id="category" label="Asset Type" required placeholder="— Select —"
           value={category} onChange={(v) => setCategory(v as CategoryChoice)}
-          options={categoryOptions.map((c) => ({ id: c.id, label: c.label === "Storage" ? "Storage" : "Server" }))}
-          placeholder="— Select —" />
+          options={[{ value: "SRV", label: "Server" }, { value: "STG", label: "Storage" }]} />
         {category && (
           <SelectField id="assetType" label={category === "SRV" ? "Server Type" : "Storage Type"} required
             value={core.assetTypeId} onChange={(v) => setCore((c) => ({ ...c, assetTypeId: v }))}

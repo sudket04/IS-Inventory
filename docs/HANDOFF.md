@@ -6,8 +6,8 @@
 | **Repository** | `sudket04/is-inventory` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
 | **อัปเดตล่าสุด** | 2569-09-21 · commit (ดูท้ายสุดของ `git log`) |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–5, 7 เสร็จครบ + Server Domain v1.7 (นอก Sprint Plan)** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts + Dashboard/Reports/Export Excel + Permission Control v1.5 + Server Inventory (Hardware)/Server List) — Sprint Plan เดิมเหลือ Sprint 6, 8–10 |
-| **โค้ดโปรแกรม** | 🟢 **Login/RBAC + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server List + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) + Dashboard/Reports/Export Excel + File Share/Internet Policy Permission Control + Server Inventory (Hardware)/Server List (Virtual+Physical) ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.18) — Backend ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล · Server Domain v1.7 Frontend ผ่าน Build/Typecheck/Lint แต่ยังไม่ผ่าน Playwright Browser จริง (ดู §4.18) — **Sprint 5, 7 ปิดครบทุกรายการ** |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–5, 7 เสร็จครบ + Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน (นอก Sprint Plan)** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts + Dashboard/Reports/Export Excel + Permission Control v1.5 + Server Inventory (Hardware)/Server List + รหัสผ่านเริ่มต้นตอนติดตั้ง/บังคับเปลี่ยน) — Sprint Plan เดิมเหลือ Sprint 6, 8–10 |
+| **โค้ดโปรแกรม** | 🟢 **Login/RBAC (พร้อมรหัสผ่านเริ่มต้นตอนติดตั้ง + บังคับเปลี่ยนรหัสผ่านจริง ทั้ง Frontend+Backend) + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server List + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) + Dashboard/Reports/Export Excel + File Share/Internet Policy Permission Control + Server Inventory (Hardware)/Server List (Virtual+Physical) ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.19) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล **รวม Playwright Browser จริง** (Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน ดู §4.18–§4.19) — **Sprint 5, 7 ปิดครบทุกรายการ** |
 
 ---
 
@@ -581,14 +581,52 @@ Physical Attach เข้า Server List (รวมจุดที่เจอ�
 ตัวเอง, ปฏิเสธค่าติดลบ, สร้าง Storage Hardware, Quick-add OS Type/Version — ลบข้อมูลทดสอบออกหมดแล้ว
 
 **Frontend:** `npx tsc --noEmit`, `npx eslint`, และ `npm run build` (Next.js 16 Turbopack) ผ่านสะอาดทั้ง
-16 ไฟล์ใหม่/แก้ไข — **ยังไม่ได้ทดสอบผ่าน Browser จริงด้วย Playwright รอบนี้** เพราะ Auto-mode Safety
-Classifier บล็อกการรีเซ็ต/อ่านรหัสผ่านบัญชี Admin ในฐานข้อมูลทดสอบ (Flag "Credential Exploration" แม้เป็น
-Local Test Container ของตัวเอง) — ผู้ใช้ตัดสินใจข้ามขั้นนี้ไปก่อน (เชื่อผลจาก Build/Typecheck/Lint สะอาด
-+ Backend ที่ curl-test ผ่านครบแล้ว) **ควรรัน Playwright E2E เต็มรูปแบบก่อน Go-Live จริง** เมื่อมีรหัสผ่าน
-บัญชีทดสอบที่ใช้ได้
+16 ไฟล์ใหม่/แก้ไข — ตอน Sprint นี้ปิดครั้งแรก **ยังไม่ได้ทดสอบผ่าน Browser จริงด้วย Playwright** เพราะ
+Auto-mode Safety Classifier บล็อกการรีเซ็ต/อ่านรหัสผ่านบัญชี Admin ในฐานข้อมูลทดสอบ — **ภายหลังได้ทดสอบ
+ผ่าน Browser จริงแล้วใน §4.19** (พร้อมกับ Sprint รหัสผ่านเริ่มต้น ที่ทำให้มีรหัสผ่านทดสอบใช้ได้) และ
+**พบ+แก้บั๊กจริง 1 จุด**: `ServerInventoryForm`'s ช่อง "Asset Type" (Server/Storage) ใช้ `SelectField`
+ที่ส่งค่าเป็น Category ID ตัวเลข (เช่น `"1"`) แทนที่จะเป็น Code (`"SRV"/"STG"`) ทำให้เงื่อนไข
+`category === "SRV"` ไม่ตรงเลยสักครั้ง — Asset Type (Server/Storage Type) Dropdown จึงว่างเปล่าตลอด และ
+ส่วน CPU/Memory/Storage ไม่เคยโผล่ขึ้นมาให้กรอกจริงเลยตั้งแต่แรก (Backend curl-test ข้ามจุดนี้ไปเพราะยิง
+Category ID ตรงๆ ไม่ผ่านฟอร์ม) แก้โดยเปลี่ยนไปใช้ `EnumSelectField` พร้อม Options คงที่ `{value:"SRV"}`/
+`{value:"STG"}` แทน — ยืนยันตัวอย่างนี้ว่า **Browser E2E จำเป็นจริง ข้าม curl-only ไม่ได้** สำหรับหน้าฟอร์ม
+ที่มี Conditional Rendering ซับซ้อน
 
-**คงเหลือ:** Recycle Bin (ผู้ใช้ตั้งใจเลื่อนไปทำทีหลัง ไม่ใช่รอบนี้), Playwright E2E ผ่าน Browser จริงของ
-โมดูลนี้ (ดูเหตุผลด้านบน)
+**คงเหลือ:** Recycle Bin (ผู้ใช้ตั้งใจเลื่อนไปทำทีหลัง ไม่ใช่รอบนี้)
+
+---
+
+### 4.19 Backend/Frontend — รหัสผ่านเริ่มต้นตอนติดตั้ง + บังคับเปลี่ยนรหัสผ่าน (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** ผู้ใช้ถาม "สร้างรหัสเริ่มต้นในการใช้งานระบบครั้งแรก และบังคับเปลี่ยนรหัสผ่านได้ไหม" —
+ตรวจพบว่าระบบออกแบบเผื่อฟีเจอร์นี้ไว้ตั้งแต่ Schema เดิม (คอลัมน์ `must_change_password`, Field
+`mustChangePassword` ถึง Frontend แล้ว) แต่มี **2 ช่องว่างจริงที่ทำให้ใช้งานไม่ได้จริง**:
+1. บัญชี `admin` ที่ Seed มาจาก `02-schema-sqlserver.sql` มี `password_hash` เป็นค่า Placeholder
+   (`$argon2id$REPLACE_ON_INSTALL`) ที่ไม่ใช่ Hash จริง — Comment ในไฟล์บอกว่า "ต้องแทนที่ด้วย Argon2id
+   hash ที่สร้างจากสคริปต์ติดตั้งจริง" แต่ `install-backend.ps1` ไม่เคยทำขั้นตอนนี้เลย (ผู้เขียนเจอปัญหานี้
+   เองตอนพยายามหารหัสผ่านทดสอบสำหรับ Playwright ใน §4.18)
+2. `must_change_password` เป็นแค่ Flag ที่ส่งไปแสดงผลในหน้า Admin > Users เฉยๆ ไม่มีการบังคับจริงทั้งฝั่ง
+   Frontend (ไม่มีหน้า Redirect) และ Backend (API endpoint อื่นเรียกได้ปกติแม้ Flag เป็น true)
+
+| ส่วน | รายละเอียด |
+|---|---|
+| **การตัดสินใจสถาปัตยกรรม — `seed-admin` เป็นโหมดพิเศษของ `IsInventory.Api.exe` เอง ไม่ใช่ Script แยก** | เลือกวิธีนี้แทนการคำนวณ Argon2id Hash ด้วย PowerShell เอง เพื่อรับประกันว่า Hash ที่เขียนลง DB ตรงกับโค้ดตัวเดียวกับที่ `AuthController.Login` ใช้ตรวจสอบเป๊ะ (ไม่มีความเสี่ยง Hash ไม่ตรง Format) — `Program.cs` เช็ค `args[0] == "seed-admin"` ตั้งแต่ก่อน Build DI Container เต็มรูปแบบ อ่านรหัสผ่านจาก Environment Variable `ISINVENTORY_SEED_ADMIN_PASSWORD` (ไม่ใช่ argv) กันไม่ให้หลุดไปอยู่ใน Shell History/Process List แล้ว Hash ด้วย `IPasswordHasher` (Argon2id) ตัวจริงเขียนลง DB ตรงๆ, ตั้ง `must_change_password = 1` เสมอ |
+| Backend — Enforcement 2 ชั้น | (1) **JWT Claim ใหม่** `must_change_password` ฝังเข้า Access Token ตอน Login/Refresh/Reissue (`JwtTokenService`/`AuthService`) (2) **Global Middleware ใน `Program.cs`** เช็ค Claim นี้ทุก Request ที่ผ่าน `[Authorize]` แล้วตอบ `403 {error:"password_change_required"}` ทันทีถ้าเป็น `true` และ Path ไม่ได้ขึ้นต้นด้วย `/api/auth` — กันไม่ให้ข้ามหน้า Frontend ไปเรียก API ตรงๆ ได้ |
+| Backend — `AuthController.ChangePassword` เปลี่ยน Response | เดิมคืน `204 No Content` เปลี่ยนเป็นคืน `LoginResponse` เดียวกับ Login/Refresh (เรียก `IAuthService.ReissueForUserAsync` ที่เพิ่มใหม่) เพื่อให้ Frontend ได้ Token ใหม่ที่ `must_change_password=false` ทันที ไม่ต้องรอ Access Token เดิม (อายุ 15 นาที) หมดอายุก่อนถึงจะปลดล็อกได้ |
+| Frontend — `ChangePasswordForm` (ใหม่) | Component ใช้ร่วมกันได้ทั้งโหมดบังคับ (`forced`) และโหมดสมัครใจในอนาคต — Validate Policy เดียวกับ Backend ฝั่ง Client ก่อนส่ง (8+ ตัวอักษร มีทั้งตัวอักษร+ตัวเลข, ยืนยันรหัสผ่านตรงกัน, ห้ามซ้ำรหัสเดิม) |
+| Frontend — Gate ใน `(app)/layout.tsx` | ถ้า `user.mustChangePassword` เป็น `true` render แค่ `ChangePasswordForm` แทน Sidebar/Topbar/children **ทุก Route** ใต้ `(app)` กันไม่ให้พิมพ์ URL ตรงๆ ข้ามหน้าบังคับได้ (ทดสอบแล้วว่า Navigate ตรงไป `/server-inventory` ระหว่างถูกล็อกยังโดนหน้าบังคับสกัดอยู่) — คนละชั้นกับ Backend Middleware ข้างต้น |
+| Deploy — `install-backend.ps1` เพิ่มขั้นตอนท้าย Script | ถามแบบ Interactive ว่าจะตั้งรหัสผ่าน admin เริ่มต้นตอนนี้หรือไม่ (`y` เฉพาะติดตั้งครั้งแรก กัน Re-run ทับรหัสผ่านที่ใช้งานจริงอยู่) รับรหัสผ่านแบบ `-AsSecureString` (ไม่ Echo หน้าจอ) พิมพ์ยืนยันซ้ำ เช็ค Policy ฝั่ง Script ก่อนส่งผ่าน Env Var ไปให้ `IsInventory.Api.exe seed-admin` แล้วลบ Env Var ทิ้งทันทีหลังจบ |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** `seed-admin` CLI (เขียน Hash จริงลง DB สำเร็จ), Login ด้วยรหัสผ่าน
+ที่ Seed ได้ mustChangePassword=true, เรียก Endpoint อื่น (`/api/pickers/...`) ระหว่างล็อกโดน 403
+`password_change_required`, `/api/auth/me` ยังเรียกได้ปกติ (อยู่ใน Allowlist), `PUT /api/auth/password`
+สำเร็จคืน Token ใหม่ mustChangePassword=false ทันที, เรียก Endpoint เดิมด้วย Token ใหม่ผ่านทันทีไม่ต้องรอ
+Token หมดอายุ, Re-login ด้วยรหัสผ่านใหม่ยืนยัน State ถูกบันทึกจริง — **ทดสอบผ่าน UI จริงด้วย Playwright
+ครบ**: หน้าบังคับเปลี่ยนรหัสผ่านโผล่ทันทีหลัง Login, พิมพ์ URL ตรงไปหน้าอื่นระหว่างถูกล็อกยังโดนหน้าบังคับ
+สกัดอยู่, กรอกฟอร์มสำเร็จแล้วปลดล็อกเข้า Sidebar/Dashboard ได้ทันที (ระหว่างทดสอบรอบนี้ยังจับได้บั๊กจริงใน
+`ServerInventoryForm` ตามที่บันทึกไว้ใน §4.18 ด้วย)
+
+**🎉 ปิดครบทุกรายการแล้ว**
 
 ---
 

@@ -119,6 +119,14 @@ public sealed class AuthService : IAuthService
         return result;
     }
 
+    public async Task<AuthResult> ReissueForUserAsync(int userId, string? ipAddress, string? userAgent, CancellationToken ct = default)
+    {
+        var user = await _db.Users.Include(u => u.Role).SingleAsync(u => u.UserId == userId, ct);
+        var result = IssueTokens(user, ipAddress, userAgent);
+        await _db.SaveChangesAsync(ct);
+        return result;
+    }
+
     public async Task LogoutAsync(string refreshToken, CancellationToken ct = default)
     {
         var tokenHash = Hash(refreshToken);
@@ -135,7 +143,7 @@ public sealed class AuthService : IAuthService
 
     private AuthResult IssueTokens(User user, string? ipAddress, string? userAgent)
     {
-        var access = _jwtTokenService.GenerateAccessToken(user.UserId, user.Username, user.FullName, user.Role.Code);
+        var access = _jwtTokenService.GenerateAccessToken(user.UserId, user.Username, user.FullName, user.Role.Code, user.MustChangePassword);
 
         var rawRefreshToken = GenerateRefreshTokenValue();
         var refreshExpiresAt = DateTimeOffset.UtcNow.AddDays(_jwtOptions.RefreshTokenDays);

@@ -2,7 +2,7 @@ namespace IsInventory.Domain.Security;
 
 public interface IJwtTokenService
 {
-    JwtAccessToken GenerateAccessToken(int userId, string username, string fullName, string roleCode);
+    JwtAccessToken GenerateAccessToken(int userId, string username, string fullName, string roleCode, bool mustChangePassword);
 }
 
 public sealed record JwtAccessToken(string Token, DateTimeOffset ExpiresAt);

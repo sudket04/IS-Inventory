@@ -140,7 +140,7 @@ export function ServerListForm({ existing }: { existing?: ServerListDetail }) {
           </p>
         ) : (
           <>
-            <EnumSelectField id="hostingType" label="Hosting Type" required
+            <EnumSelectField id="hostingType" label="Hosting Type" required placeholder="— Select —"
               value={hostingChoice} onChange={(v) => setHostingChoice(v as "Virtual" | "Physical")}
               options={["Virtual", "Physical"]} />
             {hostingChoice === "Physical" && (

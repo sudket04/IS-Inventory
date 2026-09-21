@@ -66,8 +66,9 @@ Build จาก branch `claude/zealous-hamilton-hn3ggp` (commit ล่าสุ�
    ```
 2. สร้าง SQL Login/User สำหรับ App แยกจาก `sa` ให้สิทธิ์เฉพาะ Database นี้ (`db_datareader`,
    `db_datawriter`, `EXECUTE` และสิทธิ์สร้าง/แก้ Temporal Table history ตามที่ script อาจต้องใช้)
-3. สร้าง Admin User เริ่มต้น 1 คนตามขั้นตอนใน `docs/database/01-database-design.md` /
-   HANDOFF §4.1 (ถ้ายังไม่เคย Seed)
+3. บัญชี `admin` ถูก Seed มาจาก `02-schema-sqlserver.sql` แล้วโดยอัตโนมัติ แต่ยัง **Login ไม่ได้จริง**
+   (password_hash เป็นค่า placeholder) — ตั้งรหัสผ่านจริงที่ขั้นตอน §3.2 ข้อ 3 ด้านล่าง (ต้องรอให้
+   Backend แตกไฟล์และตั้ง Environment Variable เสร็จก่อน เพราะใช้ `IsInventory.Api.exe` ตั้งค่าให้)
 
 ### 3.2 Backend
 
@@ -88,6 +89,11 @@ Build จาก branch `claude/zealous-hamilton-hn3ggp` (commit ล่าสุ�
    (`$SitePath`, `$Port`) ให้ตรงกับที่แตกไฟล์ไว้ก่อนรัน Script จะ:
    - สร้าง IIS Application Pool ชื่อ `IS-Inventory-API` (No Managed Code, Always Running)
    - สร้าง IIS Site ชื่อ `IS-Inventory-API` ผูกกับ Port ที่กำหนด (ค่าเริ่มต้น `5080`)
+   - **ถามตอนท้าย**ว่าจะตั้งรหัสผ่านเริ่มต้นของบัญชี `admin` เลยหรือไม่ (`y` เฉพาะตอนติดตั้งครั้งแรก) —
+     ถ้าตอบ `y` จะขอให้พิมพ์รหัสผ่าน (ซ่อนตัวอักษร, พิมพ์ยืนยันซ้ำ) แล้วเรียก
+     `IsInventory.Api.exe seed-admin` ให้เอง (Hash ด้วย Argon2id จริงผ่านโค้ดตัวเดียวกับที่ Login ใช้ตรวจ
+     ไม่ใช่ค่าที่ Script คำนวณเอง) — ระบบจะบังคับให้เปลี่ยนรหัสผ่านนี้ทันทีที่ Login ครั้งแรก (`must_change_password`)
+     ตอบ `N` ได้ถ้ารัน Script ซ้ำแค่เพื่อแก้ App Pool/Site ทีหลัง (ตอบ `y` ซ้ำจะรีเซ็ตรหัสผ่าน admin ที่ใช้งานอยู่ทับ)
 4. ทดสอบ: เปิด `http://localhost:5080/api/health` (หรือ endpoint ที่มีจริง) บนเครื่อง Server เอง
 
 ### 3.3 Frontend
