@@ -1,5 +1,5 @@
 /* ============================================================================
-   KKND — IT Inventory Management System
+   IS-Inventory — IT Inventory Management System
    Database Schema for Microsoft SQL Server (2019+)
 
    Version : 1.1 (Draft)  -- v1.1 เพิ่มโมดูล VLAN/IPAM ในไฟล์ 04-vlan-module.sql
@@ -28,13 +28,13 @@ GO
    ส่วนที่ 0 — การสร้างฐานข้อมูล (รันแยกต่างหากโดย DBA)
    ========================================================================== */
 /*
-CREATE DATABASE KKND_Inventory
+CREATE DATABASE IS_Inventory
   COLLATE Thai_100_CI_AS_SC_UTF8;
 GO
-ALTER DATABASE KKND_Inventory SET RECOVERY FULL;          -- จำเป็นสำหรับ Log Backup ทุก 15 นาที
-ALTER DATABASE KKND_Inventory SET READ_COMMITTED_SNAPSHOT ON;  -- ลดการบล็อกกันระหว่างอ่าน/เขียน
+ALTER DATABASE IS_Inventory SET RECOVERY FULL;          -- จำเป็นสำหรับ Log Backup ทุก 15 นาที
+ALTER DATABASE IS_Inventory SET READ_COMMITTED_SNAPSHOT ON;  -- ลดการบล็อกกันระหว่างอ่าน/เขียน
 GO
-USE KKND_Inventory;
+USE IS_Inventory;
 GO
 */
 
@@ -1034,19 +1034,19 @@ GO
    รันหลังสร้าง Login และ User ของแอปพลิเคชันแล้ว
    หลักการ: บัญชีแอปพลิเคชันไม่ควรเป็น db_owner
 
-CREATE ROLE kknd_app_role;
+CREATE ROLE is_inventory_app_role;
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::dbo TO kknd_app_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::dbo TO is_inventory_app_role;
 
 -- ปิดสิทธิ์แก้ไขและลบ Audit Log ที่ระดับฐานข้อมูล
-DENY  UPDATE, DELETE ON dbo.audit_logs         TO kknd_app_role;
-DENY  INSERT, UPDATE, DELETE ON dbo.audit_logs_archive TO kknd_app_role;
+DENY  UPDATE, DELETE ON dbo.audit_logs         TO is_inventory_app_role;
+DENY  INSERT, UPDATE, DELETE ON dbo.audit_logs_archive TO is_inventory_app_role;
 
-GRANT EXECUTE ON dbo.sp_generate_asset_tag TO kknd_app_role;
-GRANT EXECUTE ON dbo.sp_soft_delete_asset  TO kknd_app_role;
+GRANT EXECUTE ON dbo.sp_generate_asset_tag TO is_inventory_app_role;
+GRANT EXECUTE ON dbo.sp_soft_delete_asset  TO is_inventory_app_role;
 -- ไม่ให้สิทธิ์ sp_archive_audit_logs แก่แอปพลิเคชัน — DBA เท่านั้น
 
-ALTER ROLE kknd_app_role ADD MEMBER [kknd_app_user];
+ALTER ROLE is_inventory_app_role ADD MEMBER [is_inventory_app_user];
 */
 
 

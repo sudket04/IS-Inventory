@@ -1,5 +1,5 @@
 /* ==========================================================================================
-   KKND — IT Inventory Management System
+   IS-Inventory — IT Inventory Management System
    Module v1.6 : Application Tracking บน Server
 
    ไฟล์นี้เป็นลำดับที่ 8 ของชุดสคริปต์ ต้องรันตามลำดับนี้เท่านั้น

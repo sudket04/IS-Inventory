@@ -1,5 +1,5 @@
 # Phase 3.1 — Database Design & ER Diagram
-## KKND — IT Inventory Management System
+## IS-Inventory — IT Inventory Management System
 
 | หัวข้อ | รายละเอียด |
 |---|---|

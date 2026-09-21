@@ -1,9 +1,9 @@
 # HANDOFF — สรุปสถานะโปรเจกต์เพื่อส่งต่อ
-## KKND — IT Inventory Management System
+## IS-Inventory — IT Inventory Management System
 
 | หัวข้อ | รายละเอียด |
 |---|---|
-| **Repository** | `sudket04/KKND` |
+| **Repository** | `sudket04/is-inventory` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
 | **อัปเดตล่าสุด** | 2569-09-21 · commit (ดูท้ายสุดของ `git log`) |
 | **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–5, 7 เสร็จครบ** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts + Dashboard/Reports/Export Excel + Permission Control v1.5) — Sprint Plan เดิมเหลือ Sprint 6, 8–10 |
@@ -150,7 +150,7 @@ Schema ที่ทดสอบผ่านแล้ว
 
 | ส่วน | รายละเอียด |
 |---|---|
-| **Argon2id Password Hasher** | `backend/src/KKND.Infrastructure/Security/Argon2PasswordHasher.cs` — เข้ารหัส/ตรวจสอบด้วยรูปแบบ PHC string มาตรฐาน (`$argon2id$v=19$m=,t=,p=$salt$hash`) พารามิเตอร์ m=64MiB, t=3, p=2 |
+| **Argon2id Password Hasher** | `backend/src/IsInventory.Infrastructure/Security/Argon2PasswordHasher.cs` — เข้ารหัส/ตรวจสอบด้วยรูปแบบ PHC string มาตรฐาน (`$argon2id$v=19$m=,t=,p=$salt$hash`) พารามิเตอร์ m=64MiB, t=3, p=2 |
 | **JWT + Refresh Token** | Access Token อายุ 15 นาที (Claim: user id/username/role) + Refresh Token 7 วัน เก็บ SHA-256 Hash ใน `refresh_tokens`, หมุนเวียน (Rotate) ทุกครั้งที่ Refresh, ส่งผ่าน HttpOnly+Secure+SameSite=Strict Cookie |
 | **Login Flow ตาม §2.1** | ข้อความ Error ไม่บอกว่าผิดที่ Username หรือ Password (กัน User Enumeration) · ล็อกบัญชี 15 นาทีหลังผิดครบ 5 ครั้ง (FR-AU-03/04) · บันทึก Audit Log ทุก Outcome (`LOGIN`/`LOGIN_FAILED`/`USER_LOCKED`/`LOGOUT`) |
 | **RBAC 4 บทบาท** | Policy `Admin`/`ItStaffOrAbove`/`AuditorOrAbove`/`AnyRole` ผ่าน `[Authorize(Policy=...)]` — ตรวจที่ Server ทุก Endpoint ตาม NFR-06 |
@@ -400,7 +400,7 @@ Playwright: หน้า List เห็นเปอร์เซ็นต์ใ�
 
 | ส่วน | รายละเอียด |
 |---|---|
-| Backend — Controller ใหม่ | `LocationsController.cs` (`backend/src/KKND.Api/Controllers/Locations/`) — ไม่ใช้ `LookupsControllerBase` เหมือน 11 หน้า Master Data เดิม เพราะ `dbo.locations` เป็น Self-Referencing Tree (`parent_location_id`) และมี Navigation Property ย้อนกลับหาตัวเอง (`InverseParentLocation`) ที่จะทำให้ Serialize เป็น JSON วนลูปถ้าคืน Entity ตรงๆ — ใช้ DTO (`LocationTreeNode`/`LocationDetail`/`LocationRequest`) แบบเดียวกับ Racks/Clusters แทน |
+| Backend — Controller ใหม่ | `LocationsController.cs` (`backend/src/IsInventory.Api/Controllers/Locations/`) — ไม่ใช้ `LookupsControllerBase` เหมือน 11 หน้า Master Data เดิม เพราะ `dbo.locations` เป็น Self-Referencing Tree (`parent_location_id`) และมี Navigation Property ย้อนกลับหาตัวเอง (`InverseParentLocation`) ที่จะทำให้ Serialize เป็น JSON วนลูปถ้าคืน Entity ตรงๆ — ใช้ DTO (`LocationTreeNode`/`LocationDetail`/`LocationRequest`) แบบเดียวกับ Racks/Clusters แทน |
 | Endpoint | `GET /api/locations/tree` (สร้าง Tree จาก Flat Query ฝั่ง C# ด้วย Local Function แบบ Recursive), `GET/POST/PUT/DELETE /api/locations(/{id})` — Policy `Admin` สำหรับ Create/Update/Delete (เหมือน Master Data), `AnyRole` สำหรับอ่าน |
 | Validation ฝั่ง Server ที่ DB Constraint ไม่ครอบคลุม | `CK_locations_not_self` กัน Parent = ตัวเอง "ชั้นเดียว" เท่านั้น — เพิ่ม `IsDescendantAsync()` ไล่ตรวจสายโซ่ Parent ฝั่ง C# กันกรณีย้าย Location ไปอยู่ใต้ลูกหลานของตัวเอง (สร้าง Cycle) ซึ่ง Database เองตรวจจับไม่ได้ |
 | Delete Guard | ไม่มี `is_deleted` เหมือนเดิม (Hard Delete) — เช็ค "มีลูกอยู่ข้างใต้ไหม" ก่อนด้วย Query ตรงๆ ให้ข้อความอ่านง่าย ก่อนที่จะปล่อยให้ FK บล็อก แล้วดัก `SqlException` 547 (ยังมี Asset/Rack/Cluster อ้างอิงอยู่) เป็น 409 อีกชั้น |

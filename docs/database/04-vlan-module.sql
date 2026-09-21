@@ -1,5 +1,5 @@
 /* ============================================================================
-   KKND — IT Inventory Management System
+   IS-Inventory — IT Inventory Management System
    VLAN & IP Address Management (IPAM) Module
 
    Version : 1.1.1

@@ -1,5 +1,5 @@
 # โมดูล v1.2 — Device Classification · Storage & Cluster · DHCP Source Control
-## KKND — IT Inventory Management System
+## IS-Inventory — IT Inventory Management System
 
 | หัวข้อ | รายละเอียด |
 |---|---|

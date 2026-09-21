@@ -16,7 +16,7 @@ export function ThemeToggle() {
     setIsDark(next);
     document.documentElement.classList.toggle("dark", next);
     try {
-      localStorage.setItem("kknd-theme", next ? "dark" : "light");
+      localStorage.setItem("is-inventory-theme", next ? "dark" : "light");
     } catch {
       // Private browsing / blocked storage — theme just won't persist across reloads.
     }

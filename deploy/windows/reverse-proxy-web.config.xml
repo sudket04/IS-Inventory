@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ตัวอย่าง web.config สำหรับ IIS Site หน้าบ้าน (เช่น https://kknd.yourdomain.local)
+  ตัวอย่าง web.config สำหรับ IIS Site หน้าบ้าน (เช่น https://is-inventory.yourdomain.local)
   ที่รวม Backend + Frontend ไว้หลัง Domain เดียว — ดู docs/DEPLOYMENT.md §3.4
 
   ก่อนใช้:
@@ -15,14 +15,14 @@
   <system.webServer>
     <rewrite>
       <rules>
-        <!-- /api/* -> Backend (Kestrel ผ่าน IIS Site KKND-API พอร์ต 5080) -->
-        <rule name="KKND API Proxy" stopProcessing="true">
+        <!-- /api/* -> Backend (Kestrel ผ่าน IIS Site IS-Inventory-API พอร์ต 5080) -->
+        <rule name="IS-Inventory API Proxy" stopProcessing="true">
           <match url="^api/(.*)" />
           <action type="Rewrite" url="http://127.0.0.1:5080/api/{R:1}" />
         </rule>
 
-        <!-- ที่เหลือทั้งหมด -> Frontend (Next.js standalone ผ่าน Windows Service KKND-Frontend พอร์ต 3000) -->
-        <rule name="KKND Frontend Proxy" stopProcessing="true">
+        <!-- ที่เหลือทั้งหมด -> Frontend (Next.js standalone ผ่าน Windows Service IS-Inventory-Frontend พอร์ต 3000) -->
+        <rule name="IS-Inventory Frontend Proxy" stopProcessing="true">
           <match url="(.*)" />
           <action type="Rewrite" url="http://127.0.0.1:3000/{R:1}" />
         </rule>

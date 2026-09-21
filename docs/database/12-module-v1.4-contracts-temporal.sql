@@ -1,5 +1,5 @@
 /* ============================================================================
-   KKND — IT Inventory Management System
+   IS-Inventory — IT Inventory Management System
    Module v1.4 : Master Asset · Contracts & MA History · Temporal Tables
 
    Requires: 10 และ 11 ต้องรันสำเร็จก่อน  (ลำดับ: 10 → 11 → 12)

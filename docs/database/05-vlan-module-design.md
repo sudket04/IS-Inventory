@@ -1,5 +1,5 @@
 # โมดูล VLAN & IP Address Management (IPAM)
-## KKND — IT Inventory Management System · v1.1
+## IS-Inventory — IT Inventory Management System · v1.1
 
 | หัวข้อ | รายละเอียด |
 |---|---|

@@ -1,5 +1,5 @@
 /* ============================================================================
-   KKND — IT Inventory Management System
+   IS-Inventory — IT Inventory Management System
    Module v1.3b : Detail Tables · Rack Elevation · IP Address Management
 
    Requires: 10-module-v1.3a-taxonomy.sql ต้องรันสำเร็จก่อน

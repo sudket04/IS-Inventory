@@ -1,5 +1,5 @@
 /* ============================================================================
-   KKND — IT Inventory Management System
+   IS-Inventory — IT Inventory Management System
    Module v1.3a : Unified Taxonomy & Model Catalog
 
    Requires: 02 · 04 · 06 ต้องรันสำเร็จก่อน

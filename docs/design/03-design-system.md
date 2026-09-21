@@ -1,5 +1,5 @@
 # Phase 2.3 — Design System
-## KKND — IT Inventory Management System
+## IS-Inventory — IT Inventory Management System
 
 | หัวข้อ | รายละเอียด |
 |---|---|
@@ -531,7 +531,7 @@ export default {
 <script>
   (function () {
     try {
-      var t = localStorage.getItem('kknd-theme');
+      var t = localStorage.getItem('is-inventory-theme');
       var d = window.matchMedia('(prefers-color-scheme: dark)').matches;
       if (t === 'dark' || (!t && d)) document.documentElement.classList.add('dark');
     } catch (e) {}

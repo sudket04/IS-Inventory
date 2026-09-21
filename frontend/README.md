@@ -1,6 +1,6 @@
-# KKND Frontend
+# IS-Inventory Frontend
 
-Next.js 16 (App Router) frontend for the KKND IT Inventory Management System.
+Next.js 16 (App Router) frontend for the IS-Inventory IT Inventory Management System.
 See `../docs/HANDOFF.md` and `../docs/ROADMAP.md` for full project context.
 
 ## Stack

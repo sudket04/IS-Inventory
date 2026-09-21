@@ -5,7 +5,7 @@ import { UserMenu } from "@/components/layout/user-menu";
 export function Topbar() {
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border-default bg-bg-surface px-4">
-      <span className="text-sm font-semibold text-text-primary">KKND</span>
+      <span className="text-sm font-semibold text-text-primary">IS-Inventory</span>
 
       <div className="relative flex-1 max-w-md">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-text-tertiary" />

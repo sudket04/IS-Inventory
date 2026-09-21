@@ -5,7 +5,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth/auth-context";
 
 export const metadata: Metadata = {
-  title: "KKND — IT Inventory Management",
+  title: "IS-Inventory — IT Inventory Management",
   description: "IT Inventory Management System",
 };
 
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 // (Design System §10.3) อ่านธีมจาก localStorage ก่อนตั้งค่า class บน <html>
 const themeInitScript = `(function () {
   try {
-    var t = localStorage.getItem('kknd-theme');
+    var t = localStorage.getItem('is-inventory-theme');
     var d = window.matchMedia('(prefers-color-scheme: dark)').matches;
     if (t === 'dark' || (!t && d)) document.documentElement.classList.add('dark');
   } catch (e) {}

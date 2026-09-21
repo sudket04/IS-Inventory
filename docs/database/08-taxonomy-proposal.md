@@ -1,5 +1,5 @@
 # ข้อเสนอโครงสร้าง — Taxonomy · Data Entry · Cascading Filter
-## KKND — IT Inventory Management System · v1.3 (Proposal)
+## IS-Inventory — IT Inventory Management System · v1.3 (Proposal)
 
 | หัวข้อ | รายละเอียด |
 |---|---|

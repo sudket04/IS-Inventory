@@ -17,4 +17,4 @@ publish/
 ## never in appsettings*.json — see appsettings.json's ConnectionStrings._comment
 
 ## Attachment uploads (FR-AT-04: stored outside web root, never checked into git)
-src/KKND.Api/App_Data/
+src/IsInventory.Api/App_Data/

@@ -1,5 +1,5 @@
 # ข้อเสนอ v1.4 — Master Asset · Contract & MA History · Full Change History
-## KKND — IT Inventory Management System
+## IS-Inventory — IT Inventory Management System
 
 | หัวข้อ | รายละเอียด |
 |---|---|

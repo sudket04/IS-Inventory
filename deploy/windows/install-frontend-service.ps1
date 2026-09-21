@@ -1,17 +1,17 @@
 <#
-  ติดตั้ง KKND Frontend (Next.js standalone) เป็น Windows Service ด้วย NSSM
+  ติดตั้ง IS-Inventory Frontend (Next.js standalone) เป็น Windows Service ด้วย NSSM
   รันบน Windows Server ด้วยสิทธิ์ Administrator เท่านั้น — ดูขั้นตอนเต็มใน docs/DEPLOYMENT.md §3.3
 
   ก่อนรัน:
-    - แตก kknd-frontend-standalone.zip ไปที่ $AppPath แล้ว
+    - แตก is-inventory-frontend-standalone.zip ไปที่ $AppPath แล้ว
     - ติดตั้ง Node.js 20 LTS แล้ว (node.exe อยู่ใน PATH หรือระบุ Path เต็มที่ $NodeExePath)
     - ดาวน์โหลด NSSM แล้วแตกไฟล์ไว้ที่ $NssmPath
 #>
 
 #Requires -RunAsAdministrator
 
-$ServiceName = "KKND-Frontend"
-$AppPath     = "C:\KKND\frontend"
+$ServiceName = "IS-Inventory-Frontend"
+$AppPath     = "C:\IS-Inventory\frontend"
 $NodeExePath = "C:\Program Files\nodejs\node.exe"
 $NssmPath    = "C:\Tools\nssm\win64\nssm.exe"
 $Port        = 3000
@@ -20,7 +20,7 @@ if (-not (Test-Path $NssmPath)) {
     throw "ไม่พบ nssm.exe ที่ $NssmPath — ดาวน์โหลดจาก https://nssm.cc/download ก่อน"
 }
 if (-not (Test-Path (Join-Path $AppPath "server.js"))) {
-    throw "ไม่พบ server.js ใน $AppPath — ตรวจว่าแตก kknd-frontend-standalone.zip ถูกโฟลเดอร์"
+    throw "ไม่พบ server.js ใน $AppPath — ตรวจว่าแตก is-inventory-frontend-standalone.zip ถูกโฟลเดอร์"
 }
 if (-not (Test-Path $NodeExePath)) {
     throw "ไม่พบ node.exe ที่ $NodeExePath — ติดตั้ง Node.js 20 LTS ก่อน หรือแก้ Path ใน Script นี้"

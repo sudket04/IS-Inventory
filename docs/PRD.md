@@ -1,9 +1,9 @@
 # Project Requirement Document (PRD)
-## KKND — IT Inventory Management System
+## IS-Inventory — IT Inventory Management System
 
 | หัวข้อ | รายละเอียด |
 |---|---|
-| **ชื่อโปรเจกต์** | KKND — IT Inventory Management System |
+| **ชื่อโปรเจกต์** | IS-Inventory — IT Inventory Management System |
 | **เวอร์ชันเอกสาร** | 1.0 (Draft — รออนุมัติ) |
 | **วันที่จัดทำ** | 2026-09-16 |
 | **ประเภทระบบ** | Internal Web Application (IT Asset Management + CMDB) |

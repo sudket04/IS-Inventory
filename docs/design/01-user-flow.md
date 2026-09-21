@@ -1,5 +1,5 @@
 # Phase 2.1 — User Flow & Information Architecture
-## KKND — IT Inventory Management System
+## IS-Inventory — IT Inventory Management System
 
 | หัวข้อ | รายละเอียด |
 |---|---|
@@ -43,7 +43,7 @@
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │  TOP BAR                                                          │
-│  [☰] KKND    [🔍 Global Search........]   [🔔 3] [☀/🌙] [👤 ▾]  │
+│  [☰] IS-Inventory    [🔍 Global Search........]   [🔔 3] [☀/🌙] [👤 ▾]  │
 ├──────────┬───────────────────────────────────────────────────────┤
 │ SIDEBAR  │  CONTENT AREA                                          │
 │          │  ┌─ Breadcrumb ─────────────────────────────────────┐ │

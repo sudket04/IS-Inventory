@@ -1,4 +1,4 @@
-# KKND — แผนดำเนินการจากนี้จนถึง Go-Live
+# IS-Inventory — แผนดำเนินการจากนี้จนถึง Go-Live
 
 > เอกสารนี้เป็น Master Plan ต่อจาก `HANDOFF.md` §11 เดิม (ซึ่งครอบคลุมแค่ v1.0–v1.4)
 > ขยายให้ครบทั้ง v1.5 Permission Control และ Administration Settings ที่เพิ่งออกแบบเสร็จ
@@ -63,7 +63,7 @@ Relationship, Contracts ทั้งเครื่องเดียว/หล�
 | ส่วน | สถานะ |
 |---|---|
 | `backend/` — Solution 3 โปรเจกต์ (Api/Domain/Infrastructure) | ✅ Build ผ่าน |
-| `KkndDbContext` + Entity 111 ตัว | ✅ Scaffold จาก DB จริงที่ทดสอบแล้ว (ไม่ได้เขียนมือ) — 45 Temporal ผ่าน `IsTemporal()` อัตโนมัติ ไม่สร้าง Entity ซ้ำ, 45 View เป็น Keyless Entity |
+| `IsInventoryDbContext` + Entity 111 ตัว | ✅ Scaffold จาก DB จริงที่ทดสอบแล้ว (ไม่ได้เขียนมือ) — 45 Temporal ผ่าน `IsTemporal()` อัตโนมัติ ไม่สร้าง Entity ซ้ำ, 45 View เป็น Keyless Entity |
 | `GET /health/db` | ✅ ยืนยันแล้ว: `canConnect: true, tableCount: 111` |
 | `frontend/` — Next.js 16 + Tailwind v4 + Design Token ครบ | ✅ Build ผ่าน · ทดสอบด้วย Screenshot จริง |
 | Font self-hosted (`@fontsource-variable/*`) | ✅ ตาม NFR-15 — ไม่พึ่ง Google Fonts CDN ตอน Runtime |
@@ -75,7 +75,7 @@ Relationship, Contracts ทั้งเครื่องเดียว/หล�
 |:---:|---|---|
 | 1 | `builds.dotnet.microsoft.com` และ `ui.shadcn.com` ถูก Proxy ของ Sandbox บล็อก | ติดตั้ง .NET SDK ผ่าน `apt install dotnet-sdk-8.0` แทน · สร้าง shadcn/ui Component (Button) มือ ตาม Pattern เดียวกัน (`cva` + `cn()`) เพราะดึง Registry ไม่ได้ |
 | 2 | GitHub Raw ของ Repo ภายนอก (rsms/inter, JetBrains/JetBrainsMono) ถูกจำกัดสิทธิ์ตาม Session | ใช้ `@fontsource-variable/inter` และ `@fontsource-variable/jetbrains-mono` จาก npm แทน — Bundle ไฟล์ Font ในตัว Package |
-| 3 | Entity `FileShare` (จาก `dbo.file_shares`) ชนกับ `System.IO.FileShare` ใน Implicit Global Using ของ .NET 8 | Alias `using FileShare = KKND.Infrastructure.Entities.FileShare;` ใน `KkndDbContext.cs` |
+| 3 | Entity `FileShare` (จาก `dbo.file_shares`) ชนกับ `System.IO.FileShare` ใน Implicit Global Using ของ .NET 8 | Alias `using FileShare = IsInventory.Infrastructure.Entities.FileShare;` ใน `IsInventoryDbContext.cs` |
 | 4 | `tailwindcss-animate` เป็นปลั๊กอิน Tailwind v3 ใช้กับ v4 ไม่ได้ | เอาออก (ยังไม่มี Component ไหนต้องใช้) |
 | 5 | React Strict Mode (Dev) ล้าง `class="dark"` ที่สคริปต์กันจอขาววาบตั้งไว้ทิ้งตอน Remount | เพิ่ม `suppressHydrationWarning` บน `<html>` ตาม Next.js 16 Docs |
 | 6 | หน้าแรกเขียนข้อความเป็นภาษาไทยตอนแรก ขัดกับ NFR-10 | แก้เป็นภาษาอังกฤษทั้งหมด รวม `lang="en"` |

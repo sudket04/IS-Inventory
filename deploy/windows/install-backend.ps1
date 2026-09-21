@@ -1,26 +1,26 @@
 <#
-  ติดตั้ง KKND Backend (ASP.NET Core, Self-Contained win-x64) เป็น IIS Site
+  ติดตั้ง IS-Inventory Backend (ASP.NET Core, Self-Contained win-x64) เป็น IIS Site
   รันบน Windows Server ด้วยสิทธิ์ Administrator เท่านั้น — ดูขั้นตอนเต็มใน docs/DEPLOYMENT.md §3.2
 
-  ก่อนรัน: ต้องแตก kknd-backend-win-x64.zip ไปที่ $SitePath แล้ว
-  และต้องตั้ง Environment Variable ระดับ System (ConnectionStrings__KkndDatabase, Jwt__Secret,
+  ก่อนรัน: ต้องแตก is-inventory-backend-win-x64.zip ไปที่ $SitePath แล้ว
+  และต้องตั้ง Environment Variable ระดับ System (ConnectionStrings__IsInventoryDatabase, Jwt__Secret,
   Licensing__EncryptionKeyBase64, Cors__AllowedOrigins__0 ฯลฯ) ไว้ก่อนรัน Script นี้
 #>
 
 #Requires -RunAsAdministrator
 
-$SiteName    = "KKND-API"
-$AppPoolName = "KKND-API"
-$SitePath    = "C:\KKND\backend"
+$SiteName    = "IS-Inventory-API"
+$AppPoolName = "IS-Inventory-API"
+$SitePath    = "C:\IS-Inventory\backend"
 $Port        = 5080
 
 Import-Module WebAdministration -ErrorAction Stop
 
 if (-not (Test-Path $SitePath)) {
-    throw "ไม่พบโฟลเดอร์ $SitePath — แตก kknd-backend-win-x64.zip ไปวางก่อน"
+    throw "ไม่พบโฟลเดอร์ $SitePath — แตก is-inventory-backend-win-x64.zip ไปวางก่อน"
 }
-if (-not (Test-Path (Join-Path $SitePath "KKND.Api.exe"))) {
-    throw "ไม่พบ KKND.Api.exe ใน $SitePath — ตรวจว่าแตก zip ถูกโฟลเดอร์"
+if (-not (Test-Path (Join-Path $SitePath "IsInventory.Api.exe"))) {
+    throw "ไม่พบ IsInventory.Api.exe ใน $SitePath — ตรวจว่าแตก zip ถูกโฟลเดอร์"
 }
 
 # --- Application Pool: No Managed Code เพราะ Backend เป็น Self-Contained รันเอง (ANCM แค่ Proxy) ---

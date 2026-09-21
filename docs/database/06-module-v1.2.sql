@@ -1,5 +1,5 @@
 /* ============================================================================
-   KKND — IT Inventory Management System
+   IS-Inventory — IT Inventory Management System
    Module v1.2 : Device Classification · Storage & Cluster · DHCP Source Control
 
    Requires: 02-schema-sqlserver.sql และ 04-vlan-module.sql ต้องรันสำเร็จก่อน

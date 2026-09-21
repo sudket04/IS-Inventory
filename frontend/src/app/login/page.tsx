@@ -40,7 +40,7 @@ export default function LoginPage() {
   return (
     <main className="flex flex-1 items-center justify-center p-8">
       <div className="w-full max-w-sm rounded-lg border border-border-default bg-bg-surface p-6 shadow-sm">
-        <h1 className="text-lg font-semibold text-text-primary">KKND</h1>
+        <h1 className="text-lg font-semibold text-text-primary">IS-Inventory</h1>
         <p className="mt-1 text-sm text-text-secondary">
           Sign in to the IT Inventory Management System
         </p>

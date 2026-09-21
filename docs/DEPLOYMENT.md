@@ -37,8 +37,8 @@ Build จาก branch `claude/zealous-hamilton-hn3ggp` (commit ล่าสุ�
 
 | ไฟล์ | เนื้อหา | คำสั่งที่ใช้สร้าง |
 |---|---|---|
-| `kknd-backend-win-x64.zip` | Backend Framework-Dependent (win-x64) + `web.config` (ตั้ง `AspNetCoreModuleV2` ให้แล้ว) — ต้องมี ASP.NET Core Hosting Bundle บน Server อยู่แล้ว (ข้อ 2 ใน §1 ซึ่งเป็น Prerequisite อยู่แล้วไม่ว่าจะ Self-Contained หรือไม่ เพราะ In-Process Hosting Model ต้องพึ่ง Shared Runtime ที่ Hosting Bundle ติดตั้งไว้) — เลือกแบบนี้เพราะไฟล์เล็กกว่า Self-Contained ~3 เท่า โดยไม่เพิ่ม Internet Dependency ใดๆ | `dotnet publish -c Release -r win-x64 --self-contained false` |
-| `kknd-frontend-standalone.zip` | Frontend Next.js โหมด `output: standalone` (เฉพาะไฟล์ที่ต้องใช้จริง + `.next/static` + `public`) | `npm run build` (`next.config.ts` ตั้ง `output: "standalone"` แล้ว) |
+| `is-inventory-backend-win-x64.zip` | Backend Framework-Dependent (win-x64) + `web.config` (ตั้ง `AspNetCoreModuleV2` ให้แล้ว) — ต้องมี ASP.NET Core Hosting Bundle บน Server อยู่แล้ว (ข้อ 2 ใน §1 ซึ่งเป็น Prerequisite อยู่แล้วไม่ว่าจะ Self-Contained หรือไม่ เพราะ In-Process Hosting Model ต้องพึ่ง Shared Runtime ที่ Hosting Bundle ติดตั้งไว้) — เลือกแบบนี้เพราะไฟล์เล็กกว่า Self-Contained ~3 เท่า โดยไม่เพิ่ม Internet Dependency ใดๆ | `dotnet publish -c Release -r win-x64 --self-contained false` |
+| `is-inventory-frontend-standalone.zip` | Frontend Next.js โหมด `output: standalone` (เฉพาะไฟล์ที่ต้องใช้จริง + `.next/static` + `public`) | `npm run build` (`next.config.ts` ตั้ง `output: "standalone"` แล้ว) |
 | `deploy/windows/install-backend.ps1` | Script สร้าง IIS App Pool + Site ให้ Backend | — |
 | `deploy/windows/install-frontend-service.ps1` | Script ผูก Frontend เป็น Windows Service ด้วย NSSM | — |
 | `deploy/windows/reverse-proxy-web.config.xml` | ตัวอย่าง URL Rewrite Rule สำหรับ IIS Site หน้าบ้าน (proxy `/api/*` → Backend, ที่เหลือ → Frontend) | — |
@@ -71,54 +71,54 @@ Build จาก branch `claude/zealous-hamilton-hn3ggp` (commit ล่าสุ�
 
 ### 3.2 Backend
 
-1. แตก `kknd-backend-win-x64.zip` ไปที่ เช่น `C:\KKND\backend\`
+1. แตก `is-inventory-backend-win-x64.zip` ไปที่ เช่น `C:\IS-Inventory\backend\`
 2. ตั้ง **Environment Variable ระดับ System** (System Properties → Environment Variables) —
    ต้องตั้งก่อนสร้าง IIS App Pool เพื่อให้ Worker Process มองเห็น:
 
    | ชื่อ | ตัวอย่างค่า | หมายเหตุ |
    |---|---|---|
    | `ASPNETCORE_ENVIRONMENT` | `Production` | |
-   | `ConnectionStrings__KkndDatabase` | `Server=...;Database=KKND;User Id=...;Password=...;TrustServerCertificate=True` | |
+   | `ConnectionStrings__IsInventoryDatabase` | `Server=...;Database=IS_Inventory;User Id=...;Password=...;TrustServerCertificate=True` | ชื่อ Database ตรงกับ `CREATE DATABASE IS_Inventory` ใน `02-schema-sqlserver.sql` |
    | `Jwt__Secret` | (สุ่มด้วย `openssl rand -base64 48` หรือเทียบเท่าบน PowerShell) | อย่างน้อย 32 byte |
-   | `Jwt__Issuer` / `Jwt__Audience` | `kknd-api` / `kknd-frontend` | ต้องตรงกับค่า Default ใน `appsettings.json` หรือเปลี่ยนพร้อมกันทั้งคู่ |
+   | `Jwt__Issuer` / `Jwt__Audience` | `is-inventory-api` / `is-inventory-frontend` | ต้องตรงกับค่า Default ใน `appsettings.json` หรือเปลี่ยนพร้อมกันทั้งคู่ |
    | `Licensing__EncryptionKeyBase64` | สร้างด้วย `openssl rand -base64 32` | **ห้ามเปลี่ยนหลังมีข้อมูลจริงแล้ว** — จะถอดรหัส License Key เก่าไม่ได้ |
-   | `Cors__AllowedOrigins__0` | `https://kknd.yourdomain.local` | ต้องตรงกับ Origin ที่ผู้ใช้เปิด Frontend จริง |
+   | `Cors__AllowedOrigins__0` | `https://is-inventory.yourdomain.local` | ต้องตรงกับ Origin ที่ผู้ใช้เปิด Frontend จริง |
 
 3. รัน `deploy/windows/install-backend.ps1` (as Administrator) — แก้ตัวแปรด้านบนของ Script
    (`$SitePath`, `$Port`) ให้ตรงกับที่แตกไฟล์ไว้ก่อนรัน Script จะ:
-   - สร้าง IIS Application Pool ชื่อ `KKND-API` (No Managed Code, Always Running)
-   - สร้าง IIS Site ชื่อ `KKND-API` ผูกกับ Port ที่กำหนด (ค่าเริ่มต้น `5080`)
+   - สร้าง IIS Application Pool ชื่อ `IS-Inventory-API` (No Managed Code, Always Running)
+   - สร้าง IIS Site ชื่อ `IS-Inventory-API` ผูกกับ Port ที่กำหนด (ค่าเริ่มต้น `5080`)
 4. ทดสอบ: เปิด `http://localhost:5080/api/health` (หรือ endpoint ที่มีจริง) บนเครื่อง Server เอง
 
 ### 3.3 Frontend
 
-1. แตก `kknd-frontend-standalone.zip` ไปที่ เช่น `C:\KKND\frontend\`
+1. แตก `is-inventory-frontend-standalone.zip` ไปที่ เช่น `C:\IS-Inventory\frontend\`
 2. รัน `deploy/windows/install-frontend-service.ps1` (as Administrator) — แก้ `$NssmPath`,
    `$AppPath`, `$NodeExePath` ให้ตรงเครื่องก่อนรัน Script จะ:
-   - สร้าง Windows Service ชื่อ `KKND-Frontend` รัน `node.exe server.js`
+   - สร้าง Windows Service ชื่อ `IS-Inventory-Frontend` รัน `node.exe server.js`
    - ตั้ง Environment ของ Service: `PORT=3000`, `HOSTNAME=127.0.0.1`, `NODE_ENV=production`
      (ค่า `NEXT_PUBLIC_API_URL` **ไม่ใช่** Environment Variable ที่ตั้งตอนนี้ได้ — ดูคำเตือนถัดไป)
-3. เริ่ม Service: `Start-Service KKND-Frontend`
+3. เริ่ม Service: `Start-Service IS-Inventory-Frontend`
 4. ทดสอบ: เปิด `http://localhost:3000` บนเครื่อง Server เอง
 
 > ⚠️ **ข้อควรระวัง**: `NEXT_PUBLIC_API_URL` ถูกฝัง (inline) เข้าไปใน JS Bundle **ตอน Build**
 > (`npm run build`) ไม่ใช่ตอน Runtime — ชุดนี้ Build มาด้วยค่า Default `http://localhost:5080`
 > (ค่าจาก `frontend/.env.local` ตอน Build ในชุดนี้) ถ้า Domain/Port ของ Backend จริงต่างจากนี้
-> (เช่นใช้ Reverse Proxy ตาม §3.4 ที่ URL จริงคือ `https://kknd.yourdomain.local/api`)
+> (เช่นใช้ Reverse Proxy ตาม §3.4 ที่ URL จริงคือ `https://is-inventory.yourdomain.local/api`)
 > **ต้อง Build ใหม่**ด้วยค่าจริงแล้วส่งชุดติดตั้งใหม่มาแทน — ตั้ง Environment Variable ตอน
 > Run บน Server จะไม่มีผลอะไรกับค่านี้ ดู §5
 
 ### 3.4 IIS Reverse Proxy (รวม Backend + Frontend ไว้หลัง Domain เดียว)
 
 ใช้ `deploy/windows/reverse-proxy-web.config.xml` เป็นต้นแบบ:
-1. สร้าง IIS Site ใหม่ชื่อ `KKND` ผูก Binding `https://kknd.yourdomain.local` (Port 443, ใส่ Cert)
+1. สร้าง IIS Site ใหม่ชื่อ `IS-Inventory` ผูก Binding `https://is-inventory.yourdomain.local` (Port 443, ใส่ Cert)
    — Physical Path ชี้ไปโฟลเดอร์เปล่าที่มีแค่ `web.config` (คัดลอกไฟล์ตัวอย่างไปวาง)
 2. เปิด ARR ระดับ Server: IIS Manager → Server (เครื่องบนสุด) → Application Request Routing
    Cache → Server Proxy Settings → เช็ค "Enable proxy"
 3. Rule ในไฟล์ตัวอย่างทำ:
    - `/api/*` → `http://127.0.0.1:5080/api/{R:1}` (Backend)
    - ที่เหลือทั้งหมด → `http://127.0.0.1:3000/{R:0}` (Frontend)
-4. Restart Site แล้วเปิด `https://kknd.yourdomain.local` จากเครื่องอื่นในวง LAN ทดสอบ
+4. Restart Site แล้วเปิด `https://is-inventory.yourdomain.local` จากเครื่องอื่นในวง LAN ทดสอบ
 
 ### 3.5 ปิด Internet ถาวร
 
@@ -137,7 +137,7 @@ Build จาก branch `claude/zealous-hamilton-hn3ggp` (commit ล่าสุ�
 - [ ] Export Excel จากหน้า Reports เปิดไฟล์ที่ได้ด้วย Excel จริงได้ (ไม่ Corrupt)
 - [ ] สร้าง File Share 1 รายการ → ผูก AD Group (กรอกมือ) → เห็นใน Permission History
 - [ ] Restart Server ทั้งเครื่อง 1 ครั้ง → ทั้ง Backend (IIS, Start อัตโนมัติ) และ Frontend
-      (`KKND-Frontend` Service, ตั้ง Startup Type = Automatic) กลับมาเองโดยไม่ต้องมีคนสั่งมือ
+      (`IS-Inventory-Frontend` Service, ตั้ง Startup Type = Automatic) กลับมาเองโดยไม่ต้องมีคนสั่งมือ
 - [ ] ปิด Internet แล้วรีสตาร์ททั้งสอง Service/Site อีกครั้ง → ต้องยังทำงานได้ปกติ (ยืนยันว่า
       ไม่มีจุดไหนแอบพึ่ง Internet ตอน Runtime)
 
