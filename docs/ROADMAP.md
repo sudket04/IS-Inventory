@@ -2,7 +2,7 @@
 
 > เอกสารนี้เป็น Master Plan ต่อจาก `HANDOFF.md` §11 เดิม (ซึ่งครอบคลุมแค่ v1.0–v1.4)
 > ขยายให้ครบทั้ง v1.5 Permission Control และ Administration Settings ที่เพิ่งออกแบบเสร็จ
-> อัปเดตล่าสุด: 2569-09-20 — เพิ่ม VLAN Secondary Subnet/Untagged + Application Module (v1.6)
+> อัปเดตล่าสุด: 2569-09-21 — Sprint 4 ปิดครบ: Software License + Seat Counting + CMDB Relationship + Contracts
 
 ---
 
@@ -14,13 +14,14 @@
 | Database Design | ✅ เสร็จ **และทดสอบรันจริงผ่านแล้ว** — 66 ตาราง · 45 Temporal · 45 View · 10 Trigger บน SQL Server 2022 จริง (ล่าสุด 20 ก.ย. 2569 รวม VLAN Secondary Subnet + Application Module) |
 | UI/UX Design | ✅ เสร็จ — User Flow · Wireframe 9 หน้า · Design System · หน้าตั้งค่า 25 หน้า |
 | Tech Stack | ✅ ตัดสินใจแล้ว — ASP.NET Core (.NET 8) + EF Core + Next.js |
-| **โค้ดจริง** | 🟢 **Sprint 0 + Sprint 1 + Sprint 2 + Sprint 3 เสร็จครบทั้งหมด** — Login/RBAC/จัดการผู้ใช้/Master Data/Location Tree Picker/Asset CRUD ครบ 7/8 หมวด/Audit Log UI/Attachment/Application บน Server/Cluster/Storage Volume/Rack/VLAN-IPAM ใช้งานได้จริง (§1.4–§1.13) · วันที่แสดงผลเป็น `dd/mm/yyyy` ทั้งโปรเจกต์ (§1.12) · เหลือ Software License เลื่อนไป Sprint 4 ตามแผนเดิม |
+| **โค้ดจริง** | 🟢 **Sprint 0–4 เสร็จครบทั้งหมด** — Login/RBAC/จัดการผู้ใช้/Master Data/Location Tree Picker/Asset CRUD ครบ 8/8 หมวด (รวม Software License เข้ารหัส)/Audit Log UI/Attachment (Asset+Contract)/Application บน Server/Cluster/Storage Volume/Rack/VLAN-IPAM/CMDB Relationship/Contracts (เครื่องเดียว-หลายเครื่อง) ใช้งานได้จริง (§1.4–§1.14) · วันที่แสดงผลเป็น `dd/mm/yyyy` ทั้งโปรเจกต์ (§1.12) |
 
 **สรุป 1 บรรทัด:** Design เสร็จหมดแล้ว ฐานข้อมูลทดสอบผ่านแล้ว Backend/Frontend เชื่อมต่อกันจริง
 Login + RBAC + จัดการผู้ใช้ + Layout ใช้งานได้ (Sprint 1) บันทึก/ค้นหา Master Data ได้จริง (Sprint 2)
-Asset CRUD ครบ 7 ใน 8 หมวด ดู Audit Log แนบ/ดาวน์โหลดไฟล์ จัดการ Application บน Server, Cluster/Storage
-Volume, Rack พร้อมผังกราฟิก, Location และตอนนี้ VLAN/IPAM ก็จัดการผ่าน UI ได้จริงครบแล้ว **(Sprint 3 ปิด
-ครบทุกรายการ — §1.6–§1.13)** — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริงที่ยังไม่ได้รับ** (§1.2) และ **Windows
+Asset CRUD ครบทั้ง 8 หมวด ดู Audit Log แนบ/ดาวน์โหลดไฟล์ จัดการ Application บน Server, Cluster/Storage
+Volume, Rack พร้อมผังกราฟิก, Location, VLAN/IPAM, Software License พร้อม Seat Counting, CMDB
+Relationship และ Contracts ทั้งเครื่องเดียว/หลายเครื่องก็จัดการผ่าน UI ได้จริงครบแล้ว **(Sprint 3–4 ปิด
+ครบทุกรายการ — §1.6–§1.14)** — คอขวดตอนนี้เหลือแค่ **ข้อมูลจริงที่ยังไม่ได้รับ** (§1.2) และ **Windows
 Server ทดสอบ AD/FSRM** (§1.1) — ไม่ใช่การตัดสินใจสถาปัตยกรรมหรือความเสี่ยงจาก Schema/Stack ที่ไม่เคย
 พิสูจน์แล้วอีกต่อไป
 
@@ -296,6 +297,32 @@ Duplicate Device Role 409, Delete ตอนยังมี Range/Device ค้�
 
 **🎉 Sprint 3 ปิดครบทุกรายการแล้ว** — เหลือ Software License (`SFT` Category) เลื่อนไป Sprint 4 ตามแผนเดิม
 
+### 1.14 ✅ Sprint 4 (ปิดครบ) — Software License + Seat Counting + CMDB Relationship + Contracts (21 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.15 — สรุปสั้น:
+
+| ส่วน | สถานะ |
+|---|---|
+| Software License (`SFT`) เข้าร่วม `AssetsController` เป็นหมวดที่ 8 · `license_key_encrypted` เข้ารหัส AES-256-GCM ฝั่ง Server ผ่าน `ILicenseKeyProtector` (Write-Only, ไม่เคยส่งคีย์จริงกลับ) | ✅ ทดสอบกับ SQL Server จริง |
+| `SoftwareInstallationsController` — ติดตั้ง/ถอด Software บน Asset ใดก็ได้ + Seat Usage จาก `vw_software_seat_usage` (Seat มาจาก `contract_assets.seat_count` ตาม v1.4 ไม่ใช่คอลัมน์เดิมใน `software_details`) | ✅ |
+| `AssetRelationshipsController` — CMDB Relationship สองทิศทางจาก `vw_asset_relationships_expanded` | ✅ |
+| `ContractsController` + `contract_assets` Sub-resource — สัญญาเครื่องเดียว/หลายเครื่อง พร้อมโซ่การต่อสัญญา (`previous_contract_id`, Trigger Auto-supersede) | ✅ |
+| Attachment บนสัญญา — ขยาย `AttachmentsController` ให้ผูกกับ Contract ได้ด้วย (คอลัมน์รองรับแล้วตั้งแต่ v1.4) | ✅ |
+| หน้าใหม่ `/software` (Seat Usage ทุกใบอนุญาต — ปิด Nav Link ที่ตายมาตั้งแต่ Sprint 1), `/contracts` (List/New/Edit + Covered Assets Panel) · Panel ใหม่บนหน้า Asset — Installations & Seat Usage (เฉพาะ `SFT`), Relationships (ทุกหมวด) | ✅ |
+
+**พบและแก้ระหว่างทดสอบ:** EF Core แปล Query ไม่ได้ซ้ำรูปแบบเดิมที่เจอใน VLAN (§1.13) — คราวนี้ที่
+`GET /api/contracts/{id}/assets` เพราะ `.OrderByDescending()` ต่อจาก Query ที่ Project เป็น DTO แล้ว
+แก้ด้วยการย้ายการเรียงลำดับไปที่ระดับ Entity ก่อน `.Select()` เสมอ — ยืนยันแล้วว่าเป็นกฎทั่วไปของโปรเจกต์นี้
+ที่ต้องระวังทุกครั้งที่ Query ถูก Project เป็น DTO Record
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** curl ครบ (ติดตั้ง Software ซ้ำ 409, ผูก Asset ซ้ำในสัญญาเดียวกัน
+409, วันที่สัญญาผิดลำดับ 400, ต่อสัญญาก่อนวันเริ่มของสัญญาเดิม 400 จาก Trigger, ลบสัญญาที่ยังมี Asset ผูก
+409) — Playwright ผ่าน UI จริงครบ: สร้าง Software License พร้อม License Key, ติดตั้งบน Asset อื่นเห็น
+Seat Usage อัปเดต, CMDB Relationship เห็นสองทิศทาง, สร้างสัญญาใหม่ผูก Asset พร้อม Seat Count แล้ว Seat
+Usage สะท้อนถูกต้อง, อัปโหลดไฟล์แนบบนสัญญาสำเร็จ
+
+**🎉 Sprint 4 ปิดครบทุกรายการแล้ว** — Sprint Plan เดิม (§2) เหลือ Sprint 5–10
+
 ---
 
 ## 2. Sprint Plan (Sprint 0–10, รวม ~49 วันทำงาน)
@@ -308,7 +335,7 @@ Duplicate Device Role 409, Delete ตอนยังมี Range/Device ค้�
 | **1** | ~~Auth (Argon2id+JWT ตาม Schema เดิม แทน ASP.NET Core Identity โดยตรง) · RBAC 4 บทบาท · จัดการผู้ใช้ · Layout + Dark Mode + กันจอขาววาบ~~ ✅ เสร็จแล้ว (ดู §1.4) | Login และควบคุมสิทธิ์ได้ | 4 |
 | **2** | ~~Master Data CRUD (11/12 หน้า — เหลือ `device_models` รอผังต้นไม้ `asset_type`) · Asset CRUD (Server/Network) · ค้นหา-กรอง~~ ✅ เสร็จแล้ว (ดู §1.5) | บันทึก/ค้นหาทรัพย์สินหลักได้ · หน้าตั้งค่าพื้นฐานครบ | 5 |
 | **3** | ~~Asset ประเภทที่เหลือ 5 หมวด (Computer/Storage/Power & Cooling/Peripheral/Mobile & IoT-OT)~~ ✅ เสร็จแล้ว (ดู §1.6) · ~~Audit Log UI~~ ✅ เสร็จแล้ว (ดู §1.7) · ~~Attachment~~ ✅ เสร็จแล้ว (ดู §1.8) · ~~Application บน Server (v1.6)~~ ✅ เสร็จแล้ว (ดู §1.9) · ~~Storage/Cluster~~ ✅ เสร็จแล้ว (ดู §1.10) · ~~Rack (พร้อมผังกราฟิก)~~ ✅ เสร็จแล้ว (ดู §1.11) · ~~Location Tree Picker~~ ✅ เสร็จแล้ว (ดู §1.12) · ~~VLAN + Site UI (v1.1.1)~~ ✅ เสร็จแล้ว (ดู §1.13) — **ปิด Sprint 3 ครบทุกรายการ** เหลือ Software License เลื่อนไป Sprint 4 | ครบทุกประเภททรัพย์สินพร้อมร่องรอยตรวจสอบ | 7 |
-| **4** | Software License · Seat Counting · CMDB Relationship · Contracts (เครื่องเดียว/หลายเครื่อง) | บริหาร License และความสัมพันธ์ได้ | 4 |
+| **4** | ~~Software License · Seat Counting · CMDB Relationship · Contracts (เครื่องเดียว/หลายเครื่อง)~~ ✅ เสร็จแล้ว (ดู §1.14) | บริหาร License และความสัมพันธ์ได้ | 4 |
 | **5** | Dashboard · Reports · Export Excel | เห็นภาพรวมและออกรายงานได้ | 3 |
 | **6** | Excel Import + Validation · Notification (Email + In-app) · Settings หน้า SMTP/เกณฑ์แจ้งเตือน | นำเข้าข้อมูลเดิมและแจ้งเตือนอัตโนมัติได้ | 3 |
 | **7** | **Permission Control (v1.5)** — File Share Permission CRUD · Internet Policy CRUD · ตารางการมองเห็นตามชั้นความลับ (Authorization Policy) · ประวัติสิทธิ์ 3 version | ดูสิทธิ์ File Share/Internet และประวัติการเปลี่ยนแปลงได้ | 6 |

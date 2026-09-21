@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-21 · commit `f421159` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 + Sprint 3 เสร็จครบทั้งหมด** (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM) — เหลือ Software License ที่เลื่อนไป Sprint 4 ตามแผนเดิม |
-| **โค้ดโปรแกรม** | 🟢 **Login/RBAC + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.14) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล — **Sprint 3 ปิดครบทุกรายการ** เหลือ Software License รอ Sprint 4 |
+| **อัปเดตล่าสุด** | 2569-09-21 · commit `5afa31a` |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–4 เสร็จครบทั้งหมด** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts) — Sprint Plan เดิมเหลือ Sprint 5–10 |
+| **โค้ดโปรแกรม** | 🟢 **Login/RBAC + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.15) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล — **Sprint 4 ปิดครบทุกรายการ** |
 
 ---
 
@@ -444,6 +444,44 @@ Duplicate Device Role 409, Delete VLAN ที่ยังมี Range/Device ค
 
 **Sprint 3 ปิดครบทุกรายการแล้ว** — เหลือ Software License (`SFT` Category) ที่เลื่อนไป Sprint 4 ตามแผนเดิม
 (ต้องรอตัดสินใจเรื่อง Seat Counting และการเข้ารหัส `license_key_encrypted`)
+
+---
+
+### 4.15 Backend/Frontend — Sprint 4 (ปิดครบ): Software License + Seat Counting + CMDB Relationship + Contracts (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** Sprint 4 ทั้ง 4 รายการตามแผนเดิม (§2 ตาราง Sprint Plan) — Software License (`SFT`
+Category ที่ Sprint 3 ตั้งใจข้ามไว้), Seat Counting, CMDB Relationship (`dbo.asset_relationships` +
+`dbo.relationship_types`), และ Contracts ทั้งเครื่องเดียว/หลายเครื่อง (`dbo.contracts` +
+`dbo.contract_assets`, v1.4 module) — Entity ทั้งหมด Scaffold ไว้แล้วตั้งแต่ Sprint 0 เหลือแค่
+Controller/UI เหมือนโมดูลก่อนหน้า
+
+| ส่วน | รายละเอียด |
+|---|---|
+| **การเข้ารหัส License Key** | `ILicenseKeyProtector`/`AesGcmLicenseKeyProtector` (AES-256-GCM, Key 32 Byte จาก `Licensing:EncryptionKeyBase64` — User Secrets ตอน Dev, Environment Variable ตอน Production ตามแบบเดียวกับ `Jwt:Secret`) เก็บ `nonce(12) + ciphertext + tag(16)` ต่อกันใน `VARBINARY(1024)` เดียว |
+| Backend — SFT เข้าร่วม `AssetsController` | เพิ่ม `SoftwareDetailsDto` — **`LicenseKey` เป็น Write-Only** ส่งเข้าตอน Create/Update เท่านั้น เข้ารหัสฝั่ง Server ทันที ไม่เคยส่งค่าที่ถอดรหัสแล้วกลับมาเลย ฝั่ง Read คืนแค่ `HasLicenseKey: bool` — Update ที่ส่งค่าว่าง/ไม่ส่งมา จะไม่ทับคีย์เดิม |
+| Backend — `SoftwareInstallationsController` (ใหม่) | Sub-resource ของ Asset: ติดตั้ง/ถอด Software บน Target Asset ใดก็ได้ (`dbo.software_installations`) — "ถอด" ตั้ง `removed_date` แทนการลบแถวจริง (Pattern เดียวกับ Cluster Member Leave/Rejoin) กันชนกับ Unique Index `UX_swinst_active` ที่กรองเฉพาะแถว Active |
+| Backend — Seat Usage | `GET /api/assets/{id}/seat-usage` และ `GET /api/software-licenses/seat-usage` (รวมทุกใบอนุญาต) อ่านจาก `vw_software_seat_usage` — **Seat มาจาก `contract_assets.seat_count` ของสัญญาปัจจุบัน ไม่ใช่คอลัมน์ใน `software_details` อีกต่อไป** (ย้ายไปตั้งแต่ v1.4 Migration) |
+| Backend — `AssetRelationshipsController` (ใหม่) | CMDB-style Relationship สองทิศทาง (`Hosted On`/`Hosts`, `Depends On`/`Required By` ฯลฯ) อ่านจาก `vw_asset_relationships_expanded` ที่ Union ทั้งขาเข้า-ขาออกไว้แล้ว ทำให้ Relationship เห็นทั้งสองฝั่งอัตโนมัติโดยไม่ต้องสร้างแถวซ้ำ |
+| Backend — `ContractsController` (ใหม่) + `contract_assets` Sub-resource | CRUD สัญญา + ผูกกับ Asset ได้ทั้งเครื่องเดียวและหลายเครื่อง (แถวใน `contract_assets` ต่อ Asset หนึ่งแถว) รองรับโซ่การต่อสัญญา (`previous_contract_id`) — Trigger `trg_contracts_supersede` ในฐานข้อมูลปิดสถานะสัญญาฉบับเดิมเป็น `SUPERSEDED` อัตโนมัติเมื่อสร้างสัญญาที่ต่อจากมัน และห้ามสัญญาใหม่เริ่มก่อนสัญญาที่ตนต่อมา (ข้อความจาก `THROW 51040` ส่งตรงถึง UI) |
+| Backend — Attachment บนสัญญา | ขยาย `AttachmentsController` ให้รับทั้ง Asset และ Contract เป็นเจ้าของไฟล์ (คอลัมน์ `attachments.contract_id` มีอยู่แล้วตั้งแต่ v1.4) — เพิ่ม `GET/POST /api/contracts/{id}/attachments` ใช้ Validation/Storage Logic ชุดเดียวกับของ Asset |
+| Frontend — Software License | `AssetForm` เพิ่ม Section "Software License Details" (License Key เป็นช่องกรอกที่โชว์ Placeholder "มีคีย์เก็บไว้แล้ว" เมื่อแก้ไข ไม่เคยแสดงคีย์จริง) + `InstallationsPanel` (แสดง Seat Usage Badge พร้อมเตือน Over-deployed และ Panel รายชื่อเครื่องที่ติดตั้ง) บนหน้า Edit Asset เฉพาะ Category `SFT` |
+| Frontend — หน้าใหม่ `/software` | List รวม Seat Usage ทุกใบอนุญาต (ใช้ Nav Item "Software" เดิมที่เป็นลิงก์ตายมาตั้งแต่ Sprint 1 — ปิดช่องว่างนี้ไปในตัว) |
+| Frontend — `RelationshipsPanel` | ติดตั้งบนหน้า Edit Asset **ทุก Category** (ไม่ใช่แค่ SFT) แสดงทิศทาง (`→`/`←`) และลิงก์ไปยัง Asset ที่เกี่ยวข้อง |
+| Frontend — หน้าใหม่ `/contracts` | เมนู "Contracts" ใหม่ → List (Badge สถานะ, จำนวน Asset ที่ครอบคลุม), `/contracts/new`, `/contracts/{id}` (ฟอร์ม + `ContractAssetsPanel` ผูก/ถอด Asset พร้อม Seat Count/Coverage Date/Allocated Cost + Attachments Panel ที่ใช้ร่วมกับของ Asset) |
+| **ปรับ Component ที่ใช้ร่วม** | `AttachmentsPanel` เปลี่ยน Prop จาก `assetId: number` เป็น `owner: {assetId} \| {contractId}` (Pattern เดียวกับ `StorageVolumesPanel` ที่มีอยู่แล้วสำหรับ Asset/Cluster) — จุดเรียกใช้เดิมบนหน้า Asset ปรับตาม ไม่กระทบพฤติกรรมเดิม |
+| **บั๊กที่พบและแก้ระหว่างทดสอบ** | EF Core แปล Query ไม่ได้ซ้ำอีกครั้ง (เจอครั้งแรกใน VLAN §4.14) — คราวนี้ที่ `GET /api/contracts/{id}/assets` เพราะ `.OrderByDescending()` ต่อจาก Query ที่ Project เป็น DTO Record แล้ว แก้ด้วยการย้าย `.OrderByDescending()` ไปเรียงที่ระดับ Entity ก่อน Select เสมอ (Pattern เดิมที่ควรจำไว้เป็นกฎทั่วไปของโปรเจกต์นี้) |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** curl ครบทุกเส้นทาง (License Key เข้ารหัสแล้วไม่เคยส่งกลับ, ติดตั้ง
+Software ซ้ำเจอ 409, Seat Usage คำนวณ Over-deployed ถูกต้องเมื่อยังไม่มีสัญญา (`0` Seat), ผูก Asset
+ซ้ำในสัญญาเดียวกันเจอ 409, วันที่สัญญาสิ้นสุดก่อนเริ่มเจอ 400, ต่อสัญญาก่อนวันเริ่มของสัญญาเดิมเจอ 400
+จาก Trigger, ต่อสัญญาถูกต้องแล้วสัญญาเดิมเปลี่ยนเป็น `SUPERSEDED` อัตโนมัติ, ลบสัญญาที่ยังมี Asset ผูกอยู่
+เจอ 409) — ทดสอบผ่าน UI จริงด้วย Playwright ครบทุกจุดเช่นกัน: สร้าง Software License ผ่านฟอร์มพร้อม
+License Key, เปิดหน้าแก้ไขเห็น Placeholder "มีคีย์เก็บไว้แล้ว" (ไม่ใช่คีย์จริง), ติดตั้งบน Asset อื่นแล้ว
+เห็น Seat Usage อัปเดต, เพิ่ม CMDB Relationship เห็นทั้งสองทิศทางบนหน้า Asset ทั้งคู่, สร้างสัญญาใหม่ผ่าน
+`/contracts/new`, ผูก Asset พร้อม Seat Count แล้วกลับไปดูที่หน้า Asset เห็น Seat Usage สะท้อนค่าจากสัญญา
+ถูกต้อง (1/10), อัปโหลดไฟล์แนบบนสัญญาสำเร็จ, ข้อความ Error จาก Constraint/Trigger ขึ้นตรงบนฟอร์มถูกต้อง
+
+**🎉 Sprint 4 ปิดครบทุกรายการแล้ว** — Sprint Plan เดิม (§2) เหลือ Sprint 5–10
 
 ---
 
