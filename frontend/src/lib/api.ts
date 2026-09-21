@@ -26,3 +26,16 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
     credentials: "include",
   });
 }
+
+/** Triggers a browser download for a file-returning endpoint (e.g. /export .xlsx routes). */
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const res = await apiFetch(path);
+  if (!res.ok) return;
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}

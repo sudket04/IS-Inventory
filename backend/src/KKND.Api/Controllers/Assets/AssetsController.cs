@@ -43,6 +43,7 @@ public sealed class AssetsController : ControllerBase
         [FromQuery] string? category,
         [FromQuery] string? search,
         [FromQuery] int? statusId,
+        [FromQuery] string? status,
         [FromQuery] int? departmentId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -61,6 +62,11 @@ public sealed class AssetsController : ControllerBase
         if (statusId.HasValue)
         {
             query = query.Where(a => a.StatusId == statusId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(a => a.Status.Code == status);
         }
 
         if (departmentId.HasValue)

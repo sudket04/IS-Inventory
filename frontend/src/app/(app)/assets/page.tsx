@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Search, Pencil, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/components/status-badge";
 import type { AssetListItem, PagedResult } from "@/lib/assets/types";
 
 const PAGE_SIZE = 25;
@@ -15,18 +15,29 @@ export default function AssetsPage() {
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [category, setCategory] = React.useState("");
+  const [status, setStatus] = React.useState("");
   const [page, setPage] = React.useState(1);
+
+  // Deep-links from Dashboard/Reports pass ?category=CODE and/or ?status=CODE.
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const initialCategory = params.get("category");
+    const initialStatus = params.get("status");
+    if (initialCategory) setCategory(initialCategory);
+    if (initialStatus) setStatus(initialStatus);
+  }, []);
 
   const load = React.useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
     if (search.trim()) params.set("search", search.trim());
     if (category) params.set("category", category);
+    if (status) params.set("status", status);
 
     const res = await apiFetch(`/api/assets?${params.toString()}`);
     if (res.ok) setResult(await res.json());
     setLoading(false);
-  }, [page, search, category]);
+  }, [page, search, category, status]);
 
   React.useEffect(() => {
     const timeout = setTimeout(load, 300);
@@ -86,6 +97,21 @@ export default function AssetsPage() {
           <option value="PER">Peripheral</option>
           <option value="IOT">Mobile & IoT/OT</option>
           <option value="SFT">Software License</option>
+        </select>
+        <select
+          value={status}
+          onChange={(e) => {
+            setPage(1);
+            setStatus(e.target.value);
+          }}
+          className="h-8 rounded-md border border-border-default bg-bg-surface px-2 text-sm text-text-primary"
+        >
+          <option value="">All Statuses</option>
+          <option value="IN_USE">In Use</option>
+          <option value="IN_STOCK">In Stock</option>
+          <option value="UNDER_REPAIR">Under Repair</option>
+          <option value="RETIRED">Retired</option>
+          <option value="DISPOSED">Disposed</option>
         </select>
       </div>
 
@@ -160,19 +186,4 @@ export default function AssetsPage() {
       )}
     </div>
   );
-}
-
-// Tailwind can't see class names assembled from runtime data at build time, so the
-// mapping has to be written out literally (docs/design/03-design-system.md §3 status colors).
-const STATUS_BADGE_CLASSES: Record<string, string> = {
-  emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  sky: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
-  amber: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-  red: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
-  slate: "bg-bg-subtle text-text-tertiary",
-};
-
-function StatusBadge({ colorToken, label }: { colorToken: string; label: string }) {
-  const classes = STATUS_BADGE_CLASSES[colorToken] ?? STATUS_BADGE_CLASSES.slate;
-  return <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", classes)}>{label}</span>;
 }

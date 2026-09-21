@@ -14,6 +14,14 @@ import {
   MapPin,
   Network,
   FileText,
+  Laptop,
+  HardDrive,
+  Printer,
+  Zap,
+  Smartphone,
+  Folder,
+  Globe,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,6 +41,14 @@ const ICONS: Record<string, LucideIcon> = {
   "map-pin": MapPin,
   network: Network,
   "file-text": FileText,
+  laptop: Laptop,
+  "hard-drive": HardDrive,
+  printer: Printer,
+  zap: Zap,
+  smartphone: Smartphone,
+  folder: Folder,
+  globe: Globe,
+  "shield-check": ShieldCheck,
 };
 
 export function NavIcon({ name, className }: { name: string; className?: string }) {
