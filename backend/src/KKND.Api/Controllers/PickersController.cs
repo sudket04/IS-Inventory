@@ -89,4 +89,39 @@ public sealed class PickersController : ControllerBase
     public async Task<ActionResult<IEnumerable<Option>>> Contracts(CancellationToken ct) =>
         Ok(await _db.Contracts.OrderByDescending(c => c.CreatedAt)
             .Select(c => new Option(c.ContractId, c.ContractNo)).ToListAsync(ct));
+
+    // v1.5 Permission Control (Sprint 7) — File Shares can only be declared on Server assets
+    // (trg_file_shares_validate additionally requires a FILE server_role_assignments row,
+    // which FileSharesController upserts on save rather than requiring a separate screen).
+    [HttpGet("file-servers")]
+    public async Task<ActionResult<IEnumerable<Option>>> FileServers(CancellationToken ct) =>
+        Ok(await _db.Assets.Where(a => !a.IsDeleted && a.Category.Code == "SRV").OrderBy(a => a.AssetTag)
+            .Select(a => new Option(a.AssetId, a.AssetTag + " — " + a.Name)).ToListAsync(ct));
+
+    public sealed record ClassificationOption(int Id, string Code, string NameTh, string NameEn, byte SensitivityRank, string ColorToken);
+
+    [HttpGet("classification-levels")]
+    public async Task<ActionResult<IEnumerable<ClassificationOption>>> ClassificationLevels(CancellationToken ct) =>
+        Ok(await _db.FolderClassificationLevels.Where(c => c.IsActive).OrderBy(c => c.SensitivityRank)
+            .Select(c => new ClassificationOption(c.ClassificationId, c.Code, c.NameTh, c.NameEn, c.SensitivityRank, c.ColorToken)).ToListAsync(ct));
+
+    public sealed record AccessLevelOption(int Id, string Code, string NameEn, bool CanWrite, string ColorToken);
+
+    [HttpGet("access-levels")]
+    public async Task<ActionResult<IEnumerable<AccessLevelOption>>> AccessLevels(CancellationToken ct) =>
+        Ok(await _db.AccessLevels.Where(a => a.IsActive).OrderBy(a => a.PrivilegeRank)
+            .Select(a => new AccessLevelOption(a.AccessLevelId, a.Code, a.NameEn, a.CanWrite, a.ColorToken)).ToListAsync(ct));
+
+    // AD Groups are populated only once the Sprint 8 Collector Agent syncs them — this list
+    // stays empty until then. Forms fall back to free-text entry (ad_group_name_raw) per the
+    // v1.5 proposal's explicit design (docs/database/13-permission-control-proposal.md §5.1).
+    [HttpGet("ad-groups")]
+    public async Task<ActionResult<IEnumerable<Option>>> AdGroups(CancellationToken ct) =>
+        Ok(await _db.AdGroups.Where(g => g.IsPresentInAd).OrderBy(g => g.SamAccountName)
+            .Select(g => new Option(g.AdGroupId, g.SamAccountName)).ToListAsync(ct));
+
+    [HttpGet("web-categories")]
+    public async Task<ActionResult<IEnumerable<Option>>> WebCategories(CancellationToken ct) =>
+        Ok(await _db.WebCategories.Where(c => c.IsActive).OrderBy(c => c.SortOrder)
+            .Select(c => new Option(c.CategoryId, c.NameEn)).ToListAsync(ct));
 }

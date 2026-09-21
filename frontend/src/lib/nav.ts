@@ -20,6 +20,8 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Contracts", href: "/contracts", icon: "file-text", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
   { label: "Reports", href: "/reports", icon: "bar-chart-3", roles: ["ADMIN", "IT_STAFF", "AUDITOR"] },
   { label: "Import", href: "/import", icon: "upload", roles: ["ADMIN", "IT_STAFF"] },
+  { label: "File Shares", href: "/file-shares", icon: "folder", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
+  { label: "Internet Policies", href: "/internet-policies", icon: "globe", roles: ["ADMIN", "IT_STAFF", "AUDITOR", "VIEWER"] },
   { label: "Audit Logs", href: "/audit-logs", icon: "search", roles: ["ADMIN", "IT_STAFF", "AUDITOR"] },
   {
     label: "Administration",
@@ -30,6 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Users", href: "/admin/users", icon: "users", roles: ["ADMIN"] },
       { label: "Locations", href: "/admin/locations", icon: "map-pin", roles: ["ADMIN"] },
       { label: "Master Data", href: "/admin/master-data", icon: "database", roles: ["ADMIN"] },
+      { label: "Classification Visibility", href: "/admin/classification-visibility", icon: "shield-check", roles: ["ADMIN"] },
       { label: "Settings", href: "/admin/settings", icon: "sliders", roles: ["ADMIN"] },
     ],
   },
