@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ตัวอย่าง web.config สำหรับ IIS Site หน้าบ้าน (เช่น https://kknd.yourdomain.local)
+  ที่รวม Backend + Frontend ไว้หลัง Domain เดียว — ดู docs/DEPLOYMENT.md §3.4
+
+  ก่อนใช้:
+    1. ติดตั้ง URL Rewrite Module + Application Request Routing (ARR) บน IIS ก่อน
+    2. เปิด "Enable proxy" ที่ระดับ Server ใน ARR (IIS Manager -> เครื่องบนสุด ->
+       Application Request Routing Cache -> Server Proxy Settings)
+    3. สร้าง IIS Site ใหม่ (Physical Path เป็นโฟลเดอร์เปล่าที่มีแค่ไฟล์นี้ ตั้งชื่อ web.config)
+       ผูก Binding กับ Domain/Port จริงและใส่ Certificate ถ้าจะใช้ HTTPS
+    4. แก้ Port ด้านล่างถ้า Backend/Frontend ไม่ได้รันที่ 5080 / 3000
+-->
+<configuration>
+  <system.webServer>
+    <rewrite>
+      <rules>
+        <!-- /api/* -> Backend (Kestrel ผ่าน IIS Site KKND-API พอร์ต 5080) -->
+        <rule name="KKND API Proxy" stopProcessing="true">
+          <match url="^api/(.*)" />
+          <action type="Rewrite" url="http://127.0.0.1:5080/api/{R:1}" />
+        </rule>
+
+        <!-- ที่เหลือทั้งหมด -> Frontend (Next.js standalone ผ่าน Windows Service KKND-Frontend พอร์ต 3000) -->
+        <rule name="KKND Frontend Proxy" stopProcessing="true">
+          <match url="(.*)" />
+          <action type="Rewrite" url="http://127.0.0.1:3000/{R:1}" />
+        </rule>
+      </rules>
+    </rewrite>
+  </system.webServer>
+</configuration>
