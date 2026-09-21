@@ -67,4 +67,14 @@ public sealed class PickersController : ControllerBase
     public async Task<ActionResult<IEnumerable<Option>>> VlanSites(CancellationToken ct) =>
         Ok(await _db.VlanSites.Where(s => s.IsActive).OrderBy(s => s.SortOrder)
             .Select(s => new Option(s.SiteId, s.Name)).ToListAsync(ct));
+
+    [HttpGet("network-zones")]
+    public async Task<ActionResult<IEnumerable<Option>>> NetworkZones(CancellationToken ct) =>
+        Ok(await _db.NetworkZones.Where(z => z.IsActive).OrderBy(z => z.SortOrder)
+            .Select(z => new Option(z.ZoneId, z.Name)).ToListAsync(ct));
+
+    [HttpGet("assets")]
+    public async Task<ActionResult<IEnumerable<Option>>> Assets(CancellationToken ct) =>
+        Ok(await _db.Assets.Where(a => !a.IsDeleted).OrderBy(a => a.AssetTag)
+            .Select(a => new Option(a.AssetId, a.AssetTag + " — " + a.Name)).ToListAsync(ct));
 }

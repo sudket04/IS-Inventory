@@ -12,6 +12,7 @@ import {
   Layers,
   Warehouse,
   MapPin,
+  Network,
   type LucideIcon,
 } from "lucide-react";
 
@@ -29,6 +30,7 @@ const ICONS: Record<string, LucideIcon> = {
   layers: Layers,
   warehouse: Warehouse,
   "map-pin": MapPin,
+  network: Network,
 };
 
 export function NavIcon({ name, className }: { name: string; className?: string }) {
