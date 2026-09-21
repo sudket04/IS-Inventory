@@ -5,7 +5,10 @@ import { apiFetch } from "@/lib/api";
 import { AssetForm } from "@/components/assets/asset-form";
 import { AttachmentsPanel } from "@/components/assets/attachments-panel";
 import { ServerApplicationsPanel } from "@/components/assets/server-applications-panel";
+import { StorageVolumesPanel } from "@/components/storage/storage-volumes-panel";
 import type { AssetDetail } from "@/lib/assets/types";
+
+const STORAGE_VOLUME_CATEGORIES = ["SRV", "STG"];
 
 export function AssetEditClient({ assetId }: { assetId: string }) {
   const [asset, setAsset] = React.useState<AssetDetail | null>(null);
@@ -50,6 +53,11 @@ export function AssetEditClient({ assetId }: { assetId: string }) {
       {asset.categoryCode === "SRV" && (
         <div className="mt-4">
           <ServerApplicationsPanel assetId={asset.assetId} />
+        </div>
+      )}
+      {STORAGE_VOLUME_CATEGORIES.includes(asset.categoryCode) && (
+        <div className="mt-4">
+          <StorageVolumesPanel owner={{ assetId: asset.assetId }} />
         </div>
       )}
       <div className="mt-4">
