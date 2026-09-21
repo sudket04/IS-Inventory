@@ -8,9 +8,11 @@
 > Server อีก (ตัด Internet Dependency ตอน Deploy จริงออกไปเกือบหมด เหลือแค่การติดตั้ง
 > Runtime/Role ของ Windows เอง)
 
-สถานะ ณ วันที่เขียน: **Sprint 0–5, 7 เสร็จครบ** — ยังไม่รวม Sprint 6 (Import/Notification),
-Sprint 8 (Collector Agent), Sprint 9 (Settings ที่เหลือ), Sprint 10 (Test/Security Review เต็มรูปแบบ)
-ดังนั้นชุดนี้เหมาะสำหรับ **ทดลองใช้งานจริงบน Server จริง (Pilot/UAT)** ไม่ใช่ Go-Live เต็มรูปแบบ
+สถานะ ณ วันที่เขียน (อัปเดตล่าสุด): **Sprint 0–5, 7 เสร็จครบ + งานนอก Sprint Plan: Server Domain v1.7
+(Server Inventory/Server List — HANDOFF §4.18) และรหัสผ่านเริ่มต้น/บังคับเปลี่ยนรหัสผ่าน (HANDOFF §4.19)**
+— ยังไม่รวม Sprint 6 (Import/Notification), Sprint 8 (Collector Agent), Sprint 9 (Settings ที่เหลือ),
+Sprint 10 (Test/Security Review เต็มรูปแบบ) ดังนั้นชุดนี้เหมาะสำหรับ **ทดลองใช้งานจริงบน Server จริง
+(Pilot/UAT)** ไม่ใช่ Go-Live เต็มรูปแบบ
 
 ---
 
@@ -33,7 +35,8 @@ Sprint 8 (Collector Agent), Sprint 9 (Settings ที่เหลือ), Sprint
 
 ## 2. ไฟล์ในชุดติดตั้ง
 
-Build จาก branch `claude/zealous-hamilton-hn3ggp` (commit ล่าสุดตอนสร้างชุดนี้: หลัง `8321fb9`)
+Build จาก branch `claude/zealous-hamilton-hn3ggp` (commit ล่าสุดตอนสร้างชุดนี้: `70124b4` — รวม
+Server Domain v1.7 §4.18 และรหัสผ่านเริ่มต้น/บังคับเปลี่ยน §4.19 แล้ว)
 
 | ไฟล์ | เนื้อหา | คำสั่งที่ใช้สร้าง |
 |---|---|---|
@@ -53,7 +56,7 @@ Build จาก branch `claude/zealous-hamilton-hn3ggp` (commit ล่าสุ�
 
 ### 3.1 Database
 
-1. รัน SQL Script **8 ไฟล์ตามลำดับนี้เท่านั้น** (เลขนำหน้าคือลำดับ ห้ามสลับ) บน SQL Server จริง:
+1. รัน SQL Script **9 ไฟล์ตามลำดับนี้เท่านั้น** (เลขนำหน้าคือลำดับ ห้ามสลับ) บน SQL Server จริง:
    ```
    02-schema-sqlserver.sql
    04-vlan-module.sql
@@ -63,7 +66,10 @@ Build จาก branch `claude/zealous-hamilton-hn3ggp` (commit ล่าสุ�
    12-module-v1.4-contracts-temporal.sql
    14-module-v1.5-permission-control.sql
    15-module-v1.6-server-applications.sql
+   16-module-v1.7-server-domain.sql
    ```
+   ไฟล์ `16-module-v1.7-server-domain.sql` เพิ่มโครงสร้างของ Server Inventory (Hardware) / Server List
+   (HANDOFF §4.18) — **ขาดไม่ได้** ถ้าจะใช้ 2 หน้านี้ ไม่งั้น Backend จะ Error ตอนเรียก API ที่เกี่ยวข้อง
 2. สร้าง SQL Login/User สำหรับ App แยกจาก `sa` ให้สิทธิ์เฉพาะ Database นี้ (`db_datareader`,
    `db_datawriter`, `EXECUTE` และสิทธิ์สร้าง/แก้ Temporal Table history ตามที่ script อาจต้องใช้)
 3. บัญชี `admin` ถูก Seed มาจาก `02-schema-sqlserver.sql` แล้วโดยอัตโนมัติ แต่ยัง **Login ไม่ได้จริง**
@@ -138,8 +144,14 @@ Build จาก branch `claude/zealous-hamilton-hn3ggp` (commit ล่าสุ�
 
 ## 4. Checklist หลังติดตั้ง
 
-- [ ] Login ด้วย Admin User ได้ → เห็น Dashboard มีตัวเลขจริง (ไม่ใช่ 0 ทั้งหมด ถ้ามี Seed Data)
+- [ ] Login ด้วยรหัสผ่านเริ่มต้นที่ตั้งไว้ตอนติดตั้ง (§3.2 ข้อ 3) → ระบบบังคับให้เปลี่ยนรหัสผ่านทันที
+      ก่อนเข้าหน้าอื่นได้ (พิมพ์ URL ตรงไปหน้าไหนก็ยังโดนหน้าบังคับสกัดอยู่) → เปลี่ยนสำเร็จแล้วเข้า
+      Dashboard ได้ปกติ
+- [ ] เห็น Dashboard มีตัวเลขจริง (ไม่ใช่ 0 ทั้งหมด ถ้ามี Seed Data)
 - [ ] สร้าง Asset 1 ตัว → เห็นใน Audit Log
+- [ ] สร้าง Server ผ่าน **Server Inventory (Hardware)** 1 เครื่อง (เลือก Asset Type → กรอก CPU/Memory/
+      Storage แบบ Add ได้หลายรายการ) แล้วไป **Server List** กด Activate เครื่องนั้นด้วยข้อมูล Workload
+      (OS/Environment/IP) — ยืนยันว่า Migration `16-module-v1.7-server-domain.sql` (§3.1) รันไปแล้วจริง
 - [ ] Export Excel จากหน้า Reports เปิดไฟล์ที่ได้ด้วย Excel จริงได้ (ไม่ Corrupt)
 - [ ] สร้าง File Share 1 รายการ → ผูก AD Group (กรอกมือ) → เห็นใน Permission History
 - [ ] Restart Server ทั้งเครื่อง 1 ครั้ง → ทั้ง Backend (IIS, Start อัตโนมัติ) และ Frontend
