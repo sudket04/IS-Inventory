@@ -11,6 +11,7 @@ import {
   Sliders,
   Layers,
   Warehouse,
+  MapPin,
   type LucideIcon,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ const ICONS: Record<string, LucideIcon> = {
   sliders: Sliders,
   layers: Layers,
   warehouse: Warehouse,
+  "map-pin": MapPin,
 };
 
 export function NavIcon({ name, className }: { name: string; className?: string }) {

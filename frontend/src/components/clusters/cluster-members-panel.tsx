@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Section, EnumSelectField } from "@/components/assets/form-fields";
+import { formatDate } from "@/lib/format";
 import { emptyClusterMemberForm, type ClusterMemberForm, type ClusterMemberItem } from "@/lib/clusters/types";
 
 // Mirrors CHECK constraint CK_clmem_role in docs/database/06-module-v1.2.sql §3.
@@ -94,10 +95,10 @@ export function ClusterMembersPanel({ clusterId }: { clusterId: number }) {
                 <p className="text-text-primary">
                   <Link href={`/assets/${item.assetId}`} className="hover:underline">{item.assetTag}</Link>
                   <span className="ml-2 text-text-secondary">{item.assetName}</span>
-                  {!item.isActive && <span className="ml-2 rounded-full bg-bg-subtle px-2 py-0.5 text-xs text-text-tertiary">Left {item.leftDate}</span>}
+                  {!item.isActive && <span className="ml-2 rounded-full bg-bg-subtle px-2 py-0.5 text-xs text-text-tertiary">Left {formatDate(item.leftDate)}</span>}
                 </p>
                 <p className="text-xs text-text-tertiary">
-                  {item.memberRole}{item.nodePriority != null ? ` · Priority ${item.nodePriority}` : ""}{item.joinedDate ? ` · Joined ${item.joinedDate}` : ""}
+                  {item.memberRole}{item.nodePriority != null ? ` · Priority ${item.nodePriority}` : ""}{item.joinedDate ? ` · Joined ${formatDate(item.joinedDate)}` : ""}
                 </p>
                 {item.notes && <p className="mt-0.5 text-xs text-text-tertiary">{item.notes}</p>}
               </div>

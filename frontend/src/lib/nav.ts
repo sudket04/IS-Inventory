@@ -26,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["ADMIN"],
     children: [
       { label: "Users", href: "/admin/users", icon: "users", roles: ["ADMIN"] },
+      { label: "Locations", href: "/admin/locations", icon: "map-pin", roles: ["ADMIN"] },
       { label: "Master Data", href: "/admin/master-data", icon: "database", roles: ["ADMIN"] },
       { label: "Settings", href: "/admin/settings", icon: "sliders", roles: ["ADMIN"] },
     ],

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/format";
 
 interface UserListItem {
   userId: number;
@@ -232,7 +233,7 @@ export default function AdminUsersPage() {
                     </span>
                   </td>
                   <td className="px-3 py-2 text-text-secondary">
-                    {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "Never"}
+                    {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : "Never"}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <Button

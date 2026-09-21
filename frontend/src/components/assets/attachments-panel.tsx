@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Section } from "@/components/assets/form-fields";
+import { formatDateTime } from "@/lib/format";
 import type { AttachmentListItem } from "@/lib/attachments/types";
 
 const ACCEPTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".xlsx", ".docx"];
@@ -132,7 +133,7 @@ export function AttachmentsPanel({ assetId }: { assetId: number }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-text-primary">{item.originalFileName}</p>
                 <p className="text-xs text-text-tertiary">
-                  {formatFileSize(item.fileSizeBytes)} · {item.uploadedByName ?? "—"} · {new Date(item.uploadedAt).toLocaleString()}
+                  {formatFileSize(item.fileSizeBytes)} · {item.uploadedByName ?? "—"} · {formatDateTime(item.uploadedAt)}
                   {item.description ? ` · ${item.description}` : ""}
                 </p>
               </div>

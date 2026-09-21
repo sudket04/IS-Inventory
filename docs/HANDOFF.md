@@ -5,9 +5,9 @@
 |---|---|
 | **Repository** | `sudket04/KKND` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
-| **อัปเดตล่าสุด** | 2569-09-21 · commit `928d81c` |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment + Application บน Server + Storage/Cluster + Rack เสร็จแล้ว)** |
-| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume + Rack พร้อมผังกราฟิก ทำงานจริง** (ดู §4.5–§4.12) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, VLAN/Site UI ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) — **พบบล็อกจริง: ยังไม่มี Location Tree Picker UI ทำให้สร้าง Rack ใหม่ผ่านหน้าเว็บไม่ได้จริง (ดู §4.12)** |
+| **อัปเดตล่าสุด** | 2569-09-21 · commit (ดู §4.13) |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟡 **Phase 4 (Development) — Sprint 0 + Sprint 1 + Sprint 2 เสร็จ · Sprint 3 กำลังทำ (Asset CRUD ครบ 7/8 หมวด + Audit Log UI + Attachment + Application บน Server + Storage/Cluster + Rack + Location Tree Picker เสร็จแล้ว)** |
+| **โค้ดโปรแกรม** | 🟡 **Login/RBAC + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 7 หมวด + Audit Log UI + Attachment + Application บน Server + Cluster/Storage Volume + Rack พร้อมผังกราฟิก ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.13) — ทดสอบ End-to-End กับ SQL Server จริงแล้ว — Software License, VLAN/Site UI ยังไม่เริ่ม (Sprint 3 ที่เหลือ + Sprint 4) — **บล็อก Location Tree Picker ที่เคยพบใน §4.12 แก้แล้ว (ดู §4.13) — สร้าง Rack ผ่านหน้าเว็บได้จริงแล้วโดยไม่ต้องพึ่ง SQL** |
 
 ---
 
@@ -391,6 +391,31 @@ Playwright: หน้า List เห็นเปอร์เซ็นต์ใ�
 
 **ยังไม่ทำ:** VLAN + Site UI — Software License รอ Sprint 4 — **Location Tree Picker เป็นบล็อกจริงที่ควร
 ทำก่อนงานอื่นใน Sprint 3 ที่เหลือ** เพราะทั้ง Rack และ Asset เองก็ต้องพึ่ง Location
+
+### 4.13 Backend/Frontend — Sprint 3 (บางส่วน): Location Tree Picker + วันที่ dd/mm/yyyy ทั้งโปรเจกต์ (21 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** แก้บล็อกจริงที่บันทึกไว้ใน §4.12 (ไม่มีทางสร้าง/แก้ `dbo.locations` ผ่าน UI เลย ทั้งที่
+`racks.location_id` เป็น `NOT NULL`) และงานที่ผู้ใช้สั่งเพิ่ม: ปรับรูปแบบวันที่แสดงผลเป็น `dd/mm/yyyy`
+ทั้งโปรเจกต์
+
+| ส่วน | รายละเอียด |
+|---|---|
+| Backend — Controller ใหม่ | `LocationsController.cs` (`backend/src/KKND.Api/Controllers/Locations/`) — ไม่ใช้ `LookupsControllerBase` เหมือน 11 หน้า Master Data เดิม เพราะ `dbo.locations` เป็น Self-Referencing Tree (`parent_location_id`) และมี Navigation Property ย้อนกลับหาตัวเอง (`InverseParentLocation`) ที่จะทำให้ Serialize เป็น JSON วนลูปถ้าคืน Entity ตรงๆ — ใช้ DTO (`LocationTreeNode`/`LocationDetail`/`LocationRequest`) แบบเดียวกับ Racks/Clusters แทน |
+| Endpoint | `GET /api/locations/tree` (สร้าง Tree จาก Flat Query ฝั่ง C# ด้วย Local Function แบบ Recursive), `GET/POST/PUT/DELETE /api/locations(/{id})` — Policy `Admin` สำหรับ Create/Update/Delete (เหมือน Master Data), `AnyRole` สำหรับอ่าน |
+| Validation ฝั่ง Server ที่ DB Constraint ไม่ครอบคลุม | `CK_locations_not_self` กัน Parent = ตัวเอง "ชั้นเดียว" เท่านั้น — เพิ่ม `IsDescendantAsync()` ไล่ตรวจสายโซ่ Parent ฝั่ง C# กันกรณีย้าย Location ไปอยู่ใต้ลูกหลานของตัวเอง (สร้าง Cycle) ซึ่ง Database เองตรวจจับไม่ได้ |
+| Delete Guard | ไม่มี `is_deleted` เหมือนเดิม (Hard Delete) — เช็ค "มีลูกอยู่ข้างใต้ไหม" ก่อนด้วย Query ตรงๆ ให้ข้อความอ่านง่าย ก่อนที่จะปล่อยให้ FK บล็อก แล้วดัก `SqlException` 547 (ยังมี Asset/Rack/Cluster อ้างอิงอยู่) เป็น 409 อีกชั้น |
+| Frontend — หน้าใหม่ | เมนู **Administration → Locations** (`/admin/locations`) — แสดง Tree แบบ Indent ตามชั้น (Flatten ฝั่ง Frontend ด้วย Depth-First), ปุ่ม "+" ต่อแถวสำหรับเพิ่ม Sub-Location, Modal ฟอร์ม Add/Edit เดียวกับที่ใช้ทั่วโปรเจกต์ (Parent Location เป็น Dropdown ที่กรอง Location ตัวเองกับลูกหลานออกไม่ให้เลือกได้ ตรงกับ `IsDescendantAsync` ฝั่ง Backend) |
+| **ผลคือ Rack Module ใช้งานได้จริงผ่าน UI แล้ว** | ทดสอบสร้าง Location ใหม่ผ่านหน้าเว็บ → ไปหน้า "+ New Rack" → Location ที่เพิ่งสร้างปรากฏใน Dropdown ทันที (ผ่าน `/api/pickers/locations` เดิมที่มีอยู่แล้ว ไม่ต้องแก้) → สร้าง Rack สำเร็จ ครบวงจรโดยไม่ต้องพึ่ง SQL ตรงๆ อีกต่อไป |
+| วันที่ dd/mm/yyyy | เพิ่ม `frontend/src/lib/format.ts` (`formatDate`/`formatDateTime`) แทนที่ `new Date().toLocaleString()`/Field ดิบทุกจุดที่พบ: Audit Logs (`occurredAt`), Attachments Panel (`uploadedAt`), Admin Users (`lastLoginAt`), Cluster Members Panel (`joinedDate`/`leftDate`) — **ยกเว้น** Native `<input type="date">` ของฟอร์ม (Purchase/Received/Install Date ฯลฯ) ซึ่งบังคับเก็บ Value เป็น ISO `yyyy-mm-dd` ตาม HTML5 Spec และปล่อยให้ Browser จัดรูปแบบการแสดงผลเอง (แก้ไม่ได้ด้วย JS โดยไม่เปลี่ยนไป Custom Date-Picker Library) — Grep ทั้งโปรเจกต์แล้วไม่พบจุดแสดงวันที่ดิบอื่นที่ตกหล่น |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** curl ทดสอบ Locations CRUD ครบ (Create/Update/Delete, Unique Code
+409, Invalid `location_type` 400, Self-Parent 400, ย้ายเข้าใต้ลูกหลานตัวเอง 400 Cycle Guard, ลบตอนยังมีลูก
+409, ลบตอนยังมี Rack อ้างอิงอยู่ 409) — ทดสอบผ่าน UI จริงด้วย Playwright: หน้า Tree แสดง Indent ถูกต้อง,
+เพิ่ม Sub-Location ผ่านปุ่ม "+" สำเร็จ, สร้างซ้ำ Code เดิมเห็น Error Message ที่หน้าเว็บ (ไม่ Crash),
+สร้าง Rack ใหม่ทั้งหมดผ่าน UI จริง (ไม่พึ่ง SQL) โดยเลือก Location ที่เพิ่งสร้างจากหน้า Locations —
+สำเร็จ; ตรวจ Audit Logs และ Admin Users เห็นวันที่รูปแบบ `dd/mm/yyyy HH:mm` (เช่น `21/09/2026 03:39`) ถูกต้อง
+
+**ยังไม่ทำ:** VLAN + Site UI ยังเป็นงาน Sprint 3 ที่เหลือ — Software License รอ Sprint 4
 
 ---
 

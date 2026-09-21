@@ -5,6 +5,7 @@ import { Search, ChevronDown, ChevronRight } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/format";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { AuditLogDetail, AuditLogListItem, PagedResult } from "@/lib/audit-logs/types";
 
@@ -156,7 +157,7 @@ export default function AuditLogsPage() {
                     <td className="px-3 py-2 text-text-tertiary">
                       {expandedId === item.auditId ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-text-secondary">{new Date(item.occurredAt).toLocaleString()}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-text-secondary">{formatDateTime(item.occurredAt)}</td>
                     <td className="px-3 py-2 text-text-primary">{item.usernameSnapshot ?? "—"}</td>
                     <td className="px-3 py-2">
                       <ActionBadge action={item.action} />
