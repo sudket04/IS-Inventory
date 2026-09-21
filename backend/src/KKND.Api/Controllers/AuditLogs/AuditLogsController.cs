@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using KKND.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -39,6 +40,14 @@ public sealed class AuditLogsController : ControllerBase
         pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
 
         var query = _db.AuditLogs.AsQueryable();
+
+        // PRD §5.2 Permission Matrix: IT Staff may only see audit entries they themselves
+        // made — Admin and Auditor see everything. Enforced server-side regardless of what
+        // the caller passes in `userId`, since that's client input and can't be trusted.
+        if (User.IsInRole("IT_STAFF") && !User.IsInRole("ADMIN"))
+        {
+            query = query.Where(a => a.UserId == CurrentUserId());
+        }
 
         if (!string.IsNullOrWhiteSpace(entityType))
         {
@@ -93,8 +102,14 @@ public sealed class AuditLogsController : ControllerBase
     [HttpGet("{id:long}")]
     public async Task<ActionResult<AuditLogDetail>> Get(long id, CancellationToken ct)
     {
-        var entry = await _db.AuditLogs
-            .Where(a => a.AuditId == id)
+        var query = _db.AuditLogs.Where(a => a.AuditId == id);
+
+        if (User.IsInRole("IT_STAFF") && !User.IsInRole("ADMIN"))
+        {
+            query = query.Where(a => a.UserId == CurrentUserId());
+        }
+
+        var entry = await query
             .Select(a => new AuditLogDetail(
                 a.AuditId, a.OccurredAt, a.UserId, a.UsernameSnapshot,
                 a.Action, a.EntityType, a.EntityId, a.EntityLabel,
@@ -103,5 +118,11 @@ public sealed class AuditLogsController : ControllerBase
             .FirstOrDefaultAsync(ct);
 
         return entry is null ? NotFound() : Ok(entry);
+    }
+
+    private int? CurrentUserId()
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(claim, out var id) ? id : null;
     }
 }

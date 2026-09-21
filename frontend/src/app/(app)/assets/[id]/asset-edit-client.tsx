@@ -3,6 +3,7 @@
 import * as React from "react";
 import { apiFetch } from "@/lib/api";
 import { AssetForm } from "@/components/assets/asset-form";
+import { AttachmentsPanel } from "@/components/assets/attachments-panel";
 import type { AssetDetail } from "@/lib/assets/types";
 
 export function AssetEditClient({ assetId }: { assetId: string }) {
@@ -44,6 +45,9 @@ export function AssetEditClient({ assetId }: { assetId: string }) {
       <p className="mt-1 text-sm text-text-secondary">{asset.assetTag} — {asset.name}</p>
       <div className="mt-4">
         <AssetForm existing={asset} />
+      </div>
+      <div className="mt-4">
+        <AttachmentsPanel assetId={asset.assetId} />
       </div>
     </div>
   );

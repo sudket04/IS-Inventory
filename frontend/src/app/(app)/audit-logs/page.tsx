@@ -5,6 +5,7 @@ import { Search, ChevronDown, ChevronRight } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth/auth-context";
 import type { AuditLogDetail, AuditLogListItem, PagedResult } from "@/lib/audit-logs/types";
 
 const PAGE_SIZE = 25;
@@ -14,6 +15,7 @@ const ACTIONS = ["LOGIN", "LOGIN_FAILED", "CREATE", "UPDATE", "DELETE", "PASSWOR
 const ENTITY_TYPES = ["asset", "user"];
 
 export default function AuditLogsPage() {
+  const { user } = useAuth();
   const [result, setResult] = React.useState<PagedResult<AuditLogListItem> | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
@@ -53,7 +55,11 @@ export default function AuditLogsPage() {
     <div className="p-6">
       <div>
         <h1 className="text-lg font-semibold text-text-primary">Audit Logs {result ? `(${result.totalCount})` : ""}</h1>
-        <p className="mt-1 text-sm text-text-secondary">Append-only history of create, update, delete, and password change actions across the system.</p>
+        <p className="mt-1 text-sm text-text-secondary">
+          {user?.roleCode === "IT_STAFF"
+            ? "Append-only history of your own create, update, delete, and password change actions."
+            : "Append-only history of create, update, delete, and password change actions across the system."}
+        </p>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
