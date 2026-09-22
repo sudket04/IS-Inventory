@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { TextField, SelectField, EnumSelectField, Section } from "@/components/assets/form-fields";
+import { TextField, SelectField, EnumSelectField, CheckboxField, Section } from "@/components/assets/form-fields";
 import { useAssetFormOptions } from "@/lib/assets/options";
 import { useAssetTypes } from "@/lib/server-domain/options";
 import { CpuEditor, MemoryEditor, DiskEditor } from "@/components/server-domain/hardware-rows-editor";
@@ -62,7 +62,8 @@ export function ServerInventoryForm({ existing }: { existing?: ServerInventoryDe
     usableCapacityTb: existing?.usableCapacityTb?.toString() ?? "",
     cacheGb: existing?.cacheGb?.toString() ?? "",
     supportedProtocols: existing?.supportedProtocols ?? "",
-    hasDedup: false, hasCompression: false, hasSnapshot: false, hasReplication: false,
+    hasDedup: existing?.hasDedup ?? false, hasCompression: existing?.hasCompression ?? false,
+    hasSnapshot: existing?.hasSnapshot ?? false, hasReplication: existing?.hasReplication ?? false,
   });
 
   const [submitting, setSubmitting] = React.useState(false);
@@ -218,6 +219,10 @@ export function ServerInventoryForm({ existing }: { existing?: ServerInventoryDe
               <TextField id="usableCapacityTb" label="Usable Capacity (TB)" type="number" value={stg.usableCapacityTb} onChange={(v) => setStg((s) => ({ ...s, usableCapacityTb: v }))} />
               <TextField id="cacheGb" label="Cache (GB)" type="number" value={stg.cacheGb} onChange={(v) => setStg((s) => ({ ...s, cacheGb: v }))} />
               <TextField id="supportedProtocols" label="Supported Protocols" value={stg.supportedProtocols} onChange={(v) => setStg((s) => ({ ...s, supportedProtocols: v }))} />
+              <CheckboxField id="hasDedup" label="Deduplication" checked={stg.hasDedup} onChange={(v) => setStg((s) => ({ ...s, hasDedup: v }))} />
+              <CheckboxField id="hasCompression" label="Compression" checked={stg.hasCompression} onChange={(v) => setStg((s) => ({ ...s, hasCompression: v }))} />
+              <CheckboxField id="hasSnapshot" label="Snapshot" checked={stg.hasSnapshot} onChange={(v) => setStg((s) => ({ ...s, hasSnapshot: v }))} />
+              <CheckboxField id="hasReplication" label="Replication" checked={stg.hasReplication} onChange={(v) => setStg((s) => ({ ...s, hasReplication: v }))} />
             </Section>
           )}
 

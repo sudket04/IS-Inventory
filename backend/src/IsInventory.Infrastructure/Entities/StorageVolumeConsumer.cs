@@ -9,7 +9,9 @@ public partial class StorageVolumeConsumer
 
     public int VolumeId { get; set; }
 
-    public int AssetId { get; set; }
+    public int? AssetId { get; set; }
+
+    public int? ClusterId { get; set; }
 
     public string? Notes { get; set; }
 
@@ -17,7 +19,9 @@ public partial class StorageVolumeConsumer
 
     public int? CreatedBy { get; set; }
 
-    public virtual Asset Asset { get; set; } = null!;
+    public virtual Asset? Asset { get; set; }
+
+    public virtual Cluster? Cluster { get; set; }
 
     public virtual User? CreatedByNavigation { get; set; }
 

@@ -161,4 +161,13 @@ public sealed class PickersController : ControllerBase
     public async Task<ActionResult<IEnumerable<Option>>> Clusters(CancellationToken ct) =>
         Ok(await _db.Clusters.Where(c => c.IsActive).OrderBy(c => c.Name)
             .Select(c => new Option(c.ClusterId, c.Name)).ToListAsync(ct));
+
+    // Network Hardware (Sprint) — Uplink picker, restricted to other Network devices so a
+    // switch/firewall can't be wired up as its own uplink target by mistake. excludeAssetId
+    // drops the record being edited out of its own picker.
+    [HttpGet("network-devices")]
+    public async Task<ActionResult<IEnumerable<Option>>> NetworkDevices([FromQuery] int? excludeAssetId, CancellationToken ct) =>
+        Ok(await _db.Assets.Where(a => !a.IsDeleted && a.Category.Code == "NET" && a.AssetId != excludeAssetId)
+            .OrderBy(a => a.AssetTag)
+            .Select(a => new Option(a.AssetId, a.AssetTag + " — " + a.Name)).ToListAsync(ct));
 }

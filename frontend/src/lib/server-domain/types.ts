@@ -19,6 +19,8 @@ export interface ServerInventoryListItem {
   costCenter: string | null; inUseByServerList: boolean;
 }
 
+export interface UsedWithItem { type: "cluster" | "server"; id: number; label: string }
+
 export interface ServerInventoryDetail {
   assetId: number; assetTag: string; name: string; categoryId: number; categoryCode: string; categoryName: string;
   assetTypeId: number | null; assetTypeName: string | null;
@@ -32,6 +34,8 @@ export interface ServerInventoryDetail {
   hardwareSummary: HardwareSummary | null; cpus: CpuItem[] | null; memoryModules: MemoryItem[] | null; localDisks: DiskItem[] | null;
   storageHostname: string | null; storageMgmtUrl: string | null; controllerCount: number | null; diskBayTotal: number | null; diskBayUsed: number | null;
   rawCapacityTb: number | null; usableCapacityTb: number | null; cacheGb: number | null; supportedProtocols: string | null;
+  hasDedup: boolean | null; hasCompression: boolean | null; hasSnapshot: boolean | null; hasReplication: boolean | null;
+  usedWith: UsedWithItem[] | null;
   inUseByServerList: boolean;
 }
 
@@ -95,5 +99,3 @@ export const CRITICALITY_OPTIONS = [
 ];
 export const DISK_TYPE_OPTIONS = ["SSD", "HDD", "NVME", "VIRTUAL_DISK", "OTHER"] as const;
 export const MEMORY_TYPE_OPTIONS = ["DDR3", "DDR4", "DDR5", "OTHER"] as const;
-export const RAM_SIZE_OPTIONS_GB = [2, 4, 8, 16, 32, 64, 128, 256, 384, 512, 768, 1024, 1536, 2048];
-export const STORAGE_SIZE_OPTIONS_GB = [120, 240, 480, 500, 960, 1000, 2000, 4000, 8000, 16000];

@@ -166,6 +166,31 @@ public sealed class ClustersController : ControllerBase
 
     // --- Members ---
 
+    /// <summary>Server Hardware not already an active Host/Node of any cluster, and not
+    /// already attached to a Server List Physical entry — a given box is one thing at a
+    /// time. excludeMemberId lets an edit dialog keep offering the asset it already has.</summary>
+    [HttpGet("api/clusters/available-hardware")]
+    public async Task<ActionResult<IReadOnlyList<AvailableHardwareItem>>> AvailableHardware(
+        [FromQuery] int? excludeMemberId, CancellationToken ct)
+    {
+        var assignedElsewhere = await _db.ClusterMembers
+            .Where(m => m.LeftDate == null && m.MemberId != excludeMemberId)
+            .Select(m => m.AssetId)
+            .ToListAsync(ct);
+
+        var items = await _db.Assets
+            .Where(a => !a.IsDeleted && a.Category.Code == "SRV"
+                && a.AssetType != null && !a.AssetType.IsVirtual
+                && (a.ServerDetail == null || a.ServerDetail.ServerStatusId == null)
+                && !assignedElsewhere.Contains(a.AssetId))
+            .OrderBy(a => a.AssetTag)
+            .Select(a => new AvailableHardwareItem(a.AssetId, a.AssetTag, a.Name,
+                a.Manufacturer != null ? a.Manufacturer.Name : null, a.Model, a.SerialNumber))
+            .ToListAsync(ct);
+
+        return Ok(items);
+    }
+
     [HttpGet("api/clusters/{clusterId:int}/members")]
     public async Task<ActionResult<IReadOnlyList<ClusterMemberItem>>> ListMembers(int clusterId, CancellationToken ct)
     {
@@ -174,7 +199,9 @@ public sealed class ClustersController : ControllerBase
             .OrderByDescending(m => m.IsActive).ThenBy(m => m.NodePriority)
             .Select(m => new ClusterMemberItem(
                 m.MemberId, m.ClusterId, m.AssetId, m.Asset.AssetTag, m.Asset.Name,
-                m.MemberRole, m.NodePriority, m.JoinedDate, m.LeftDate, m.IsActive, m.Notes))
+                m.Asset.Manufacturer != null ? m.Asset.Manufacturer.Name : null, m.Asset.Model, m.Asset.SerialNumber,
+                m.MemberRole, m.NodePriority, m.JoinedDate, m.LeftDate, m.IsActive, m.Notes,
+                m.HostName, m.IpHost, m.IpMgmt))
             .ToListAsync(ct);
 
         return Ok(items);
@@ -204,6 +231,9 @@ public sealed class ClustersController : ControllerBase
             NodePriority = request.NodePriority,
             JoinedDate = request.JoinedDate ?? DateOnly.FromDateTime(DateTime.UtcNow),
             Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
+            HostName = string.IsNullOrWhiteSpace(request.HostName) ? null : request.HostName.Trim(),
+            IpHost = string.IsNullOrWhiteSpace(request.IpHost) ? null : request.IpHost.Trim(),
+            IpMgmt = string.IsNullOrWhiteSpace(request.IpMgmt) ? null : request.IpMgmt.Trim(),
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = CurrentUserId(),
         };
@@ -215,11 +245,11 @@ public sealed class ClustersController : ControllerBase
         }
         catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
-            return Conflict(new { message = $"{asset.AssetTag} is already an active \"{request.MemberRole}\" member of this cluster." });
+            return Conflict(new { message = $"{asset.AssetTag} is already an active \"{request.MemberRole}\" member of this cluster, or the Host name / IP Host / IP Management given is already in use by another active Host/Node." });
         }
         catch (DbUpdateException ex) when (IsCheckViolation(ex))
         {
-            return BadRequest(new { message = "Member role is not a recognized value." });
+            return BadRequest(new { message = "Member role is not a recognized value, or IP Host / IP Management is not a valid IP address." });
         }
 
         _db.AuditLogs.Add(new AuditLog
@@ -234,7 +264,9 @@ public sealed class ClustersController : ControllerBase
         await _db.SaveChangesAsync(ct);
 
         return Ok(new ClusterMemberItem(entity.MemberId, entity.ClusterId, entity.AssetId, asset.AssetTag, asset.Name,
-            entity.MemberRole, entity.NodePriority, entity.JoinedDate, entity.LeftDate, entity.IsActive, entity.Notes));
+            null, null, null,
+            entity.MemberRole, entity.NodePriority, entity.JoinedDate, entity.LeftDate, entity.IsActive, entity.Notes,
+            entity.HostName, entity.IpHost, entity.IpMgmt));
     }
 
     [HttpPut("api/cluster-members/{id:int}")]
@@ -250,7 +282,22 @@ public sealed class ClustersController : ControllerBase
         entity.MemberRole = request.MemberRole;
         entity.NodePriority = request.NodePriority;
         entity.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
-        await _db.SaveChangesAsync(ct);
+        entity.HostName = string.IsNullOrWhiteSpace(request.HostName) ? null : request.HostName.Trim();
+        entity.IpHost = string.IsNullOrWhiteSpace(request.IpHost) ? null : request.IpHost.Trim();
+        entity.IpMgmt = string.IsNullOrWhiteSpace(request.IpMgmt) ? null : request.IpMgmt.Trim();
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        {
+            return Conflict(new { message = "Host name / IP Host / IP Management given is already in use by another active Host/Node." });
+        }
+        catch (DbUpdateException ex) when (IsCheckViolation(ex))
+        {
+            return BadRequest(new { message = "Member role is not a recognized value, or IP Host / IP Management is not a valid IP address." });
+        }
 
         return NoContent();
     }

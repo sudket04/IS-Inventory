@@ -19,10 +19,20 @@ public sealed record ClusterRequest(
 
 public sealed record ClusterMemberItem(
     int MemberId, int ClusterId, int AssetId, string AssetTag, string AssetName,
+    string? ManufacturerName, string? Model, string? SerialNumber,
     string MemberRole, short? NodePriority, DateOnly? JoinedDate, DateOnly? LeftDate,
-    bool? IsActive, string? Notes);
+    bool? IsActive, string? Notes,
+    // Host/Node fields — the hypervisor host's own identity, distinct from the Hardware
+    // asset it runs on (the same box could be reused as a different Host later).
+    string? HostName, string? IpHost, string? IpMgmt);
 
 public sealed record ClusterMemberRequest(
-    int AssetId, string MemberRole, short? NodePriority, DateOnly? JoinedDate, string? Notes);
+    int AssetId, string MemberRole, short? NodePriority, DateOnly? JoinedDate, string? Notes,
+    string? HostName, string? IpHost, string? IpMgmt);
 
-public sealed record ClusterMemberUpdateRequest(string MemberRole, short? NodePriority, string? Notes);
+public sealed record ClusterMemberUpdateRequest(
+    string MemberRole, short? NodePriority, string? Notes,
+    string? HostName, string? IpHost, string? IpMgmt);
+
+public sealed record AvailableHardwareItem(int AssetId, string AssetTag, string Name,
+    string? ManufacturerName, string? Model, string? SerialNumber);

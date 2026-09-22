@@ -6,8 +6,43 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   type CpuRequest, type MemoryRequest, type DiskRequest,
-  DISK_TYPE_OPTIONS, MEMORY_TYPE_OPTIONS, RAM_SIZE_OPTIONS_GB, STORAGE_SIZE_OPTIONS_GB,
+  DISK_TYPE_OPTIONS, MEMORY_TYPE_OPTIONS,
 } from "@/lib/server-domain/types";
+import { useNumberCatalog } from "@/lib/server-domain/options";
+
+/** A number <select> backed by a live, admin/user-extensible catalog (CPU cores / RAM GB /
+ * Storage GB) — "+ Add" persists a new value for every later selection, everywhere that
+ * catalog is used, instead of a free-typed number that could let in bad data. */
+function CatalogSelect({
+  kind, value, onChange, unit, promptLabel, className,
+}: {
+  kind: "cpu-core-counts" | "ram-sizes" | "storage-sizes-gb"; value: number; onChange: (v: number) => void;
+  unit: string; promptLabel: string; className?: string;
+}) {
+  const { values, add } = useNumberCatalog(kind);
+
+  async function handleAdd() {
+    const raw = window.prompt(promptLabel);
+    if (!raw) return;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return;
+    if (await add(n)) onChange(n);
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      <select value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={className ?? "h-9 rounded-md border border-border-default bg-bg-surface px-2 text-sm text-text-primary"}>
+        {!values.includes(value) && <option value={value}>{value} {unit}</option>}
+        {values.map((v) => <option key={v} value={v}>{v} {unit}</option>)}
+      </select>
+      <Button type="button" variant="ghost" size="icon" aria-label={promptLabel} title={promptLabel} onClick={handleAdd}>
+        <Plus className="size-3.5" />
+      </Button>
+    </span>
+  );
+}
 
 /** GB shown as TB once >=1000 — matches the "4.48 TB" style asked for, purely display-side;
  * everything is still stored/summed in GB underneath. */
@@ -62,9 +97,8 @@ export function CpuEditor({ value, onChange, disabled }: { value: CpuRequest[]; 
             onChange={(e) => update(i, { cpuModel: e.target.value })} className="min-w-[220px] flex-1" />
           <label className="flex items-center gap-1.5 text-xs text-text-secondary">
             Cores:
-            <Input disabled={disabled} type="number" min={1} max={128} value={row.coreCount}
-              onChange={(e) => update(i, { coreCount: Math.max(1, Math.min(128, Number(e.target.value) || 1)) })}
-              className="w-20" />
+            <CatalogSelect kind="cpu-core-counts" value={row.coreCount} unit="cores" promptLabel="Add a new CPU core count:"
+              onChange={(v) => update(i, { coreCount: v })} className="h-8 w-24 rounded-md border border-border-default bg-bg-surface px-2 text-sm text-text-primary" />
           </label>
         </RowShell>
       ))}
@@ -85,11 +119,8 @@ export function MemoryEditor({ value, onChange, disabled }: { value: MemoryReque
       {value.length === 0 && <p className="text-xs text-text-tertiary">ยังไม่ได้เพิ่ม Memory</p>}
       {value.map((row, i) => (
         <RowShell key={i} index={i} onRemove={() => onChange(value.filter((_, idx) => idx !== i))}>
-          <select disabled={disabled} value={row.capacityGb}
-            onChange={(e) => update(i, { capacityGb: Number(e.target.value) })}
-            className="h-9 rounded-md border border-border-default bg-bg-surface px-2 text-sm text-text-primary">
-            {RAM_SIZE_OPTIONS_GB.map((gb) => <option key={gb} value={gb}>{gb} GB</option>)}
-          </select>
+          <CatalogSelect kind="ram-sizes" value={row.capacityGb} unit="GB" promptLabel="Add a new RAM size (GB):"
+            onChange={(v) => update(i, { capacityGb: v })} />
           <select disabled={disabled} value={row.memoryType ?? ""}
             onChange={(e) => update(i, { memoryType: e.target.value || null })}
             className="h-9 rounded-md border border-border-default bg-bg-surface px-2 text-sm text-text-primary">
@@ -117,12 +148,8 @@ export function DiskEditor({ value, onChange, disabled }: { value: DiskRequest[]
         <RowShell key={i} index={i} onRemove={() => onChange(value.filter((_, idx) => idx !== i))}>
           <Input disabled={disabled} placeholder="Label เช่น OS, Data" value={row.diskLabel ?? ""}
             onChange={(e) => update(i, { diskLabel: e.target.value || null })} className="w-32" />
-          <select disabled={disabled} value={row.capacityGb}
-            onChange={(e) => update(i, { capacityGb: Number(e.target.value) })}
-            className="h-9 rounded-md border border-border-default bg-bg-surface px-2 text-sm text-text-primary">
-            {STORAGE_SIZE_OPTIONS_GB.map((gb) => <option key={gb} value={gb}>{formatCapacity(gb)}</option>)}
-            {!STORAGE_SIZE_OPTIONS_GB.includes(row.capacityGb) && <option value={row.capacityGb}>{formatCapacity(row.capacityGb)} (Custom)</option>}
-          </select>
+          <CatalogSelect kind="storage-sizes-gb" value={row.capacityGb} unit="GB" promptLabel="Add a new storage size (GB):"
+            onChange={(v) => update(i, { capacityGb: v })} />
           <select disabled={disabled} value={row.diskType ?? ""}
             onChange={(e) => update(i, { diskType: e.target.value || null })}
             className="h-9 rounded-md border border-border-default bg-bg-surface px-2 text-sm text-text-primary">

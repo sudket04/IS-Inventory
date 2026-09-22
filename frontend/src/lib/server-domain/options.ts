@@ -3,7 +3,7 @@
 import * as React from "react";
 import { apiFetch } from "@/lib/api";
 import type { Option } from "@/lib/assets/types";
-import type { AvailableHardwareItem } from "@/lib/server-domain/types";
+import type { AvailableHardwareItem, UsedWithItem } from "@/lib/server-domain/types";
 
 export interface AssetTypeOption {
   id: number; code: string; name: string; fullPath: string; isVirtual: boolean; canHostVm: boolean;
@@ -84,4 +84,64 @@ export function useAvailableHardware(): AvailableHardwareItem[] {
     apiFetch("/api/server-list/available-hardware").then((res) => (res.ok ? res.json() : [])).then(setItems).catch(() => setItems([]));
   }, []);
   return items;
+}
+
+export function useAvailableClusterHardware(): AvailableHardwareItem[] {
+  const [items, setItems] = React.useState<AvailableHardwareItem[]>([]);
+  React.useEffect(() => {
+    apiFetch("/api/clusters/available-hardware").then((res) => (res.ok ? res.json() : [])).then(setItems).catch(() => setItems([]));
+  }, []);
+  return items;
+}
+
+type NumberCatalogKind = "cpu-core-counts" | "ram-sizes" | "storage-sizes-gb" | "storage-sizes-tb";
+
+/** CPU core count / RAM (GB) / Storage size (GB, TB) — catalogs of values that are actually
+ * sold, extendable inline from the form with "+ Add" rather than free-typed numbers. */
+export function useNumberCatalog(kind: NumberCatalogKind) {
+  const [values, setValues] = React.useState<number[]>([]);
+
+  const load = React.useCallback(() => {
+    apiFetch(`/api/${kind}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((rows: { id: number; value: number }[]) => setValues(rows.map((r) => r.value)))
+      .catch(() => setValues([]));
+  }, [kind]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  async function add(value: number): Promise<boolean> {
+    const res = await apiFetch(`/api/${kind}`, { method: "POST", body: JSON.stringify({ value }) });
+    if (res.ok) load();
+    return res.ok;
+  }
+
+  return { values, add };
+}
+
+/** "Used With" — which Cluster(s)/Server(s) a Storage Hardware asset serves. */
+export function useUsedWith(assetId: number | undefined) {
+  const [items, setItems] = React.useState<UsedWithItem[]>([]);
+
+  const load = React.useCallback(() => {
+    if (!assetId) return;
+    apiFetch(`/api/server-inventory/${assetId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((detail: { usedWith?: UsedWithItem[] } | null) => setItems(detail?.usedWith ?? []))
+      .catch(() => setItems([]));
+  }, [assetId]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  async function save(targets: { type: "cluster" | "server"; id: number }[]): Promise<boolean> {
+    if (!assetId) return false;
+    const res = await apiFetch(`/api/server-inventory/${assetId}/used-with`, {
+      method: "PUT",
+      body: JSON.stringify({ targets }),
+    });
+    if (res.ok) setItems(await res.json());
+    return res.ok;
+  }
+
+  return { items, save };
 }

@@ -87,15 +87,23 @@ public sealed class ServerListController : ControllerBase
     }
 
     [HttpGet("available-hardware")]
-    public async Task<ActionResult<IReadOnlyList<AvailableHardwareItem>>> AvailableHardware(CancellationToken ct) =>
-        Ok(await _db.Assets
+    public async Task<ActionResult<IReadOnlyList<AvailableHardwareItem>>> AvailableHardware(CancellationToken ct)
+    {
+        // A box already an active Cluster Host/Node is spoken for — a given piece of
+        // hardware is one thing at a time (see ClustersController.AvailableHardware, the
+        // mirror image of this same rule).
+        var clusterAssigned = await _db.ClusterMembers.Where(m => m.LeftDate == null).Select(m => m.AssetId).ToListAsync(ct);
+
+        return Ok(await _db.Assets
             .Where(a => !a.IsDeleted && a.Category.Code == "SRV"
                 && a.AssetType != null && !a.AssetType.IsVirtual
-                && (a.ServerDetail == null || a.ServerDetail.ServerStatusId == null))
+                && (a.ServerDetail == null || a.ServerDetail.ServerStatusId == null)
+                && !clusterAssigned.Contains(a.AssetId))
             .OrderBy(a => a.AssetTag)
             .Select(a => new AvailableHardwareItem(a.AssetId, a.AssetTag, a.Name,
                 a.Manufacturer != null ? a.Manufacturer.Name : null, a.Model, a.SerialNumber))
             .ToListAsync(ct));
+    }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ServerListDetail>> Get(int id, CancellationToken ct)

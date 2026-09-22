@@ -27,6 +27,12 @@ public partial class ClusterMember
 
     public int? CreatedBy { get; set; }
 
+    public string? HostName { get; set; }
+
+    public string? IpHost { get; set; }
+
+    public string? IpMgmt { get; set; }
+
     public virtual Asset Asset { get; set; } = null!;
 
     public virtual Cluster Cluster { get; set; } = null!;

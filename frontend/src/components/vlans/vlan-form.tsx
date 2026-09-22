@@ -107,7 +107,7 @@ export function VlanForm({ existing }: { existing?: VlanDetail }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Section title="Basic Information">
+      <Section title="Identity">
         <TextField id="name" label="Name" required value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
         <CheckboxField id="isUntagged" label="Untagged (no 802.1Q number)" checked={form.isUntagged} onChange={(v) => setForm((f) => ({ ...f, isUntagged: v, vlanNumber: v ? "" : f.vlanNumber }))} />
         {!form.isUntagged && (
@@ -128,14 +128,14 @@ export function VlanForm({ existing }: { existing?: VlanDetail }) {
         <TextField id="prefixLength" label="Prefix Length" type="number" required value={form.prefixLength} onChange={(v) => setForm((f) => ({ ...f, prefixLength: v }))} />
       </Section>
 
-      <Section title="Gateway">
+      <Section title="Routing">
         <TextField id="gatewayIp" label="Gateway IP" value={form.gatewayIp} onChange={(v) => setForm((f) => ({ ...f, gatewayIp: v }))} />
         <EnumSelectField id="gatewayDeviceRole" label="Gateway Device Role" options={GATEWAY_ROLES} value={form.gatewayDeviceRole} onChange={(v) => setForm((f) => ({ ...f, gatewayDeviceRole: v }))} />
         <SelectField id="gatewayAssetId" label="Gateway Asset" value={form.gatewayAssetId} onChange={(v) => setForm((f) => ({ ...f, gatewayAssetId: v }))} options={assets} />
         <TextField id="gatewayInterface" label="Gateway Interface" value={form.gatewayInterface} onChange={(v) => setForm((f) => ({ ...f, gatewayInterface: v }))} />
       </Section>
 
-      <Section title="IP Assignment">
+      <Section title="DHCP">
         <EnumSelectField id="ipAssignmentMode" label="Assignment Mode" required options={IP_ASSIGNMENT_MODES} value={form.ipAssignmentMode} onChange={(v) => setForm((f) => ({ ...f, ipAssignmentMode: v }))} />
         {!isStaticOnly && (
           <>

@@ -55,6 +55,8 @@ public partial class IsInventoryDbContext : DbContext
 
     public virtual DbSet<ContractAsset> ContractAssets { get; set; }
 
+    public virtual DbSet<CpuCoreOption> CpuCoreOptions { get; set; }
+
     public virtual DbSet<Department> Departments { get; set; }
 
     public virtual DbSet<DeviceModel> DeviceModels { get; set; }
@@ -105,6 +107,8 @@ public partial class IsInventoryDbContext : DbContext
 
     public virtual DbSet<RackMount> RackMounts { get; set; }
 
+    public virtual DbSet<RamSizeOption> RamSizeOptions { get; set; }
+
     public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
 
     public virtual DbSet<RelationshipType> RelationshipTypes { get; set; }
@@ -134,6 +138,10 @@ public partial class IsInventoryDbContext : DbContext
     public virtual DbSet<SoftwareInstallation> SoftwareInstallations { get; set; }
 
     public virtual DbSet<StorageDetail> StorageDetails { get; set; }
+
+    public virtual DbSet<StorageSizeOptionsGb> StorageSizeOptionsGbs { get; set; }
+
+    public virtual DbSet<StorageSizeOptionsTb> StorageSizeOptionsTbs { get; set; }
 
     public virtual DbSet<StorageVolume> StorageVolumes { get; set; }
 
@@ -1227,6 +1235,18 @@ public partial class IsInventoryDbContext : DbContext
                 .IsUnique()
                 .HasFilter("([left_date] IS NULL)");
 
+            entity.HasIndex(e => e.HostName, "UX_clmem_host_name")
+                .IsUnique()
+                .HasFilter("([left_date] IS NULL AND [host_name] IS NOT NULL)");
+
+            entity.HasIndex(e => e.IpHost, "UX_clmem_ip_host")
+                .IsUnique()
+                .HasFilter("([left_date] IS NULL AND [ip_host] IS NOT NULL)");
+
+            entity.HasIndex(e => e.IpMgmt, "UX_clmem_ip_mgmt")
+                .IsUnique()
+                .HasFilter("([left_date] IS NULL AND [ip_mgmt] IS NOT NULL)");
+
             entity.Property(e => e.MemberId).HasColumnName("member_id");
             entity.Property(e => e.AssetId).HasColumnName("asset_id");
             entity.Property(e => e.ClusterId).HasColumnName("cluster_id");
@@ -1235,6 +1255,17 @@ public partial class IsInventoryDbContext : DbContext
                 .HasDefaultValueSql("(sysdatetimeoffset())")
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.HostName)
+                .HasMaxLength(100)
+                .HasColumnName("host_name");
+            entity.Property(e => e.IpHost)
+                .HasMaxLength(45)
+                .IsUnicode(false)
+                .HasColumnName("ip_host");
+            entity.Property(e => e.IpMgmt)
+                .HasMaxLength(45)
+                .IsUnicode(false)
+                .HasColumnName("ip_mgmt");
             entity.Property(e => e.IsActive)
                 .HasComputedColumnSql("(case when [left_date] IS NULL then CONVERT([bit],(1)) else CONVERT([bit],(0)) end)", true)
                 .HasColumnName("is_active");
@@ -1262,6 +1293,62 @@ public partial class IsInventoryDbContext : DbContext
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ClusterMembers)
                 .HasForeignKey(d => d.CreatedBy)
                 .HasConstraintName("FK_clmem_created_by");
+        });
+
+        modelBuilder.Entity<CpuCoreOption>(entity =>
+        {
+            entity.HasKey(e => e.CpuCoreOptionId);
+
+            entity.ToTable("cpu_core_options");
+
+            entity.HasIndex(e => e.CoreCount, "UX_cpu_core_options").IsUnique();
+
+            entity.Property(e => e.CpuCoreOptionId).HasColumnName("cpu_core_option_id");
+            entity.Property(e => e.CoreCount).HasColumnName("core_count");
+            entity.Property(e => e.IsActive).HasDefaultValue(true).HasColumnName("is_active");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+        });
+
+        modelBuilder.Entity<RamSizeOption>(entity =>
+        {
+            entity.HasKey(e => e.RamSizeOptionId);
+
+            entity.ToTable("ram_size_options");
+
+            entity.HasIndex(e => e.SizeGb, "UX_ram_size_options").IsUnique();
+
+            entity.Property(e => e.RamSizeOptionId).HasColumnName("ram_size_option_id");
+            entity.Property(e => e.IsActive).HasDefaultValue(true).HasColumnName("is_active");
+            entity.Property(e => e.SizeGb).HasColumnName("size_gb");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+        });
+
+        modelBuilder.Entity<StorageSizeOptionsGb>(entity =>
+        {
+            entity.HasKey(e => e.StorageSizeGbId);
+
+            entity.ToTable("storage_size_options_gb");
+
+            entity.HasIndex(e => e.SizeGb, "UX_storage_size_options_gb").IsUnique();
+
+            entity.Property(e => e.StorageSizeGbId).HasColumnName("storage_size_gb_id");
+            entity.Property(e => e.IsActive).HasDefaultValue(true).HasColumnName("is_active");
+            entity.Property(e => e.SizeGb).HasColumnName("size_gb");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+        });
+
+        modelBuilder.Entity<StorageSizeOptionsTb>(entity =>
+        {
+            entity.HasKey(e => e.StorageSizeTbId);
+
+            entity.ToTable("storage_size_options_tb");
+
+            entity.HasIndex(e => e.SizeTb, "UX_storage_size_options_tb").IsUnique();
+
+            entity.Property(e => e.StorageSizeTbId).HasColumnName("storage_size_tb_id");
+            entity.Property(e => e.IsActive).HasDefaultValue(true).HasColumnName("is_active");
+            entity.Property(e => e.SizeTb).HasColumnName("size_tb");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
         });
 
         modelBuilder.Entity<CollectorAgent>(entity =>
@@ -3709,12 +3796,21 @@ public partial class IsInventoryDbContext : DbContext
 
             entity.HasIndex(e => e.AssetId, "IX_svc_asset");
 
+            entity.HasIndex(e => e.ClusterId, "IX_svc_cluster");
+
             entity.HasIndex(e => e.VolumeId, "IX_svc_volume");
 
-            entity.HasIndex(e => new { e.VolumeId, e.AssetId }, "UX_storage_volume_consumers").IsUnique();
+            entity.HasIndex(e => new { e.VolumeId, e.AssetId }, "UX_svc_volume_asset")
+                .IsUnique()
+                .HasFilter("([asset_id] IS NOT NULL)");
+
+            entity.HasIndex(e => new { e.VolumeId, e.ClusterId }, "UX_svc_volume_cluster")
+                .IsUnique()
+                .HasFilter("([cluster_id] IS NOT NULL)");
 
             entity.Property(e => e.ConsumerId).HasColumnName("consumer_id");
             entity.Property(e => e.AssetId).HasColumnName("asset_id");
+            entity.Property(e => e.ClusterId).HasColumnName("cluster_id");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysdatetimeoffset())")
@@ -3729,6 +3825,11 @@ public partial class IsInventoryDbContext : DbContext
                 .HasForeignKey(d => d.AssetId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_svc_asset");
+
+            entity.HasOne(d => d.Cluster).WithMany(p => p.StorageVolumeConsumers)
+                .HasForeignKey(d => d.ClusterId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_svc_cluster");
 
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.StorageVolumeConsumers)
                 .HasForeignKey(d => d.CreatedBy)

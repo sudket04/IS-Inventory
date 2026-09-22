@@ -29,8 +29,20 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Server List", href: "/server-list", icon: "list-tree", menuKey: "server_list" },
     ],
   },
+  {
+    // v1.8 restructure — Network Hardware split out of the generic Assets flow into its own
+    // module (NetworkDevicesController), parallel to "Server" above; VLANs moved in alongside
+    // it since both are Network-domain data, matching the approved reference design.
+    label: "Network",
+    href: "/network-hardware",
+    icon: "network",
+    menuKey: "network_hardware",
+    children: [
+      { label: "Network Hardware", href: "/network-hardware", icon: "router", menuKey: "network_hardware" },
+      { label: "VLANs", href: "/vlans", icon: "network", menuKey: "vlans" },
+    ],
+  },
   { label: "Racks", href: "/racks", icon: "warehouse", menuKey: "racks" },
-  { label: "VLANs", href: "/vlans", icon: "network", menuKey: "vlans" },
   { label: "Software", href: "/software", icon: "disc", menuKey: "software" },
   { label: "Contracts", href: "/contracts", icon: "file-text", menuKey: "contracts" },
   { label: "Reports", href: "/reports", icon: "bar-chart-3", menuKey: "reports" },

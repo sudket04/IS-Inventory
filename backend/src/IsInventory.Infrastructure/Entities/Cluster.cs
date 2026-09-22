@@ -47,5 +47,7 @@ public partial class Cluster
 
     public virtual ICollection<StorageVolume> StorageVolumes { get; set; } = new List<StorageVolume>();
 
+    public virtual ICollection<StorageVolumeConsumer> StorageVolumeConsumers { get; set; } = new List<StorageVolumeConsumer>();
+
     public virtual User? UpdatedByNavigation { get; set; }
 }

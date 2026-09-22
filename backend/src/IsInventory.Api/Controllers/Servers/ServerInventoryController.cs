@@ -367,6 +367,7 @@ public sealed class ServerInventoryController : ControllerBase
         IReadOnlyList<CpuItem>? cpus = null;
         IReadOnlyList<MemoryItem>? memory = null;
         IReadOnlyList<DiskItem>? disks = null;
+        IReadOnlyList<UsedWithItem>? usedWith = null;
         var inUseByServerList = false;
 
         if (a.Category.Code == "SRV")
@@ -380,6 +381,10 @@ public sealed class ServerInventoryController : ControllerBase
             disks = await _db.ServerLocalDisks.Where(d => d.AssetId == a.AssetId).OrderBy(d => d.SortOrder)
                 .Select(d => new DiskItem(d.LocalDiskId, d.DiskLabel, d.CapacityGb, d.DiskType)).ToListAsync(ct);
             inUseByServerList = a.ServerDetail?.ServerStatusId is not null;
+        }
+        else
+        {
+            usedWith = await LoadUsedWithAsync(a.AssetId, ct);
         }
 
         return new ServerInventoryDetail(
@@ -395,7 +400,112 @@ public sealed class ServerInventoryController : ControllerBase
             summary, cpus, memory, disks,
             a.StorageDetail?.Hostname, a.StorageDetail?.MgmtUrl, a.StorageDetail?.ControllerCount, a.StorageDetail?.DiskBayTotal, a.StorageDetail?.DiskBayUsed,
             a.StorageDetail?.RawCapacityTb, a.StorageDetail?.UsableCapacityTb, a.StorageDetail?.CacheGb, a.StorageDetail?.SupportedProtocols,
-            inUseByServerList);
+            a.StorageDetail?.HasDedup, a.StorageDetail?.HasCompression, a.StorageDetail?.HasSnapshot, a.StorageDetail?.HasReplication,
+            usedWith, inUseByServerList);
+    }
+
+    /// <summary>
+    /// "Used With" — reads consumers off the one auto-managed storage_volumes row this
+    /// Storage asset owns of itself (provider_asset_id = asset_id = storageAssetId), a
+    /// bookkeeping-only volume distinct from the real, capacity-tracked volumes a user
+    /// creates by hand via the Storage Volumes panel (StorageVolumesController).
+    /// </summary>
+    private async Task<IReadOnlyList<UsedWithItem>> LoadUsedWithAsync(int storageAssetId, CancellationToken ct)
+    {
+        var volumeId = await _db.StorageVolumes
+            .Where(v => v.ProviderAssetId == storageAssetId && v.AssetId == storageAssetId)
+            .Select(v => (int?)v.VolumeId).FirstOrDefaultAsync(ct);
+        if (volumeId is null) return [];
+
+        var consumers = await _db.StorageVolumeConsumers.Where(c => c.VolumeId == volumeId)
+            .Select(c => new
+            {
+                c.AssetId,
+                AssetTag = c.Asset != null ? c.Asset.AssetTag : null,
+                AssetName = c.Asset != null ? c.Asset.Name : null,
+                c.ClusterId,
+                ClusterName = c.Cluster != null ? c.Cluster.Name : null,
+            })
+            .ToListAsync(ct);
+
+        return consumers.Select(c => c.ClusterId is int clusterId
+                ? new UsedWithItem("cluster", clusterId, c.ClusterName ?? $"Cluster #{clusterId}")
+                : new UsedWithItem("server", c.AssetId!.Value, $"{c.AssetTag} — {c.AssetName}"))
+            .ToList();
+    }
+
+    [HttpPut("{id:int}/used-with")]
+    [RequiresPermission("server_inventory", PermissionAction.Edit)]
+    public async Task<ActionResult<IReadOnlyList<UsedWithItem>>> SetUsedWith(int id, [FromBody] UsedWithRequest request, CancellationToken ct)
+    {
+        var asset = await _db.Assets.Include(a => a.Category).SingleOrDefaultAsync(a => a.AssetId == id && !a.IsDeleted, ct);
+        if (asset is null || asset.Category.Code != "STG") return NotFound();
+
+        foreach (var t in request.Targets)
+        {
+            if (t.Type is not ("cluster" or "server"))
+            {
+                return BadRequest(new { error = "invalid_target_type", message = $"Unknown target type \"{t.Type}\" — must be \"cluster\" or \"server\"." });
+            }
+            if (t.Type == "cluster" && !await _db.Clusters.AnyAsync(c => c.ClusterId == t.Id, ct))
+            {
+                return BadRequest(new { error = "invalid_cluster", message = "One of the selected Clusters was not found." });
+            }
+            if (t.Type == "server" && !await _db.Assets.AnyAsync(a => a.AssetId == t.Id && !a.IsDeleted, ct))
+            {
+                return BadRequest(new { error = "invalid_server", message = "One of the selected Servers was not found." });
+            }
+        }
+
+        var volume = await _db.StorageVolumes
+            .FirstOrDefaultAsync(v => v.ProviderAssetId == id && v.AssetId == id, ct);
+
+        if (request.Targets.Count == 0)
+        {
+            if (volume is not null)
+            {
+                _db.StorageVolumeConsumers.RemoveRange(_db.StorageVolumeConsumers.Where(c => c.VolumeId == volume.VolumeId));
+                _db.StorageVolumes.Remove(volume);
+                await _db.SaveChangesAsync(ct);
+            }
+            return Ok(Array.Empty<UsedWithItem>());
+        }
+
+        if (volume is null)
+        {
+            var capacityGb = await _db.Assets.Where(a => a.AssetId == id)
+                .Select(a => a.StorageDetail!.UsableCapacityTb ?? a.StorageDetail!.RawCapacityTb)
+                .FirstOrDefaultAsync(ct);
+            volume = new StorageVolume
+            {
+                ProviderAssetId = id,
+                AssetId = id,
+                VolumeName = $"{asset.Name} (Used With)",
+                VolumeType = "NAS_SHARE",
+                CapacityGb = (capacityGb ?? 1) * 1024,
+                IsActive = true,
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedBy = CurrentUserId(),
+            };
+            _db.StorageVolumes.Add(volume);
+            await _db.SaveChangesAsync(ct);
+        }
+
+        _db.StorageVolumeConsumers.RemoveRange(_db.StorageVolumeConsumers.Where(c => c.VolumeId == volume.VolumeId));
+        foreach (var t in request.Targets)
+        {
+            _db.StorageVolumeConsumers.Add(new StorageVolumeConsumer
+            {
+                VolumeId = volume.VolumeId,
+                AssetId = t.Type == "server" ? t.Id : null,
+                ClusterId = t.Type == "cluster" ? t.Id : null,
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedBy = CurrentUserId(),
+            });
+        }
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(await LoadUsedWithAsync(id, ct));
     }
 
     private async Task<string> GenerateAssetTagAsync(int categoryId, CancellationToken ct)

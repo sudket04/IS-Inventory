@@ -69,12 +69,19 @@ export interface ClusterMemberItem {
   assetId: number;
   assetTag: string;
   assetName: string;
+  manufacturerName: string | null;
+  model: string | null;
+  serialNumber: string | null;
   memberRole: string;
   nodePriority: number | null;
   joinedDate: string | null;
   leftDate: string | null;
   isActive: boolean | null;
   notes: string | null;
+  // Host/Node fields — the hypervisor host's own identity, only meaningful for role HOST.
+  hostName: string | null;
+  ipHost: string | null;
+  ipMgmt: string | null;
 }
 
 export interface ClusterMemberForm {
@@ -82,11 +89,22 @@ export interface ClusterMemberForm {
   memberRole: string;
   nodePriority: string;
   notes: string;
+  hostName: string;
+  ipHost: string;
+  ipMgmt: string;
 }
 
 export const emptyClusterMemberForm: ClusterMemberForm = {
   assetId: "",
-  memberRole: "",
+  memberRole: "HOST",
   nodePriority: "",
   notes: "",
+  hostName: "",
+  ipHost: "",
+  ipMgmt: "",
 };
+
+export interface AvailableHardwareItem {
+  assetId: number; assetTag: string; name: string;
+  manufacturerName: string | null; model: string | null; serialNumber: string | null;
+}

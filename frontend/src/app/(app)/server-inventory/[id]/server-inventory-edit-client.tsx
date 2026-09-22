@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { ServerInventoryForm } from "@/components/server-domain/server-inventory-form";
+import { UsedWithPanel } from "@/components/server-domain/used-with-panel";
 import type { ServerInventoryDetail } from "@/lib/server-domain/types";
 
 export function ServerInventoryEditClient({ assetId }: { assetId: string }) {
@@ -39,8 +40,9 @@ export function ServerInventoryEditClient({ assetId }: { assetId: string }) {
           )}
         </p>
       )}
-      <div className="mt-4 max-w-3xl">
+      <div className="mt-4 max-w-3xl space-y-4">
         <ServerInventoryForm existing={asset} />
+        {asset.categoryCode === "STG" && <UsedWithPanel assetId={asset.assetId} />}
       </div>
     </div>
   );

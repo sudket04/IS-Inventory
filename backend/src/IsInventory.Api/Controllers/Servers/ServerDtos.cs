@@ -38,7 +38,18 @@ public sealed record ServerInventoryDetail(
     // Storage-only (null when CategoryCode == "SRV")
     string? StorageHostname, string? StorageMgmtUrl, byte? ControllerCount, short? DiskBayTotal, short? DiskBayUsed,
     decimal? RawCapacityTb, decimal? UsableCapacityTb, int? CacheGb, string? SupportedProtocols,
+    bool? HasDedup, bool? HasCompression, bool? HasSnapshot, bool? HasReplication,
+    IReadOnlyList<UsedWithItem>? UsedWith,
     bool InUseByServerList);
+
+// "Used With" — which Cluster(s)/Server(s) a Storage Hardware asset serves, edited as a flat
+// multi-select on the Storage record itself (PUT api/server-inventory/{id}/used-with).
+// Modeled as consumers of one auto-managed storage_volumes row owned by the Storage asset
+// itself (provider_asset_id = asset_id = this asset) — bookkeeping only, distinct from the
+// real, capacity-tracked volumes a user creates by hand via the Storage Volumes panel.
+public sealed record UsedWithItem(string Type, int Id, string Label);
+public sealed record UsedWithTargetRequest(string Type, int Id);
+public sealed record UsedWithRequest(IReadOnlyList<UsedWithTargetRequest> Targets);
 
 public sealed record ServerInventoryRequest(
     int CategoryId, int AssetTypeId, string Name, int? ManufacturerId, string? Model, string? SerialNumber,
