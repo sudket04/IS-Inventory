@@ -5,7 +5,7 @@ import { Laptop, Trash2, AlertTriangle } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import { Section } from "@/components/assets/form-fields";
 import { usePicker } from "@/lib/assets/options";
 import { formatDate } from "@/lib/format";
@@ -18,8 +18,7 @@ import {
 
 /** FR-SW-03..05: which assets this Software License is installed on, with seat usage from contract_assets.seat_count (v1.4). */
 export function InstallationsPanel({ softwareAssetId }: { softwareAssetId: number }) {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  const perm = usePermission("software");
 
   const allAssets = usePicker("assets");
   const targetOptions = allAssets.filter((a) => a.id !== softwareAssetId);
@@ -110,7 +109,7 @@ export function InstallationsPanel({ softwareAssetId }: { softwareAssetId: numbe
         </div>
       )}
 
-      {canManage && (
+      {perm.canCreate && (
         <div className="col-span-full mb-3">
           <Button type="button" size="sm" onClick={openAdd}>+ Install On Asset</Button>
         </div>
@@ -138,7 +137,7 @@ export function InstallationsPanel({ softwareAssetId }: { softwareAssetId: numbe
                   </p>
                   {item.notes && <p className="mt-0.5 text-xs text-text-tertiary">{item.notes}</p>}
                 </div>
-                {canManage && item.isActive && (
+                {perm.canDelete && item.isActive && (
                   <Button variant="ghost" size="icon" aria-label="Uninstall" onClick={() => handleUninstall(item)}>
                     <Trash2 className="size-4" />
                   </Button>

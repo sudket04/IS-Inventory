@@ -4,7 +4,7 @@ import * as React from "react";
 import { Paperclip, Download, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import { Section } from "@/components/assets/form-fields";
 import { formatDateTime } from "@/lib/format";
 import type { AttachmentListItem } from "@/lib/attachments/types";
@@ -21,8 +21,9 @@ function formatFileSize(bytes: number): string {
 type Owner = { assetId: number } | { contractId: number };
 
 export function AttachmentsPanel({ owner }: { owner: Owner }) {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  // Matches backend AttachmentsController's [RequiresPermission("assets"/"contracts", ...)] —
+  // whichever menu governs the owning entity governs its attachments too.
+  const perm = usePermission("assetId" in owner ? "assets" : "contracts");
   const basePath = "assetId" in owner ? `/api/assets/${owner.assetId}/attachments` : `/api/contracts/${owner.contractId}/attachments`;
 
   const [items, setItems] = React.useState<AttachmentListItem[] | null>(null);
@@ -94,7 +95,7 @@ export function AttachmentsPanel({ owner }: { owner: Owner }) {
 
   return (
     <Section title="Attachments">
-      {canManage && (
+      {perm.canCreate && (
         <form onSubmit={handleUpload} className="mb-3 flex flex-wrap items-end gap-2">
           <div className="space-y-1.5">
             <label className="text-sm text-text-secondary" htmlFor="attachment-file">File</label>
@@ -121,7 +122,7 @@ export function AttachmentsPanel({ owner }: { owner: Owner }) {
           </Button>
         </form>
       )}
-      {canManage && <p className="mb-3 text-xs text-text-tertiary">PDF, JPG, PNG, XLSX, DOCX · max 10 MB</p>}
+      {perm.canCreate && <p className="mb-3 text-xs text-text-tertiary">PDF, JPG, PNG, XLSX, DOCX · max 10 MB</p>}
       {error && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       {!items ? (
@@ -143,7 +144,7 @@ export function AttachmentsPanel({ owner }: { owner: Owner }) {
               <Button variant="ghost" size="icon" aria-label="Download" onClick={() => handleDownload(item)}>
                 <Download className="size-4" />
               </Button>
-              {canManage && (
+              {perm.canDelete && (
                 <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
                   <Trash2 className="size-4" />
                 </Button>

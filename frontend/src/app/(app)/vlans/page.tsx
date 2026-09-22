@@ -6,7 +6,7 @@ import { Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import type { VlanListItem } from "@/lib/vlans/types";
 
 const ZONE_BADGE_CLASSES: Record<string, string> = {
@@ -19,8 +19,7 @@ const ZONE_BADGE_CLASSES: Record<string, string> = {
 };
 
 export default function VlansPage() {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  const perm = usePermission("vlans");
 
   const [items, setItems] = React.useState<VlanListItem[] | null>(null);
 
@@ -51,7 +50,7 @@ export default function VlansPage() {
           <h1 className="text-lg font-semibold text-text-primary">VLANs {items ? `(${items.length})` : ""}</h1>
           <p className="mt-1 text-sm text-text-secondary">VLAN/Subnet inventory with Site, Zone, Gateway and IP usage.</p>
         </div>
-        {canManage && (
+        {perm.canCreate && (
           <Link href="/vlans/new">
             <Button size="sm">+ New VLAN</Button>
           </Link>
@@ -110,16 +109,20 @@ export default function VlansPage() {
                     )}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {canManage && (
+                    {(perm.canEdit || perm.canDelete) && (
                       <div className="inline-flex gap-1">
-                        <Link href={`/vlans/${item.vlanId}`}>
-                          <Button variant="ghost" size="icon" aria-label="Edit">
-                            <Pencil className="size-4" />
+                        {perm.canEdit && (
+                          <Link href={`/vlans/${item.vlanId}`}>
+                            <Button variant="ghost" size="icon" aria-label="Edit">
+                              <Pencil className="size-4" />
+                            </Button>
+                          </Link>
+                        )}
+                        {perm.canDelete && (
+                          <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
+                            <Trash2 className="size-4" />
                           </Button>
-                        </Link>
-                        <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
-                          <Trash2 className="size-4" />
-                        </Button>
+                        )}
                       </div>
                     )}
                   </td>

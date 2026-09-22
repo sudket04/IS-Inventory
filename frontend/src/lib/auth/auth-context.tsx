@@ -136,3 +136,13 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
   return ctx;
 }
+
+const NO_PERMISSION: MenuPermission = { canView: false, canCreate: false, canEdit: false, canDelete: false };
+
+/** Effective permission (role default + per-user override already applied) for one menu —
+ * use this instead of checking user.roleCode directly so Add/Edit/Delete controls follow
+ * the real Phase 1/2 permission engine (docs/HANDOFF.md §4.20). */
+export function usePermission(menuKey: string): MenuPermission {
+  const { permissions } = useAuth();
+  return permissions[menuKey] ?? NO_PERMISSION;
+}

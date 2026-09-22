@@ -6,7 +6,7 @@ import { Share2, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import { Section } from "@/components/assets/form-fields";
 import { usePicker } from "@/lib/assets/options";
 import {
@@ -18,8 +18,7 @@ import {
 
 /** FR-CM-02: CMDB-style asset-to-asset relationships (Hosted On/Hosts, Depends On/Required By, …). */
 export function RelationshipsPanel({ assetId }: { assetId: number }) {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  const perm = usePermission("assets");
 
   const allAssets = usePicker("assets");
   const targetOptions = allAssets.filter((a) => a.id !== assetId);
@@ -88,7 +87,7 @@ export function RelationshipsPanel({ assetId }: { assetId: number }) {
 
   return (
     <Section title="Relationships">
-      {canManage && (
+      {perm.canCreate && (
         <div className="col-span-full mb-3">
           <Button type="button" size="sm" onClick={openAdd}>+ Add Relationship</Button>
         </div>
@@ -116,7 +115,7 @@ export function RelationshipsPanel({ assetId }: { assetId: number }) {
                   </p>
                   {item.notes && <p className="mt-0.5 text-xs text-text-tertiary">{item.notes}</p>}
                 </div>
-                {canManage && (
+                {perm.canDelete && (
                   <Button variant="ghost" size="icon" aria-label="Remove" onClick={() => handleDelete(item)}>
                     <Trash2 className="size-4" />
                   </Button>

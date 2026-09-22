@@ -6,7 +6,7 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import { Section } from "@/components/assets/form-fields";
 import { usePicker } from "@/lib/assets/options";
 import {
@@ -16,8 +16,10 @@ import {
 } from "@/lib/server-applications/types";
 
 export function ServerApplicationsPanel({ assetId }: { assetId: number }) {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  // Matches backend ServerApplicationsController's [RequiresPermission("server_list", ...)] —
+  // this panel is embedded on both Server List and Asset edit pages, but the write permission
+  // is always governed by the Server List menu regardless of which page hosts it.
+  const perm = usePermission("server_list");
 
   const serverTypes = usePicker("server-roles");
   const departments = usePicker("departments");
@@ -100,7 +102,7 @@ export function ServerApplicationsPanel({ assetId }: { assetId: number }) {
 
   return (
     <Section title="Applications">
-      {canManage && (
+      {perm.canCreate && (
         <div className="mb-3">
           <Button type="button" size="sm" onClick={openNew}>+ Add Application</Button>
         </div>
@@ -132,14 +134,18 @@ export function ServerApplicationsPanel({ assetId }: { assetId: number }) {
                 </p>
                 {item.notes && <p className="mt-0.5 text-xs text-text-tertiary">{item.notes}</p>}
               </div>
-              {canManage && (
+              {(perm.canEdit || perm.canDelete) && (
                 <div className="flex shrink-0 gap-1">
-                  <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => openEdit(item)}>
-                    <Pencil className="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
-                    <Trash2 className="size-4" />
-                  </Button>
+                  {perm.canEdit && (
+                    <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => openEdit(item)}>
+                      <Pencil className="size-4" />
+                    </Button>
+                  )}
+                  {perm.canDelete && (
+                    <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
                 </div>
               )}
             </li>

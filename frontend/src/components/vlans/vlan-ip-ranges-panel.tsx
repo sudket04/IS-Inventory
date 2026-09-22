@@ -5,7 +5,7 @@ import { Network, Trash2, Pencil } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { usePicker } from "@/lib/assets/options";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import { Section, TextField, SelectField, EnumSelectField, CheckboxField } from "@/components/assets/form-fields";
 import { emptyVlanIpRangeForm, type VlanIpRangeForm, type VlanIpRangeItem } from "@/lib/vlans/types";
 
@@ -21,8 +21,7 @@ const TYPE_CLASSES: Record<string, string> = {
 };
 
 export function VlanIpRangesPanel({ vlanId }: { vlanId: number }) {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  const perm = usePermission("vlans");
   const assets = usePicker("assets");
 
   const [items, setItems] = React.useState<VlanIpRangeItem[] | null>(null);
@@ -106,7 +105,7 @@ export function VlanIpRangesPanel({ vlanId }: { vlanId: number }) {
 
   return (
     <Section title="IP Ranges">
-      {canManage && (
+      {perm.canCreate && (
         <div className="col-span-full mb-1">
           <Button type="button" size="sm" onClick={openAdd}>+ Add Range</Button>
         </div>
@@ -135,14 +134,18 @@ export function VlanIpRangesPanel({ vlanId }: { vlanId: number }) {
                     </p>
                   )}
                 </div>
-                {canManage && (
+                {(perm.canEdit || perm.canDelete) && (
                   <div className="flex shrink-0 gap-1">
-                    <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => openEdit(item)}>
-                      <Pencil className="size-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
-                      <Trash2 className="size-4" />
-                    </Button>
+                    {perm.canEdit && (
+                      <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => openEdit(item)}>
+                        <Pencil className="size-4" />
+                      </Button>
+                    )}
+                    {perm.canDelete && (
+                      <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
                   </div>
                 )}
               </li>

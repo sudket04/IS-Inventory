@@ -6,8 +6,8 @@
 | **Repository** | `sudket04/is-inventory` |
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
 | **อัปเดตล่าสุด** | 2569-09-21 · commit (ดูท้ายสุดของ `git log`) |
-| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–5, 7 เสร็จครบ + Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน + สิทธิ์ต่อเมนูรายคน Phase 1 (นอก Sprint Plan)** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts + Dashboard/Reports/Export Excel + Permission Control v1.5 + Server Inventory (Hardware)/Server List + รหัสผ่านเริ่มต้นตอนติดตั้ง/บังคับเปลี่ยน + Self-protection/สิทธิ์ต่อเมนูรายคน Backend Enforcement) — Sprint Plan เดิมเหลือ Sprint 6, 8–10 · **ค้าง Phase 2 ของสิทธิ์ต่อเมนู** (ซ่อนปุ่มตามสิทธิ์ + หน้า Admin จัดการสิทธิ์แบบตาราง §4.20) |
-| **โค้ดโปรแกรม** | 🟢 **Login/RBAC (พร้อมรหัสผ่านเริ่มต้นตอนติดตั้ง + บังคับเปลี่ยนรหัสผ่านจริง + สิทธิ์ต่อเมนูรายคน Phase 1 ทั้ง Frontend+Backend) + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server List + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) + Dashboard/Reports/Export Excel + File Share/Internet Policy Permission Control + Server Inventory (Hardware)/Server List (Virtual+Physical) ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.20) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล **รวม Playwright Browser จริง** (Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน ดู §4.18–§4.19 — สิทธิ์ต่อเมนูรายคน §4.20 ทดสอบผ่าน API เท่านั้น ยังไม่ผ่าน Playwright) — **Sprint 5, 7 ปิดครบทุกรายการ** |
+| **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–5, 7 เสร็จครบ + Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน + สิทธิ์ต่อเมนูรายคน Phase 1+2 ครบ (นอก Sprint Plan)** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts + Dashboard/Reports/Export Excel + Permission Control v1.5 + Server Inventory (Hardware)/Server List + รหัสผ่านเริ่มต้นตอนติดตั้ง/บังคับเปลี่ยน + Self-protection/สิทธิ์ต่อเมนูรายคน Backend+Frontend เต็มรูปแบบ + Pilot Deploy บน Windows Server 2025 จริง) — Sprint Plan เดิมเหลือ Sprint 6, 8–10 · ยังไม่มี Audit Log สำหรับการถูกบล็อกสิทธิ์ (ดู §4.20) |
+| **โค้ดโปรแกรม** | 🟢 **Login/RBAC (พร้อมรหัสผ่านเริ่มต้นตอนติดตั้ง + บังคับเปลี่ยนรหัสผ่านจริง + สิทธิ์ต่อเมนูรายคน Phase 1+2 ทั้ง Frontend+Backend รวมหน้า Admin จัดการสิทธิ์แบบตาราง) + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server List + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) + Dashboard/Reports/Export Excel + File Share/Internet Policy Permission Control + Server Inventory (Hardware)/Server List (Virtual+Physical) + User Site/Team บังคับกรอก ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.22) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล **รวม Playwright Browser จริง** (Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน ดู §4.18–§4.19 — สิทธิ์ต่อเมนูรายคน Phase 1+2 §4.20/§4.22 ทดสอบผ่าน API + Build จริง) — **Sprint 5, 7 ปิดครบทุกรายการ** — Deploy จริงบน Windows Server 2025 (mcphomepage-mcp.co.th/is-inventory) ดู §4.22 |
 
 ---
 
@@ -637,7 +637,7 @@ Token หมดอายุ, Re-login ด้วยรหัสผ่านให
 ออกแบบระบบให้ Admin กำหนดได้ว่าแต่ละ User เห็น/ใช้เมนูไหนได้บ้าง (View/Add/Edit/Delete) — เลือกแนวทาง
 **Role เป็นค่าเริ่มต้น + Override รายคน** และ**แบ่ง 2 เฟส** ตามที่ผู้ใช้ยืนยัน (Phase 1: Schema + Backend
 Enforcement + กรองเมนูจริง — รอบนี้; Phase 2: ซ่อนปุ่ม Add/Edit/Delete ในแต่ละหน้า + หน้า Admin จัดการสิทธิ์
-แบบตาราง — ยังไม่ทำ)
+แบบตาราง — ทำแล้วในรอบถัดมา ดู §4.22)
 
 | ส่วน | รายละเอียด |
 |---|---|
@@ -650,7 +650,7 @@ Enforcement + กรองเมนูจริง — รอบนี้; Phase
 | Backend — `UsersController` เพิ่ม 3 Endpoint | `GET/PUT/DELETE api/users/{id}/permissions[/{menuKey}]` — Admin ตั้ง/ล้าง Override รายเมนูได้ (กันแก้สิทธิ์ตัวเองด้วยกฎเดียวกับข้อบน) — ยังไม่มีหน้า UI ให้กด (Phase 2) ใช้ทดสอบผ่าน API ตรงๆ ก่อน |
 | Frontend — `nav.ts` | `NavItem.roles` (Array ของ Role) → `NavItem.menuKey` (String เดียว ตรงกับ `dbo.menus.menu_key`) — `visibleNavItems()` กรองด้วยสิทธิ์จริงจาก `/api/auth/me` แทน Role ตรงๆ, กลุ่มเมนู (Server/Administration) โชว์ก็ต่อเมื่อมีลูกที่เห็นได้อย่างน้อย 1 |
 | Frontend — `AuthContext` | เพิ่ม `permissions: PermissionsMap` เก็บคู่กับ `user`, `applySession` รับ Permissions เพิ่มด้วย |
-| **สิ่งที่ยังไม่ทำ (Phase 2)** | ปุ่ม Add/Edit/Delete ในแต่ละหน้า (12 จุดที่ยัง Hardcode `roleCode === "ADMIN" \|\| "IT_STAFF"`) ยังไม่เปลี่ยนไปใช้ Permission จริง — ปลอดภัยเพราะ Backend เช็คจริงอยู่แล้ว (กดปุ่มได้แต่ยิง API แล้วโดน 403 ถ้าไม่มีสิทธิ์จริง) แค่ UI ยังไม่ซ่อนปุ่มที่กดไม่ได้ตาม Override; หน้า Admin จัดการสิทธิ์แบบตารางก็ยังไม่มี |
+| **Phase 2 (ทำแล้ว — ดู §4.22)** | ปุ่ม Add/Edit/Delete ในทุกหน้าเปลี่ยนไปใช้ Permission จริงแล้ว + มีหน้า Admin จัดการสิทธิ์แบบตารางแล้ว |
 
 **ทดสอบยืนยันกับ SQL Server จริงแล้ว:** Role Default ตรงกับ Policy เดิม 100% (Spot-check `assets`/
 `admin_users`/`reports`/`dashboard`/`import`/`admin_locations` ทั้ง 4 Role), VIEWER ยิง `POST /api/assets`
@@ -690,6 +690,32 @@ Site/Team โดนบล็อก (`400 invalid_site`), ใส่ Site/Team ท
 เคย Migrate มา (`admin` และบัญชีทดสอบเก่า) ได้ค่า Default "1st Site"/"Admin Team" ถูกต้องครบ — **Backend**
 `dotnet build` ผ่านสะอาด, **Frontend** `npx tsc --noEmit`/`npm run build` ผ่านสะอาด — ลบ/ปิดข้อมูลทดสอบ
 ออกหมดแล้ว
+
+---
+
+### 4.22 Frontend — สิทธิ์ต่อเมนูรายคน Phase 2 + Deploy จริงบน Windows Server 2025 (22 ก.ย. 2569)
+
+**ขอบเขตรอบนี้:** ผู้ใช้สั่งทำ Phase 2 ของระบบสิทธิ์ (ซ่อนปุ่ม Add/Edit/Delete จริง + หน้า Admin จัดการ
+สิทธิ์แบบตาราง) แล้วต่อด้วยทำไฟล์ติดตั้งทดลองใช้งานจริงบน Windows Server 2025 ที่เตรียมไว้แล้ว
+(SQL Server 2025, IIS Site "IS Inventory" พอร์ต 50002 HTTP ชั่วคราว, Node.js) ต้องการ URL สุดท้าย
+`mcphomepage-mcp.co.th/is-inventory` — ถามยืนยันสถาปัตยกรรมก่อนทำ 3 จุด: (1) เครื่องนี้เป็นเจ้าของ
+โดเมนโดยตรง ไม่มี Gateway อื่นคั่น (2) Forward Path เต็ม (ไม่ตัด Prefix) (3) ใช้ Slug `/is-inventory`
+
+| ส่วน | รายละเอียด |
+|---|---|
+| **Permission Phase 2 — `usePermission(menuKey)` Hook** | เพิ่มใน `auth-context.tsx` คืนค่า `MenuPermission` จริงจาก `/api/auth/me` — แทนที่ `user?.roleCode === "ADMIN" \|\| "IT_STAFF"` แบบ Hardcode ทั้งหมด 14 จุด (Attachments/Relationships/StorageVolumes/ServerApplications/Installations/ClusterMembers/VlanDevices/VlanIpRanges/ContractAssets/RackElevation + หน้า List Racks/Vlans/Clusters + หน้า Admin Users เอง) ด้วยปุ่มที่ผูกกับ Action จริง (`canCreate`/`canEdit`/`canDelete`) แยกปุ่มต่อปุ่ม ไม่ใช่ Flag เดียวเหมือนเดิม |
+| **Mapping menuKey ตาม Backend จริง** | ตรวจ `[RequiresPermission]` ของแต่ละ Controller ก่อนแมป ไม่เดาเอง — พบว่า `StorageVolumesController` ทุก Route (ทั้ง Asset-owned และ Cluster-owned) ผูกกับเมนู `clusters` เมนูเดียว และ `ServerApplicationsController` ผูกกับ `server_list` แม้ Panel จะถูกฝังในหน้า Asset ก็ตาม — Frontend เลียนแบบให้ตรงเป๊ะ ไม่ตาม Owner ที่เห็นในหน้า UI |
+| **หน้า Admin จัดการสิทธิ์แบบตาราง** | `/admin/users/[id]/permissions` (ใหม่) — ตาราง 19 เมนู × 4 Action ต่อ User, แต่ละช่องเป็น Dropdown 3 สถานะ (Inherit/Allow/Deny) เขียนผ่าน `PUT/DELETE api/users/{id}/permissions[/{menuKey}]` เดิม (Phase 1 ทำ Backend ไว้แล้ว) — ลิงก์เข้าถึงจากไอคอนในหน้า Admin > Users ต่อแถว (โชว์เมื่อมีสิทธิ์ `admin_users` Edit) — บล็อกแก้สิทธิ์ตัวเอง (Disable ปุ่มทั้งหมด + ข้อความเตือน, Backend เช็คซ้ำอยู่แล้ว) |
+| **หน้า Admin > Users เอง** | เปลี่ยน Gate ทั้งหน้าจาก `me?.roleCode !== "ADMIN"` (Hardcode) เป็น `usePermission("admin_users")` เหมือนหน้าอื่น — "New user"/"Deactivate" ผูกกับ `canCreate`/`canEdit` จริง |
+| **ทดสอบ** | `npm run build` (Next.js 16 Turbopack) ผ่านสะอาด, ยืนยัน API Round-trip จริงกับ SQL Server: `PUT` Override 1 Field → `GET` เห็น Effective เปลี่ยนถูกต้อง → `DELETE` รีเซ็ต → กลับไป Inherit ถูกต้อง, บล็อกแก้สิทธิ์ตัวเองยังทำงาน (`409 self_permission_change`) |
+| **Deploy — สถาปัตยกรรม 3 ชั้น** | `mcphomepage-mcp.co.th:80` (Front-Door Site ใหม่) → Forward Path เต็ม → `Site "IS Inventory":50002` (มีอยู่แล้ว, HTTP ชั่วคราว) → แยก `is-inventory/api/*` ไป Backend (`127.0.0.1:5080`, ตัด Prefix) และที่เหลือไป Frontend (`127.0.0.1:3000`, คง Prefix เพราะตั้ง Next `basePath=/is-inventory`) — ทั้ง Backend และ Frontend Site/Service ผูก `127.0.0.1` เท่านั้น ไม่เปิดสู่ภายนอกตรงๆ |
+| **`next.config.ts` เพิ่ม `BASE_PATH`** | Build-time Env Var (ไม่ใช่ `NEXT_PUBLIC_*`, อ่านใน `next.config.ts` ตรงๆ) — Deploy นี้ตั้ง `BASE_PATH=/is-inventory` และ `NEXT_PUBLIC_API_URL=http://mcphomepage-mcp.co.th/is-inventory` ตอน Build ทั้งคู่ |
+| **ไฟล์ Deploy ใหม่/แก้** | `deploy/windows/install-frontdoor-site.ps1` + `frontdoor-web.config.xml` (ใหม่ — Front-Door Site), `reverse-proxy-web.config.xml` (แก้ Rule ให้ตรง `is-inventory/` Prefix), `install-backend.ps1`/`install-frontend-service.ps1` (แก้ Path เป็น `D:\IS Admin\IS Inventory\...`, ผูก Backend Site กับ `127.0.0.1` เท่านั้น) |
+| **Migration ที่ต้องรันเพิ่ม** | `17-module-user-menu-permissions.sql` + `18-module-user-site-team.sql` (จากรอบก่อน) เพิ่มเข้าไปในลำดับ Migration ของ `docs/DEPLOYMENT.md` §3.1 ด้วย — ขาดไม่ได้ |
+
+**หมายเหตุ:** ยังเป็น HTTP ชั่วคราว (ไม่มี Cert) ตามที่ผู้ใช้แจ้ง — เมื่อมี Cert แล้วแค่เปลี่ยน Binding ของ
+Front-Door Site จาก Port 80 เป็น 443 และใส่ Cert แต่ต้อง Build Frontend ใหม่ (NEXT_PUBLIC_API_URL ต้อง
+เปลี่ยนจาก `http://` เป็น `https://`) — Audit Log สำหรับการถูกบล็อกสิทธิ์ (409/403) ยังไม่ได้ทำ (ดู §4.20)
 
 ---
 

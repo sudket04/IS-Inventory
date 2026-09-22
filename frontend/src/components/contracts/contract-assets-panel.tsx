@@ -6,7 +6,7 @@ import { Server, Pencil, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import { Section } from "@/components/assets/form-fields";
 import { usePicker } from "@/lib/assets/options";
 import { formatDate } from "@/lib/format";
@@ -18,8 +18,7 @@ import {
 
 /** Single-asset and multi-asset coverage — a contract covers whichever assets have a row here (v1.4). */
 export function ContractAssetsPanel({ contractId }: { contractId: number }) {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  const perm = usePermission("contracts");
 
   const allAssets = usePicker("assets");
 
@@ -100,7 +99,7 @@ export function ContractAssetsPanel({ contractId }: { contractId: number }) {
 
   return (
     <Section title="Covered Assets">
-      {canManage && (
+      {perm.canCreate && (
         <div className="col-span-full mb-3">
           <Button type="button" size="sm" onClick={openNew} disabled={availableAssets.length === 0}>+ Link Asset</Button>
         </div>
@@ -129,14 +128,18 @@ export function ContractAssetsPanel({ contractId }: { contractId: number }) {
                   </p>
                   {item.notes && <p className="mt-0.5 text-xs text-text-tertiary">{item.notes}</p>}
                 </div>
-                {canManage && (
+                {(perm.canEdit || perm.canDelete) && (
                   <div className="flex shrink-0 gap-1">
-                    <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => openEdit(item)}>
-                      <Pencil className="size-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" aria-label="Remove" onClick={() => handleDelete(item)}>
-                      <Trash2 className="size-4" />
-                    </Button>
+                    {perm.canEdit && (
+                      <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => openEdit(item)}>
+                        <Pencil className="size-4" />
+                      </Button>
+                    )}
+                    {perm.canDelete && (
+                      <Button variant="ghost" size="icon" aria-label="Remove" onClick={() => handleDelete(item)}>
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
                   </div>
                 )}
               </li>

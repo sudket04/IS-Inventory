@@ -6,12 +6,11 @@ import { Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import type { RackListItem } from "@/lib/racks/types";
 
 export default function RacksPage() {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  const perm = usePermission("racks");
 
   const [items, setItems] = React.useState<RackListItem[] | null>(null);
 
@@ -42,7 +41,7 @@ export default function RacksPage() {
           <h1 className="text-lg font-semibold text-text-primary">Racks {items ? `(${items.length})` : ""}</h1>
           <p className="mt-1 text-sm text-text-secondary">Physical racks, U utilization, and device elevation.</p>
         </div>
-        {canManage && (
+        {perm.canCreate && (
           <Link href="/racks/new">
             <Button size="sm">+ New Rack</Button>
           </Link>
@@ -95,16 +94,20 @@ export default function RacksPage() {
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {canManage && (
+                    {(perm.canEdit || perm.canDelete) && (
                       <div className="inline-flex gap-1">
-                        <Link href={`/racks/${item.rackId}`}>
-                          <Button variant="ghost" size="icon" aria-label="Edit">
-                            <Pencil className="size-4" />
+                        {perm.canEdit && (
+                          <Link href={`/racks/${item.rackId}`}>
+                            <Button variant="ghost" size="icon" aria-label="Edit">
+                              <Pencil className="size-4" />
+                            </Button>
+                          </Link>
+                        )}
+                        {perm.canDelete && (
+                          <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
+                            <Trash2 className="size-4" />
                           </Button>
-                        </Link>
-                        <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
-                          <Trash2 className="size-4" />
-                        </Button>
+                        )}
                       </div>
                     )}
                   </td>

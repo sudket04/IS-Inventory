@@ -436,7 +436,7 @@ Placeholder ที่ไม่ใช่ Hash จริงมาตั้งแ�
 | Backend: `IPermissionService` + `RequiresPermissionAttribute` แทนที่ `[Authorize(Policy=...)]` เดิมทั้งระบบ (~20 Controller) | ✅ |
 | Backend: `GET/PUT/DELETE api/users/{id}/permissions[/{menuKey}]` ให้ Admin ตั้ง Override รายเมนู | ✅ |
 | Frontend: `nav.ts`/`AuthContext` กรองเมนูด้วยสิทธิ์จริงจาก `/api/auth/me` แทน Role ตรงๆ | ✅ |
-| **ค้าง (Phase 2):** ซ่อนปุ่ม Add/Edit/Delete ในแต่ละหน้าตามสิทธิ์จริง (ตอนนี้ Backend เช็คจริง แต่ UI ยัง Hardcode ตาม Role) + หน้า Admin จัดการสิทธิ์แบบตาราง | ⬜ |
+| Phase 2: ซ่อนปุ่ม Add/Edit/Delete ในแต่ละหน้าตามสิทธิ์จริง + หน้า Admin จัดการสิทธิ์แบบตาราง (ดู §1.21) | ✅ |
 
 **บั๊กที่พบระหว่างทดสอบและแก้แล้ว:** `RequiresPermissionAttribute` เดิม Implement เป็น Action Filter
 (`IAsyncActionFilter`) ซึ่งรันหลัง Model Validation ของ `[ApiController]` — ทำให้ User ที่ไม่มีสิทธิ์ยิง
@@ -470,6 +470,26 @@ RequiresPermission 403) — มีแค่ฝั่ง "สำเร็จ" เ
 
 **ทดสอบยืนยันกับ SQL Server จริงแล้ว:** Picker คืนค่าถูกต้อง, สร้าง User ไม่กรอก/กรอกผิดโดนบล็อก (`400`),
 สร้างสำเร็จแสดงผลถูกต้อง, บัญชีเดิมได้ Default ถูกต้อง — ลบ/ปิดข้อมูลทดสอบออกหมดแล้ว
+
+---
+
+### 1.21 🟡 นอก Sprint Plan — สิทธิ์ต่อเมนูรายคน Phase 2 + Deploy จริงบน Windows Server 2025 (22 ก.ย. 2569)
+
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.22 — สรุปสั้น:
+
+| ส่วน | สถานะ |
+|---|---|
+| `usePermission(menuKey)` Hook แทนที่ `roleCode === "ADMIN"/"IT_STAFF"` Hardcode ทั้ง 14 จุด (แยกปุ่ม Create/Edit/Delete ตาม Action จริง) | ✅ |
+| หน้า Admin จัดการสิทธิ์แบบตาราง `/admin/users/[id]/permissions` (19 เมนู × 4 Action, Inherit/Allow/Deny ต่อช่อง) | ✅ |
+| หน้า Admin > Users เปลี่ยน Gate จาก Hardcode Role เป็น `usePermission("admin_users")` | ✅ |
+| Deploy: สถาปัตยกรรม 3 ชั้น (Front-Door mcphomepage-mcp.co.th:80 → Site "IS Inventory":50002 → Backend/Frontend 127.0.0.1) | ✅ |
+| `next.config.ts` เพิ่ม `BASE_PATH` (Build-time) รองรับ Deploy ใต้ Subpath `/is-inventory` | ✅ |
+| Build Backend win-x64 + Frontend Standalone พร้อมค่าจริง (`NEXT_PUBLIC_API_URL`/`BASE_PATH`) ส่งมอบแล้ว | ✅ |
+
+**ทดสอบยืนยันกับ SQL Server จริงแล้ว:** `npm run build` สะอาด, API Round-trip `PUT`→`GET`→`DELETE` ของ
+Permission Override ถูกต้องครบ, บล็อกแก้สิทธิ์ตัวเองยังทำงาน (`409`)
+
+**หมายเหตุ:** ยัง HTTP ชั่วคราว (รอ Cert) — Audit Log ฝั่ง "ถูกบล็อกสิทธิ์" ยังไม่ได้ทำ (ค้างจาก §1.19 เดิม)
 
 ---
 

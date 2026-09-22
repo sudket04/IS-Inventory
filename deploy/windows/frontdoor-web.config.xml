@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  web.config สำหรับ Front-Door Site ที่ผูก Hostname mcphomepage-mcp.co.th (พอร์ต 80, HTTP ชั่วคราว
+  จนกว่าจะมี Cert — ดู docs/DEPLOYMENT.md §3.4) หน้าที่เดียวของ Site นี้คือ Forward Path
+  "/is-inventory/*" ไปยัง Site "IS Inventory" (พอร์ต 50002) โดย "คง" Path เต็มไว้ (ไม่ตัด prefix) —
+  ฝั่งนั้นเองคาดหวัง Path ที่ขึ้นต้นด้วย is-inventory/ อยู่แล้ว (ดู reverse-proxy-web.config.xml)
+
+  ถ้า Server เครื่องนี้ยังมี Application/Site อื่นอยู่ใต้โดเมนเดียวกัน (mcphomepage-mcp.co.th) ให้
+  รวม Rule ด้านล่างเข้ากับ web.config เดิมของ Site นั้นแทนที่จะสร้าง Site ใหม่ — อย่าสร้าง Binding
+  ซ้อนสอง Site บน Host+Port เดียวกัน
+
+  ก่อนใช้:
+    1. ติดตั้ง URL Rewrite Module + Application Request Routing (ARR) บน IIS ก่อน (เหมือน Site
+       "IS Inventory" ข้อ 1)
+    2. เปิด "Enable proxy" ที่ระดับ Server ใน ARR (ถ้ายังไม่เปิด — ทำครั้งเดียวทั้งเครื่อง)
+    3. สร้าง/แก้ Site ที่ผูก Hostname mcphomepage-mcp.co.th พอร์ต 80 (ดู
+       install-frontdoor-site.ps1) — Physical Path ชี้ไปโฟลเดอร์ที่มีไฟล์นี้ (คัดลอกไปวางชื่อ
+       web.config)
+    4. แก้พอร์ต 50002 ด้านล่างถ้า Site "IS Inventory" ไม่ได้ผูกพอร์ตนี้
+-->
+<configuration>
+  <system.webServer>
+    <rewrite>
+      <rules>
+        <!-- /is-inventory/* -> Site "IS Inventory" (พอร์ต 50002) — คง Path เต็มไว้ ไม่ตัด prefix -->
+        <rule name="IS-Inventory Front-Door Proxy" stopProcessing="true">
+          <match url="^is-inventory(/.*)?$" />
+          <action type="Rewrite" url="http://127.0.0.1:50002/is-inventory{R:1}" />
+        </rule>
+      </rules>
+    </rewrite>
+  </system.webServer>
+</configuration>

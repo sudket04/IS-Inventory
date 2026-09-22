@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import { Section, EnumSelectField } from "@/components/assets/form-fields";
 import { emptyRackMountForm, type RackMountForm, type RackMountItem } from "@/lib/racks/types";
 
@@ -29,8 +29,7 @@ const STATUS_BLOCK_CLASSES: Record<string, string> = {
 const ROW_HEIGHT_PX = 26;
 
 export function RackElevation({ rackId, totalU, numberingDirection }: { rackId: number; totalU: number; numberingDirection: string }) {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  const perm = usePermission("racks");
 
   const [items, setItems] = React.useState<RackMountItem[] | null>(null);
   const [adding, setAdding] = React.useState(false);
@@ -95,7 +94,7 @@ export function RackElevation({ rackId, totalU, numberingDirection }: { rackId: 
 
   return (
     <Section title="Elevation">
-      {canManage && (
+      {perm.canCreate && (
         <div className="col-span-full mb-3">
           <Button type="button" size="sm" onClick={() => { setForm(emptyRackMountForm); setError(null); setAdding(true); }}>+ Mount Device</Button>
         </div>
@@ -140,7 +139,7 @@ export function RackElevation({ rackId, totalU, numberingDirection }: { rackId: 
                     <span className="font-mono">{item.assetTag}</span> {item.assetName}
                     {item.modelName ? ` · ${item.modelName}` : ""}
                   </Link>
-                  {canManage && (
+                  {perm.canDelete && (
                     <div className="hidden shrink-0 gap-1 group-hover:flex">
                       <button type="button" title="Remove from rack" onClick={() => handleRemove(item)} className="rounded hover:bg-black/10">
                         <LogOut className="size-3.5" />

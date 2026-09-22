@@ -7,7 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import { Section, EnumSelectField } from "@/components/assets/form-fields";
 import { formatDate } from "@/lib/format";
 import { emptyClusterMemberForm, type ClusterMemberForm, type ClusterMemberItem } from "@/lib/clusters/types";
@@ -16,8 +16,7 @@ import { emptyClusterMemberForm, type ClusterMemberForm, type ClusterMemberItem 
 const MEMBER_ROLES = ["HOST", "NODE", "WITNESS", "MANAGER", "PROXY", "REPOSITORY", "GATEWAY", "TAPE_SERVER", "REPLICA"];
 
 export function ClusterMembersPanel({ clusterId }: { clusterId: number }) {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  const perm = usePermission("clusters");
 
   const [items, setItems] = React.useState<ClusterMemberItem[] | null>(null);
   const [adding, setAdding] = React.useState(false);
@@ -76,7 +75,7 @@ export function ClusterMembersPanel({ clusterId }: { clusterId: number }) {
 
   return (
     <Section title="Members">
-      {canManage && (
+      {perm.canCreate && (
         <div className="mb-3">
           <Button type="button" size="sm" onClick={() => { setForm(emptyClusterMemberForm); setError(null); setAdding(true); }}>+ Add Member</Button>
         </div>
@@ -102,7 +101,7 @@ export function ClusterMembersPanel({ clusterId }: { clusterId: number }) {
                 </p>
                 {item.notes && <p className="mt-0.5 text-xs text-text-tertiary">{item.notes}</p>}
               </div>
-              {canManage && (
+              {perm.canDelete && (
                 <div className="flex shrink-0 gap-1">
                   {item.isActive && (
                     <Button variant="ghost" size="icon" aria-label="Mark as left" onClick={() => handleLeave(item)}>

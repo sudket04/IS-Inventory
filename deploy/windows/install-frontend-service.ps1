@@ -11,7 +11,7 @@
 #Requires -RunAsAdministrator
 
 $ServiceName = "IS-Inventory-Frontend"
-$AppPath     = "C:\IS-Inventory\frontend"
+$AppPath     = "D:\IS Admin\IS Inventory\frontend"
 $NodeExePath = "C:\Program Files\nodejs\node.exe"
 $NssmPath    = "C:\Tools\nssm\win64\nssm.exe"
 $Port        = 3000
@@ -42,7 +42,7 @@ if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
 New-Item -ItemType Directory -Force -Path "$AppPath\logs" | Out-Null
 
 Write-Host "ติดตั้ง Service $ServiceName แล้ว — เริ่มด้วย: Start-Service $ServiceName"
-Write-Host "ทดสอบหลังเริ่ม: Invoke-WebRequest http://localhost:$Port (ต้องได้หน้า Login กลับมา)"
+Write-Host "ทดสอบหลังเริ่ม: Invoke-WebRequest http://localhost:$Port/is-inventory (ต้องได้หน้า Login กลับมา — มี /is-inventory ต่อท้ายเพราะ Build มาด้วย BASE_PATH=/is-inventory)"
 Write-Host ""
-Write-Host "คำเตือน: NEXT_PUBLIC_API_URL ถูกฝังใน Bundle ตอน Build แล้ว — Environment Variable ที่ Service"
-Write-Host "นี้ไม่มีผลกับค่านั้น ถ้าต้องเปลี่ยน URL ของ Backend ต้อง Build ชุดติดตั้งใหม่ (ดู docs/DEPLOYMENT.md §3.3/§5)"
+Write-Host "คำเตือน: NEXT_PUBLIC_API_URL และ BASE_PATH ถูกฝังใน Bundle ตอน Build แล้ว — Environment Variable ที่ Service"
+Write-Host "นี้ไม่มีผลกับค่าเหล่านั้น ถ้าต้องเปลี่ยน URL ของ Backend หรือ Path ต้อง Build ชุดติดตั้งใหม่ (ดู docs/DEPLOYMENT.md §3.3/§5)"

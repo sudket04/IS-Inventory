@@ -1,30 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ตัวอย่าง web.config สำหรับ IIS Site หน้าบ้าน (เช่น https://is-inventory.yourdomain.local)
-  ที่รวม Backend + Frontend ไว้หลัง Domain เดียว — ดู docs/DEPLOYMENT.md §3.4
+  web.config สำหรับ IIS Site "IS Inventory" (พอร์ต 50002, HTTP ชั่วคราวจนกว่าจะมี Cert — จะย้ายไป
+  443 ทีหลัง) ที่รวม Backend + Frontend ไว้หลัง URL เดียว — ดู docs/DEPLOYMENT.md §3.4
+
+  Site นี้อยู่หลัง Front-Door Site อีกชั้นหนึ่ง (ผูก Hostname mcphomepage-mcp.co.th พอร์ต 80 — ดู
+  deploy/windows/install-frontdoor-site.ps1) ซึ่ง Forward Path เต็มมาให้ (คงส่วน "is-inventory/"
+  ไว้ ไม่ตัดออก) ดังนั้น Rule ด้านล่างจึงต้อง Match ด้วย Prefix "is-inventory/" เสมอ —
+  URL สาธารณะสุดท้ายคือ http://mcphomepage-mcp.co.th/is-inventory/...
+
+  Backend (ASP.NET Core, Route เป็น /api/... เฉยๆ ไม่รู้จัก Prefix) ต้อง "ตัด" is-inventory/ ออก
+  ก่อนส่งต่อ ส่วน Frontend (Next.js ตั้งค่า basePath=/is-inventory ไว้แล้ว — ดู frontend/next.config.ts)
+  ต้อง "คง" is-inventory/ ไว้ตอนส่งต่อ เพราะ Next Server เองคาดหวัง Path ที่มี Prefix นี้อยู่แล้ว
 
   ก่อนใช้:
     1. ติดตั้ง URL Rewrite Module + Application Request Routing (ARR) บน IIS ก่อน
     2. เปิด "Enable proxy" ที่ระดับ Server ใน ARR (IIS Manager -> เครื่องบนสุด ->
        Application Request Routing Cache -> Server Proxy Settings)
-    3. สร้าง IIS Site ใหม่ (Physical Path เป็นโฟลเดอร์เปล่าที่มีแค่ไฟล์นี้ ตั้งชื่อ web.config)
-       ผูก Binding กับ Domain/Port จริงและใส่ Certificate ถ้าจะใช้ HTTPS
+    3. Site "IS Inventory" (พอร์ต 50002) ที่สร้างไว้แล้ว — Physical Path ชี้ไปโฟลเดอร์เปล่าที่มีแค่
+       ไฟล์นี้ (คัดลอกไปวางชื่อ web.config)
     4. แก้ Port ด้านล่างถ้า Backend/Frontend ไม่ได้รันที่ 5080 / 3000
 -->
 <configuration>
   <system.webServer>
     <rewrite>
       <rules>
-        <!-- /api/* -> Backend (Kestrel ผ่าน IIS Site IS-Inventory-API พอร์ต 5080) -->
+        <!-- is-inventory/api/* -> Backend (Kestrel ผ่าน IIS Site IS-Inventory-API พอร์ต 5080) — ตัด prefix -->
         <rule name="IS-Inventory API Proxy" stopProcessing="true">
-          <match url="^api/(.*)" />
+          <match url="^is-inventory/api/(.*)" />
           <action type="Rewrite" url="http://127.0.0.1:5080/api/{R:1}" />
         </rule>
 
-        <!-- ที่เหลือทั้งหมด -> Frontend (Next.js standalone ผ่าน Windows Service IS-Inventory-Frontend พอร์ต 3000) -->
+        <!-- is-inventory/* ที่เหลือ -> Frontend (Next.js standalone, basePath=/is-inventory, พอร์ต 3000) — คง prefix ไว้ -->
         <rule name="IS-Inventory Frontend Proxy" stopProcessing="true">
-          <match url="(.*)" />
-          <action type="Rewrite" url="http://127.0.0.1:3000/{R:1}" />
+          <match url="^is-inventory(/.*)?$" />
+          <action type="Rewrite" url="http://127.0.0.1:3000/is-inventory{R:1}" />
         </rule>
       </rules>
     </rewrite>

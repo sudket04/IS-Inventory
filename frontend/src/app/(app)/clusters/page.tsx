@@ -6,12 +6,11 @@ import { Layers, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import type { ClusterListItem } from "@/lib/clusters/types";
 
 export default function ClustersPage() {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  const perm = usePermission("clusters");
 
   const [items, setItems] = React.useState<ClusterListItem[] | null>(null);
 
@@ -42,7 +41,7 @@ export default function ClustersPage() {
           <h1 className="text-lg font-semibold text-text-primary">Clusters {items ? `(${items.length})` : ""}</h1>
           <p className="mt-1 text-sm text-text-secondary">VM, storage, and database clusters — members and shared storage volumes.</p>
         </div>
-        {canManage && (
+        {perm.canCreate && (
           <Link href="/clusters/new">
             <Button size="sm">+ New Cluster</Button>
           </Link>
@@ -94,16 +93,20 @@ export default function ClustersPage() {
                   </td>
                   <td className="px-3 py-2 text-text-secondary">{item.siteName ?? "—"}</td>
                   <td className="px-3 py-2 text-right">
-                    {canManage && (
+                    {(perm.canEdit || perm.canDelete) && (
                       <div className="inline-flex gap-1">
-                        <Link href={`/clusters/${item.clusterId}`}>
-                          <Button variant="ghost" size="icon" aria-label="Edit">
-                            <Pencil className="size-4" />
+                        {perm.canEdit && (
+                          <Link href={`/clusters/${item.clusterId}`}>
+                            <Button variant="ghost" size="icon" aria-label="Edit">
+                              <Pencil className="size-4" />
+                            </Button>
+                          </Link>
+                        )}
+                        {perm.canDelete && (
+                          <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
+                            <Trash2 className="size-4" />
                           </Button>
-                        </Link>
-                        <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
-                          <Trash2 className="size-4" />
-                        </Button>
+                        )}
                       </div>
                     )}
                   </td>

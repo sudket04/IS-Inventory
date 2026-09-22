@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import { useAuth } from "@/lib/auth/auth-context";
+import { useAuth, usePermission } from "@/lib/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +43,7 @@ const emptyForm = { username: "", email: "", fullName: "", initialPassword: "", 
 
 export default function AdminUsersPage() {
   const { user: me } = useAuth();
+  const perm = usePermission("admin_users");
   const [users, setUsers] = React.useState<UserListItem[]>([]);
   const [roles, setRoles] = React.useState<RoleItem[]>([]);
   const [sites, setSites] = React.useState<PickerOption[]>([]);
@@ -120,7 +123,7 @@ export default function AdminUsersPage() {
     await loadUsers();
   }
 
-  if (me?.roleCode !== "ADMIN") {
+  if (!perm.canView) {
     return (
       <div className="p-6">
         <p className="text-sm text-text-secondary">
@@ -139,9 +142,11 @@ export default function AdminUsersPage() {
             Create, edit roles, and deactivate accounts (FR-AU-08/09 — accounts are never deleted).
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Cancel" : "New user"}
-        </Button>
+        {perm.canCreate && (
+          <Button size="sm" onClick={() => setShowForm((v) => !v)}>
+            {showForm ? "Cancel" : "New user"}
+          </Button>
+        )}
       </div>
 
       {showForm && (
@@ -313,14 +318,25 @@ export default function AdminUsersPage() {
                     {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : "Never"}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={u.userId === me?.userId}
-                      onClick={() => toggleActive(u)}
-                    >
-                      {u.isActive ? "Deactivate" : "Reactivate"}
-                    </Button>
+                    <div className="inline-flex gap-1">
+                      {perm.canEdit && (
+                        <Link href={`/admin/users/${u.userId}/permissions`}>
+                          <Button variant="ghost" size="icon" aria-label="Permissions" disabled={u.userId === me?.userId}>
+                            <ShieldCheck className="size-4" />
+                          </Button>
+                        </Link>
+                      )}
+                      {perm.canEdit && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={u.userId === me?.userId}
+                          onClick={() => toggleActive(u)}
+                        >
+                          {u.isActive ? "Deactivate" : "Reactivate"}
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))

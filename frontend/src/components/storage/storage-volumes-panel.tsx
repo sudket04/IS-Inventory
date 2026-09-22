@@ -6,7 +6,7 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import { Section, EnumSelectField } from "@/components/assets/form-fields";
 import { emptyStorageVolumeForm, type StorageVolumeForm, type StorageVolumeListItem } from "@/lib/storage-volumes/types";
 
@@ -22,8 +22,9 @@ const DISK_TYPES = ["SSD", "NVME", "SAS", "SATA", "TAPE", "CLOUD", "MIXED"];
 type Owner = { assetId: number } | { clusterId: number };
 
 export function StorageVolumesPanel({ owner }: { owner: Owner }) {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  // Matches backend StorageVolumesController's [RequiresPermission("clusters", ...)] on every
+  // route — asset-owned and cluster-owned volumes are both gated by the Clusters menu.
+  const perm = usePermission("clusters");
   const basePath = "assetId" in owner ? `/api/assets/${owner.assetId}/storage-volumes` : `/api/clusters/${owner.clusterId}/storage-volumes`;
 
   const [items, setItems] = React.useState<StorageVolumeListItem[] | null>(null);
@@ -119,7 +120,7 @@ export function StorageVolumesPanel({ owner }: { owner: Owner }) {
 
   return (
     <Section title="Storage Volumes">
-      {canManage && (
+      {perm.canCreate && (
         <div className="mb-3">
           <Button type="button" size="sm" onClick={openNew}>+ Add Volume</Button>
         </div>
@@ -149,14 +150,18 @@ export function StorageVolumesPanel({ owner }: { owner: Owner }) {
                 </p>
                 {item.notes && <p className="mt-0.5 text-xs text-text-tertiary">{item.notes}</p>}
               </div>
-              {canManage && (
+              {(perm.canEdit || perm.canDelete) && (
                 <div className="flex shrink-0 gap-1">
-                  <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => openEdit(item)}>
-                    <Pencil className="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
-                    <Trash2 className="size-4" />
-                  </Button>
+                  {perm.canEdit && (
+                    <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => openEdit(item)}>
+                      <Pencil className="size-4" />
+                    </Button>
+                  )}
+                  {perm.canDelete && (
+                    <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => handleDelete(item)}>
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
                 </div>
               )}
             </li>

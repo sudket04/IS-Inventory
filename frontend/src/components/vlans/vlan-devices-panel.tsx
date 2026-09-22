@@ -6,7 +6,7 @@ import { Server, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { usePicker } from "@/lib/assets/options";
-import { useAuth } from "@/lib/auth/auth-context";
+import { usePermission } from "@/lib/auth/auth-context";
 import { Section, SelectField, EnumSelectField, CheckboxField } from "@/components/assets/form-fields";
 import { emptyVlanDeviceForm, type VlanDeviceForm, type VlanDeviceItem } from "@/lib/vlans/types";
 
@@ -14,8 +14,7 @@ import { emptyVlanDeviceForm, type VlanDeviceForm, type VlanDeviceItem } from "@
 const DEVICE_ROLES = ["GATEWAY", "DHCP_SERVER", "DHCP_RELAY", "TRUNK", "ACCESS"];
 
 export function VlanDevicesPanel({ vlanId }: { vlanId: number }) {
-  const { user } = useAuth();
-  const canManage = user?.roleCode === "ADMIN" || user?.roleCode === "IT_STAFF";
+  const perm = usePermission("vlans");
   const assets = usePicker("assets");
 
   const [items, setItems] = React.useState<VlanDeviceItem[] | null>(null);
@@ -69,7 +68,7 @@ export function VlanDevicesPanel({ vlanId }: { vlanId: number }) {
 
   return (
     <Section title="Devices">
-      {canManage && (
+      {perm.canCreate && (
         <div className="col-span-full mb-1">
           <Button type="button" size="sm" onClick={() => { setForm(emptyVlanDeviceForm); setError(null); setAdding(true); }}>+ Add Device</Button>
         </div>
@@ -95,7 +94,7 @@ export function VlanDevicesPanel({ vlanId }: { vlanId: number }) {
                   </p>
                   {item.notes && <p className="mt-0.5 text-xs text-text-tertiary">{item.notes}</p>}
                 </div>
-                {canManage && (
+                {perm.canDelete && (
                   <Button variant="ghost" size="icon" aria-label="Remove" onClick={() => handleRemove(item)}>
                     <Trash2 className="size-4" />
                   </Button>
