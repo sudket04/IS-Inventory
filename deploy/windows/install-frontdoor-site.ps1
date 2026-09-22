@@ -1,4 +1,4 @@
-<#
+﻿<#
   สร้าง IIS Site หน้าบ้าน (Front-Door) ที่ผูก Hostname mcphomepage-mcp.co.th พอร์ต 80 (HTTP ชั่วคราว
   จนกว่าจะมี Cert — จะย้ายไป 443 ทีหลัง) และ Forward Path /is-inventory/* ไปยัง Site "IS Inventory"
   (พอร์ต 50002) ที่ติดตั้งไว้แล้วด้วย install-backend.ps1 + install-frontend-service.ps1 +

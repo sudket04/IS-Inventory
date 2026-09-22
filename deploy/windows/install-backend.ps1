@@ -1,4 +1,4 @@
-<#
+﻿<#
   ติดตั้ง IS-Inventory Backend (ASP.NET Core, Self-Contained win-x64) เป็น IIS Site
   รันบน Windows Server ด้วยสิทธิ์ Administrator เท่านั้น — ดูขั้นตอนเต็มใน docs/DEPLOYMENT.md §3.2
 

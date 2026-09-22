@@ -1,4 +1,4 @@
-<#
+﻿<#
   ติดตั้ง IS-Inventory Frontend (Next.js standalone) เป็น Windows Service ด้วย NSSM
   รันบน Windows Server ด้วยสิทธิ์ Administrator เท่านั้น — ดูขั้นตอนเต็มใน docs/DEPLOYMENT.md §3.3
 
