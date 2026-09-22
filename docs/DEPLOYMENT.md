@@ -1,6 +1,6 @@
 # คู่มือ Deploy ขึ้น Server จริง (Windows Server + IIS)
 
-## 0. Environment เฉพาะของชุดนี้ (Pilot บน mcphomepage-mcp.co.th)
+## 0. Environment เฉพาะของชุดนี้ (Pilot บน mcphomepage.mitsubishi-mcp.co.th)
 
 การติดตั้งรอบนี้ทำบน Windows Server 2025 ที่เตรียมไว้แล้วดังนี้ — ส่วนที่เหลือของเอกสารนี้อ้างอิงค่า
 เหล่านี้เป็นค่าจริง (ไม่ใช่ Placeholder อีกต่อไป):
@@ -11,20 +11,29 @@
 | SQL Server | 2025 — ติดตั้งไว้แล้ว (T-SQL/EF Core เข้ากันได้กับ 2022 ที่ทดสอบไว้ ไม่มีการเปลี่ยน Schema/Script) |
 | IIS Site "IS Inventory" | พอร์ต 50002, **HTTP ชั่วคราว** (ยังไม่มี Cert — จะย้ายเป็น 443 + Cert ทีหลัง) — สร้างไว้แล้วนอกชุดนี้ |
 | Node.js | ติดตั้งไว้แล้ว |
-| URL สาธารณะ | `http://mcphomepage-mcp.co.th/is-inventory` — เครื่องนี้เป็นเจ้าของโดเมนโดยตรง (ไม่มี Gateway อื่นคั่นกลาง) |
+| URL สาธารณะ | `http://mcphomepage.mitsubishi-mcp.co.th/is-inventory` — เครื่องนี้เป็นเจ้าของโดเมนโดยตรง (ไม่มี Gateway อื่นคั่นกลาง) |
 
 **สถาปัตยกรรม 3 ชั้น** (ดูรายละเอียดที่ §3.4):
 
 ```
-ผู้ใช้ → http://mcphomepage-mcp.co.th/is-inventory/...
-       → [Front-Door Site: Hostname mcphomepage-mcp.co.th พอร์ต 80] (ใหม่ — install-frontdoor-site.ps1)
+ผู้ใช้ → http://mcphomepage.mitsubishi-mcp.co.th/is-inventory/...
+       → [Site "Datacenter" พอร์ต 80] (มีอยู่แล้ว, ผูก Hostname นี้อยู่ก่อน — เพิ่ม Rule เข้าไปใน
+         web.config เดิม ไม่ได้สร้าง Site ใหม่ เพราะ Hostname+Port นี้มีเจ้าของอยู่แล้ว)
        → Forward path เต็ม (คง /is-inventory/ ไว้) →
        → [Site "IS Inventory" พอร์ต 50002] (มีอยู่แล้ว — วาง reverse-proxy-web.config.xml)
        → is-inventory/api/* → Backend (Site "IS-Inventory-API", 127.0.0.1:5080 เท่านั้น)
        → is-inventory/*     → Frontend (Windows Service "IS-Inventory-Frontend", 127.0.0.1:3000, Next basePath=/is-inventory)
 ```
 
-Frontend Build มาด้วย `BASE_PATH=/is-inventory` และ `NEXT_PUBLIC_API_URL=http://mcphomepage-mcp.co.th/is-inventory`
+> **หมายเหตุจากการติดตั้งจริง**: แผนเดิมคือสร้าง Front-Door Site ใหม่ด้วย
+> `install-frontdoor-site.ps1` (ดูสคริปต์และ `frontdoor-web.config.xml` — ยังเก็บไว้ใช้ได้ถ้า Hostname
+> เป้าหมายว่างจริง) แต่เครื่องนี้ Join Domain อยู่แล้วและมี Site ชื่อ **"Datacenter"** ผูก Hostname
+> `mcphomepage.mitsubishi-mcp.co.th:80` อยู่ก่อนแล้ว — IIS ไม่ยอมให้สอง Site ผูก Hostname+Port ซ้ำกัน
+> จึงเปลี่ยนมาเพิ่ม Rule (เนื้อหาเดียวกับใน `frontdoor-web.config.xml`) เข้าไปใน
+> `C:\inetpub\DataCenter\web.config` ของเดิมแทน โดยเก็บ Rule เดิมของ Datacenter ไว้ครบ ดูขั้นตอนจริง
+> ที่ §3.4 ข้อ ข)
+
+Frontend Build มาด้วย `BASE_PATH=/is-inventory` และ `NEXT_PUBLIC_API_URL=http://mcphomepage.mitsubishi-mcp.co.th/is-inventory`
 ฝังตายตัว (ดู §3.3) — ถ้า Path หรือโดเมนเปลี่ยนต้อง Build ชุดใหม่เท่านั้น แก้ Environment Variable ตอน
 Runtime ไม่มีผล
 
@@ -61,6 +70,19 @@ Self-protection + ระบบสิทธิ์รายเมนู Phase 1/2 
 
 ดาวน์โหลดทั้งหมดนี้ไว้ **ในหน้าต่างติดตั้งเดียว** ตามแผน NFR-15 แล้วค่อยตัด Internet ถาวร
 
+> **ข้อผิดพลาดที่พบจริงตอนติดตั้ง (ข้อ 2) — ระวังดาวน์โหลดผิดตัว**: หน้า
+> `dotnet.microsoft.com/en-us/download/dotnet/8.0` มีลิงก์คล้ายกันหลายตัวในแถวเดียวกัน (x64, x86,
+> Arm64, **Hosting Bundle**) — ต้องคลิกลิงก์ที่ชื่อ **"Hosting Bundle"** เท่านั้น (ไฟล์ชื่อ
+> `dotnet-hosting-8.0.x-win.exe` **ไม่มี** `-x64` ต่อท้าย) ถ้าเผลอโหลด/ติดตั้งตัว "x64" เฉยๆ
+> (`aspnetcore-runtime-8.0.x-win-x64.exe`) จะได้แค่ Runtime โดยไม่มี `AspNetCoreModuleV2` ทำให้ IIS
+> ขึ้น **500.19 (Error Code 0x8007000d)** ตอนเข้า Backend ตรงๆ — เช็คว่าลงถูกตัวหรือยังด้วย:
+> ```powershell
+> Get-WebGlobalModule | Where-Object { $_.Name -like "*AspNetCore*" }
+> Test-Path "C:\Program Files\IIS\Asp.Net Core Module\V2\aspnetcorev2.dll"
+> ```
+> ต้องเห็นแถว `AspNetCoreModuleV2` และ `Test-Path` ต้องเป็น `True` — ถ้าไม่ใช่ ให้ลงตัว Hosting Bundle
+> ใหม่ให้ถูกไฟล์ แล้ว `iisreset`
+
 ---
 
 ## 2. ไฟล์ในชุดติดตั้ง
@@ -75,8 +97,8 @@ Server Domain v1.7 §4.18 และรหัสผ่านเริ่มต้
 | `deploy/windows/install-backend.ps1` | Script สร้าง IIS App Pool + Site ให้ Backend (ผูก 127.0.0.1:5080 เท่านั้น — internal-only) | — |
 | `deploy/windows/install-frontend-service.ps1` | Script ผูก Frontend เป็น Windows Service ด้วย NSSM (127.0.0.1:3000) | — |
 | `deploy/windows/reverse-proxy-web.config.xml` | web.config สำหรับ Site "IS Inventory" (พอร์ต 50002 ที่มีอยู่แล้ว) — proxy `is-inventory/api/*` → Backend (ตัด prefix), `is-inventory/*` ที่เหลือ → Frontend (คง prefix) | — |
-| `deploy/windows/install-frontdoor-site.ps1` | Script สร้าง IIS Site ใหม่ผูก Hostname `mcphomepage-mcp.co.th` พอร์ต 80 | — |
-| `deploy/windows/frontdoor-web.config.xml` | web.config ของ Front-Door Site — proxy `/is-inventory/*` → Site "IS Inventory" (พอร์ต 50002) โดยคง Path เต็มไว้ | — |
+| `deploy/windows/install-frontdoor-site.ps1` | Script สร้าง IIS Site ใหม่ผูก Hostname เป้าหมาย พอร์ต 80 — **ใช้เฉพาะถ้า Hostname นั้นยังไม่มี Site อื่นครอบครองอยู่** (ในการติดตั้งจริงรอบนี้มี Site "Datacenter" ครอบครอง `mcphomepage.mitsubishi-mcp.co.th:80` อยู่ก่อนแล้ว จึงไม่ได้รัน Script นี้ ดู §3.4 ข้อ ข) แทน) | — |
+| `deploy/windows/frontdoor-web.config.xml` | เนื้อหา Rule Reverse Proxy สำหรับ Front-Door — ใช้เป็น web.config เต็มไฟล์คู่กับ Script ข้างบน หรือคัดลอกเฉพาะ `<rule>` ไปรวมกับ web.config ของ Site ที่ครอบครอง Hostname อยู่แล้ว (แบบที่ใช้จริงรอบนี้) | — |
 
 > Backend ไม่มี `appsettings.Production.json` แนบมา (ตั้งใจ) — Connection String / JWT Secret /
 > License Key **ต้องตั้งผ่าน Environment Variable เท่านั้น** ตามที่ตัดสินใจไว้ใน NFR-07
@@ -85,6 +107,19 @@ Server Domain v1.7 §4.18 และรหัสผ่านเริ่มต้
 ---
 
 ## 3. ขั้นตอนติดตั้ง
+
+> **หมายเหตุ**: Script `.ps1` ทุกไฟล์ใน `deploy/windows/` มี UTF-8 BOM แล้ว (แก้ตอนติดตั้งจริงรอบนี้
+> — Windows PowerShell 5.1 ที่มากับ Windows Server จะอ่านไฟล์ที่ไม่มี BOM เป็น ANSI แทน UTF-8 ทำให้
+> Comment ภาษาไทยพังและ Parser Error ตอนรัน) ถ้าโหลดไฟล์เหล่านี้จากที่อื่นแล้วเจอ
+> `Unexpected token ... in expression or statement`/`ParseException` ให้เช็คว่าไฟล์มี BOM อยู่จริง
+> (3 byte แรกต้องเป็น `EF BB BF`) — ถ้าไม่มี แก้ในเครื่อง Server ได้เลยโดยไม่ต้องโหลดใหม่:
+> ```powershell
+> $content = Get-Content -Path <path ไฟล์.ps1> -Raw -Encoding UTF8
+> Set-Content -Path <path ไฟล์.ps1> -Value $content -Encoding UTF8
+> ```
+> และก่อนรัน Script ใดๆ ในหมวดนี้ ต้อง `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force`
+> ในหน้าต่าง PowerShell (Administrator) ก่อนเสมอ เพราะ Windows Server ไม่อนุญาตรัน Script ที่ไม่ได้
+> Digitally Signed ตาม Default Execution Policy
 
 ### 3.1 Database
 
@@ -129,7 +164,7 @@ Server Domain v1.7 §4.18 และรหัสผ่านเริ่มต้
    | `Jwt__Secret` | (สุ่มด้วย `openssl rand -base64 48` หรือเทียบเท่าบน PowerShell) | อย่างน้อย 32 byte |
    | `Jwt__Issuer` / `Jwt__Audience` | `is-inventory-api` / `is-inventory-frontend` | ต้องตรงกับค่า Default ใน `appsettings.json` หรือเปลี่ยนพร้อมกันทั้งคู่ |
    | `Licensing__EncryptionKeyBase64` | สร้างด้วย `openssl rand -base64 32` | **ห้ามเปลี่ยนหลังมีข้อมูลจริงแล้ว** — จะถอดรหัส License Key เก่าไม่ได้ |
-   | `Cors__AllowedOrigins__0` | `http://mcphomepage-mcp.co.th` | Frontend/Backend อยู่หลัง Host เดียวกันผ่าน Reverse Proxy (§3.4) จึงเป็น Same-Origin อยู่แล้ว — ตั้งค่านี้ไว้เป็น Fallback เผื่อเรียกตรง (เช่น ทดสอบผ่าน Site "IS Inventory" ที่ยังไม่ผ่าน Front-Door) |
+   | `Cors__AllowedOrigins__0` | `http://mcphomepage.mitsubishi-mcp.co.th` | Frontend/Backend อยู่หลัง Host เดียวกันผ่าน Reverse Proxy (§3.4) จึงเป็น Same-Origin อยู่แล้ว — ตั้งค่านี้ไว้เป็น Fallback เผื่อเรียกตรง (เช่น ทดสอบผ่าน Site "IS Inventory" ที่ยังไม่ผ่าน Front-Door) |
 
 3. รัน `deploy/windows/install-backend.ps1` (as Administrator) — แก้ตัวแปรด้านบนของ Script
    (`$SitePath`, `$Port`) ให้ตรงกับที่แตกไฟล์ไว้ก่อนรัน Script จะ:
@@ -146,7 +181,7 @@ Server Domain v1.7 §4.18 และรหัสผ่านเริ่มต้
 
 1. แตก `is-inventory-frontend-standalone.zip` ไปที่ `D:\IS Admin\IS Inventory\frontend\`
    — ชุดนี้ Build มาด้วย `BASE_PATH=/is-inventory` และ
-   `NEXT_PUBLIC_API_URL=http://mcphomepage-mcp.co.th/is-inventory` ฝังตายตัวแล้ว (ดูคำเตือนถัดไป)
+   `NEXT_PUBLIC_API_URL=http://mcphomepage.mitsubishi-mcp.co.th/is-inventory` ฝังตายตัวแล้ว (ดูคำเตือนถัดไป)
 2. รัน `deploy/windows/install-frontend-service.ps1` (as Administrator) — แก้ `$NssmPath`,
    `$NodeExePath` ให้ตรงเครื่องก่อนรัน (`$AppPath` ตั้งเป็น `D:\IS Admin\IS Inventory\frontend` ไว้แล้ว)
    Script จะ:
@@ -159,7 +194,7 @@ Server Domain v1.7 §4.18 และรหัสผ่านเริ่มต้
 
 > ⚠️ **ข้อควรระวัง**: `NEXT_PUBLIC_API_URL` และ `BASE_PATH` ถูกฝัง (inline) เข้าไปใน JS Bundle
 > **ตอน Build** (`npm run build`) ไม่ใช่ตอน Runtime — ชุดนี้ Build มาด้วย
-> `NEXT_PUBLIC_API_URL=http://mcphomepage-mcp.co.th/is-inventory` และ `BASE_PATH=/is-inventory`
+> `NEXT_PUBLIC_API_URL=http://mcphomepage.mitsubishi-mcp.co.th/is-inventory` และ `BASE_PATH=/is-inventory`
 > ตรงกับ URL สาธารณะจริงของ Deploy นี้แล้ว ถ้า Domain/Path เปลี่ยนภายหลัง (เช่นย้ายไป Cert 443)
 > **ต้อง Build ใหม่**ด้วยค่าจริงแล้วส่งชุดติดตั้งใหม่มาแทน — ตั้ง Environment Variable ตอน
 > Run บน Server จะไม่มีผลอะไรกับค่านี้ ดู §5
@@ -178,19 +213,40 @@ Deploy นี้มี IIS Site 3 ตัวรวมกัน (ดูแผน�
    - `is-inventory/*` ที่เหลือ → `http://127.0.0.1:3000/is-inventory{R:1}` (Frontend — คง prefix ไว้)
 4. Restart Site แล้วทดสอบบนเครื่อง Server เอง: `Invoke-WebRequest http://localhost:50002/is-inventory`
 
-**ข) Front-Door Site ใหม่ (ผูก Hostname `mcphomepage-mcp.co.th` พอร์ต 80)**
-1. รัน `deploy/windows/install-frontdoor-site.ps1` (as Administrator) — สร้าง Site ใหม่ผูก
-   `mcphomepage-mcp.co.th:80` วาง `frontdoor-web.config.xml` ที่ Forward `/is-inventory/*` ไปยัง
-   Site "IS Inventory" (พอร์ต 50002) โดยคง Path เต็มไว้
-   > ถ้าเครื่องนี้มี Site อื่นผูก Hostname เดียวกันอยู่แล้ว Script จะหยุดและเตือน — ให้เอา Rule ใน
-   > `frontdoor-web.config.xml` ไปรวมกับ Site เดิมแทน อย่าสร้าง Binding ซ้อน
-2. ตรวจสอบ DNS/Host Entry: เครื่องอื่นในวง LAN ต้อง Resolve `mcphomepage-mcp.co.th` มาที่ IP ของ
-   Server เครื่องนี้ได้ (ให้ทีม Network เพิ่มถ้ายังไม่มี)
-3. ทดสอบจากเครื่องอื่น: เปิด `http://mcphomepage-mcp.co.th/is-inventory` — ต้องได้หน้า Login
+**ข) Front-Door (Hostname `mcphomepage.mitsubishi-mcp.co.th` พอร์ต 80) — สองแนวทาง ขึ้นกับว่า Hostname
+นี้มีเจ้าของอยู่แล้วหรือไม่**
 
-**ในอนาคต (มี Cert แล้ว)**: เปลี่ยน Binding ของ Front-Door Site จากพอร์ต 80 (http) เป็น 443 (https)
-แล้วใส่ Cert — ไม่ต้องแก้ Rule ใน `frontdoor-web.config.xml`/`reverse-proxy-web.config.xml`, แต่ต้อง
-Build Frontend ใหม่ถ้า URL เปลี่ยนจาก `http://` เป็น `https://` (ดูคำเตือนใน §3.3)
+*แนวทางที่ 1 — Hostname ยังว่าง (ไม่มี Site อื่นผูกอยู่):*
+1. รัน `deploy/windows/install-frontdoor-site.ps1` (as Administrator) — สร้าง Site ใหม่ผูก
+   `mcphomepage.mitsubishi-mcp.co.th:80` วาง `frontdoor-web.config.xml` ที่ Forward `/is-inventory/*` ไปยัง
+   Site "IS Inventory" (พอร์ต 50002) โดยคง Path เต็มไว้ (Script เช็คให้อัตโนมัติว่ามี Site อื่นครอบครอง
+   Hostname+Port นี้อยู่แล้วหรือไม่ ถ้ามีจะหยุดและเตือนให้ไปใช้แนวทางที่ 2 แทน)
+
+*แนวทางที่ 2 — Hostname มี Site อื่นครอบครองอยู่แล้ว (กรณีจริงของการติดตั้งรอบนี้ — Site "Datacenter"
+ครอบครอง `mcphomepage.mitsubishi-mcp.co.th:80` อยู่ก่อน):*
+1. Backup web.config เดิมของ Site นั้นไว้ก่อน (`Copy-Item ... web.config.bak-<timestamp>`)
+2. เปิดดู web.config เดิมของ Site นั้น แล้วเพิ่ม `<rule>` จาก `deploy/windows/frontdoor-web.config.xml`
+   เข้าไปในบล็อก `<rewrite><rules>` ที่มีอยู่ (ไว้เป็น Rule แรกๆ, `stopProcessing="true"`) โดย**เก็บ
+   Rule เดิมของ Site นั้นไว้ครบ** — อย่าลบหรือทับของเดิม
+3. เขียนไฟล์กลับด้วย `Set-Content -Encoding UTF8` (ให้แน่ใจว่า XML declaration `encoding="UTF-8"`
+   กับ Encoding จริงของไฟล์ตรงกัน)
+4. ทดสอบทั้งสองเส้นทางว่าไม่กระทบกัน — ยิงตรงด้วย IP + Host header ปลอม (ข้าม DNS ได้ถ้ายังไม่ Resolve):
+   ```powershell
+   Invoke-WebRequest -Uri "http://127.0.0.1/<path เดิมของ Site>" -Headers @{Host="mcphomepage.mitsubishi-mcp.co.th"} -UseBasicParsing
+   Invoke-WebRequest -Uri "http://127.0.0.1/is-inventory" -Headers @{Host="mcphomepage.mitsubishi-mcp.co.th"} -UseBasicParsing
+   ```
+   ทั้งสองต้องได้ 200 — เส้นแรกยืนยันว่าไม่ได้ไปกระทบ Site เดิม เส้นที่สองยืนยันว่า Rule ใหม่ทำงาน
+
+ทั้งสองแนวทาง หลังทำเสร็จ:
+- ตรวจสอบ DNS/AD DNS: เครื่องอื่นในวง LAN ต้อง Resolve `mcphomepage.mitsubishi-mcp.co.th` มาที่ IP ของ
+  Server เครื่องนี้ได้ (ถ้าเครื่องนี้ Join Domain แล้ว มักจะ Resolve ได้เองผ่าน AD DNS โดยไม่ต้องรอทีม
+  Network เพิ่ม Record แยก)
+- ทดสอบจากเครื่องอื่น: เปิด `http://mcphomepage.mitsubishi-mcp.co.th/is-inventory` — ต้องได้หน้า Login
+
+**ในอนาคต (มี Cert แล้ว)**: เปลี่ยน Binding ของ Site หน้าบ้าน (Front-Door ใหม่ หรือ Site เดิมที่ครอบครอง
+Hostname แล้วแต่กรณี) จากพอร์ต 80 (http) เป็น 443 (https) แล้วใส่ Cert — ไม่ต้องแก้ Rule ใน
+`frontdoor-web.config.xml`/`reverse-proxy-web.config.xml`, แต่ต้อง Build Frontend ใหม่ถ้า URL เปลี่ยน
+จาก `http://` เป็น `https://` (ดูคำเตือนใน §3.3)
 
 ### 3.5 ปิด Internet ถาวร
 
@@ -204,7 +260,7 @@ Build Frontend ใหม่ถ้า URL เปลี่ยนจาก `http://
 
 ## 4. Checklist หลังติดตั้ง
 
-- [ ] เปิด `http://mcphomepage-mcp.co.th/is-inventory` จากเครื่องอื่นในวง LAN ได้ (ไม่ใช่แค่บนเครื่อง Server เอง)
+- [ ] เปิด `http://mcphomepage.mitsubishi-mcp.co.th/is-inventory` จากเครื่องอื่นในวง LAN ได้ (ไม่ใช่แค่บนเครื่อง Server เอง)
 - [ ] Login ด้วยรหัสผ่านเริ่มต้นที่ตั้งไว้ตอนติดตั้ง (§3.2 ข้อ 3) → ระบบบังคับให้เปลี่ยนรหัสผ่านทันที
       ก่อนเข้าหน้าอื่นได้ (พิมพ์ URL ตรงไปหน้าไหนก็ยังโดนหน้าบังคับสกัดอยู่) → เปลี่ยนสำเร็จแล้วเข้า
       Dashboard ได้ปกติ

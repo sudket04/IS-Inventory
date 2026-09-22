@@ -1,5 +1,5 @@
 ﻿<#
-  สร้าง IIS Site หน้าบ้าน (Front-Door) ที่ผูก Hostname mcphomepage-mcp.co.th พอร์ต 80 (HTTP ชั่วคราว
+  สร้าง IIS Site หน้าบ้าน (Front-Door) ที่ผูก Hostname mcphomepage.mitsubishi-mcp.co.th พอร์ต 80 (HTTP ชั่วคราว
   จนกว่าจะมี Cert — จะย้ายไป 443 ทีหลัง) และ Forward Path /is-inventory/* ไปยัง Site "IS Inventory"
   (พอร์ต 50002) ที่ติดตั้งไว้แล้วด้วย install-backend.ps1 + install-frontend-service.ps1 +
   reverse-proxy-web.config.xml — รันบน Windows Server ด้วยสิทธิ์ Administrator เท่านั้น
@@ -9,14 +9,14 @@
     - ติดตั้ง URL Rewrite Module + Application Request Routing (ARR) แล้ว และเปิด "Enable proxy"
       ที่ระดับ Server ใน ARR (IIS Manager -> เครื่องบนสุด -> Application Request Routing Cache ->
       Server Proxy Settings) — ทำครั้งเดียวทั้งเครื่อง ใช้ร่วมกับ Site "IS Inventory" ได้เลย
-    - ตรวจสอบก่อนว่าพอร์ต 80 ของเครื่องนี้ยังไม่มี Site อื่นผูก Hostname mcphomepage-mcp.co.th อยู่
+    - ตรวจสอบก่อนว่าพอร์ต 80 ของเครื่องนี้ยังไม่มี Site อื่นผูก Hostname mcphomepage.mitsubishi-mcp.co.th อยู่
       (ถ้ามีแล้ว อย่ารัน Script นี้ — ไปรวม Rule ใน frontdoor-web.config.xml เข้ากับ Site เดิมแทน)
 #>
 
 #Requires -RunAsAdministrator
 
 $SiteName     = "mcphomepage-mcp-co-th"
-$HostName     = "mcphomepage-mcp.co.th"
+$HostName     = "mcphomepage.mitsubishi-mcp.co.th"
 $Port         = 80
 $SitePath     = "C:\IS-Inventory\frontdoor"
 $ConfigSource = Join-Path $PSScriptRoot "frontdoor-web.config.xml"

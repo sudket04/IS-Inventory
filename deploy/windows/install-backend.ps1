@@ -3,7 +3,7 @@
   รันบน Windows Server ด้วยสิทธิ์ Administrator เท่านั้น — ดูขั้นตอนเต็มใน docs/DEPLOYMENT.md §3.2
 
   Site นี้ผูกกับ 127.0.0.1 เท่านั้น (ไม่เปิดสู่ภายนอกตรงๆ) เพราะ URL สาธารณะจริงคือ
-  http://mcphomepage-mcp.co.th/is-inventory/... ซึ่งผ่าน Site "IS Inventory" (พอร์ต 50002 — สร้างไว้
+  http://mcphomepage.mitsubishi-mcp.co.th/is-inventory/... ซึ่งผ่าน Site "IS Inventory" (พอร์ต 50002 — สร้างไว้
   แล้วนอก Script ชุดนี้) แล้ว Reverse Proxy เข้ามาที่ Site นี้อีกที (ดู reverse-proxy-web.config.xml)
 
   ก่อนรัน: ต้องแตก is-inventory-backend-win-x64.zip ไปที่ $SitePath แล้ว

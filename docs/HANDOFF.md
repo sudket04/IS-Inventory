@@ -7,7 +7,7 @@
 | **Branch ที่ใช้พัฒนา** | `claude/zealous-hamilton-hn3ggp` (ห้าม push ไป branch อื่น) |
 | **อัปเดตล่าสุด** | 2569-09-21 · commit (ดูท้ายสุดของ `git log`) |
 | **สถานะโดยรวม** | ✅ Phase 1–3 เสร็จ · 🟢 **Phase 4 (Development) — Sprint 0–5, 7 เสร็จครบ + Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน + สิทธิ์ต่อเมนูรายคน Phase 1+2 ครบ (นอก Sprint Plan)** (Asset CRUD ครบ 8/8 หมวด รวม Software License + Audit Log UI + Attachment (Asset/Contract) + Application บน Server + Storage/Cluster + Rack + Location Tree Picker + VLAN/IPAM + CMDB Relationship + Contracts + Dashboard/Reports/Export Excel + Permission Control v1.5 + Server Inventory (Hardware)/Server List + รหัสผ่านเริ่มต้นตอนติดตั้ง/บังคับเปลี่ยน + Self-protection/สิทธิ์ต่อเมนูรายคน Backend+Frontend เต็มรูปแบบ + Pilot Deploy บน Windows Server 2025 จริง) — Sprint Plan เดิมเหลือ Sprint 6, 8–10 · ยังไม่มี Audit Log สำหรับการถูกบล็อกสิทธิ์ (ดู §4.20) |
-| **โค้ดโปรแกรม** | 🟢 **Login/RBAC (พร้อมรหัสผ่านเริ่มต้นตอนติดตั้ง + บังคับเปลี่ยนรหัสผ่านจริง + สิทธิ์ต่อเมนูรายคน Phase 1+2 ทั้ง Frontend+Backend รวมหน้า Admin จัดการสิทธิ์แบบตาราง) + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server List + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) + Dashboard/Reports/Export Excel + File Share/Internet Policy Permission Control + Server Inventory (Hardware)/Server List (Virtual+Physical) + User Site/Team บังคับกรอก ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.22) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล **รวม Playwright Browser จริง** (Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน ดู §4.18–§4.19 — สิทธิ์ต่อเมนูรายคน Phase 1+2 §4.20/§4.22 ทดสอบผ่าน API + Build จริง) — **Sprint 5, 7 ปิดครบทุกรายการ** — Deploy จริงบน Windows Server 2025 (mcphomepage-mcp.co.th/is-inventory) ดู §4.22 |
+| **โค้ดโปรแกรม** | 🟢 **Login/RBAC (พร้อมรหัสผ่านเริ่มต้นตอนติดตั้ง + บังคับเปลี่ยนรหัสผ่านจริง + สิทธิ์ต่อเมนูรายคน Phase 1+2 ทั้ง Frontend+Backend รวมหน้า Admin จัดการสิทธิ์แบบตาราง) + Master Data CRUD 11 หน้า + Location Tree Picker + Asset CRUD ครบ 8 หมวด (รวม Software License เข้ารหัส) + Audit Log UI + Attachment + Application บน Server List + Cluster/Storage Volume + Rack พร้อมผังกราฟิก + VLAN/IPAM (v1.1.1) + CMDB Relationship + Contracts (เครื่องเดียว/หลายเครื่อง, โซ่การต่อสัญญา) + Dashboard/Reports/Export Excel + File Share/Internet Policy Permission Control + Server Inventory (Hardware)/Server List (Virtual+Physical) + User Site/Team บังคับกรอก ทำงานจริง — วันที่แสดงผลเป็น dd/mm/yyyy ทั้งโปรเจกต์** (ดู §4.5–§4.22) — ทดสอบ End-to-End กับ SQL Server จริงแล้วทุกโมดูล **รวม Playwright Browser จริง** (Server Domain v1.7 + รหัสผ่านเริ่มต้น/บังคับเปลี่ยน ดู §4.18–§4.19 — สิทธิ์ต่อเมนูรายคน Phase 1+2 §4.20/§4.22 ทดสอบผ่าน API + Build จริง) — **Sprint 5, 7 ปิดครบทุกรายการ** — Deploy จริงบน Windows Server 2025 **ใช้งานได้แล้ว** (`http://mcphomepage.mitsubishi-mcp.co.th/is-inventory` — ผู้ใช้ยืนยันแล้ว) ดู §4.22–§4.23 |
 
 ---
 
@@ -698,7 +698,7 @@ Site/Team โดนบล็อก (`400 invalid_site`), ใส่ Site/Team ท
 **ขอบเขตรอบนี้:** ผู้ใช้สั่งทำ Phase 2 ของระบบสิทธิ์ (ซ่อนปุ่ม Add/Edit/Delete จริง + หน้า Admin จัดการ
 สิทธิ์แบบตาราง) แล้วต่อด้วยทำไฟล์ติดตั้งทดลองใช้งานจริงบน Windows Server 2025 ที่เตรียมไว้แล้ว
 (SQL Server 2025, IIS Site "IS Inventory" พอร์ต 50002 HTTP ชั่วคราว, Node.js) ต้องการ URL สุดท้าย
-`mcphomepage-mcp.co.th/is-inventory` — ถามยืนยันสถาปัตยกรรมก่อนทำ 3 จุด: (1) เครื่องนี้เป็นเจ้าของ
+`mcphomepage.mitsubishi-mcp.co.th/is-inventory` — ถามยืนยันสถาปัตยกรรมก่อนทำ 3 จุด: (1) เครื่องนี้เป็นเจ้าของ
 โดเมนโดยตรง ไม่มี Gateway อื่นคั่น (2) Forward Path เต็ม (ไม่ตัด Prefix) (3) ใช้ Slug `/is-inventory`
 
 | ส่วน | รายละเอียด |
@@ -708,14 +708,41 @@ Site/Team โดนบล็อก (`400 invalid_site`), ใส่ Site/Team ท
 | **หน้า Admin จัดการสิทธิ์แบบตาราง** | `/admin/users/[id]/permissions` (ใหม่) — ตาราง 19 เมนู × 4 Action ต่อ User, แต่ละช่องเป็น Dropdown 3 สถานะ (Inherit/Allow/Deny) เขียนผ่าน `PUT/DELETE api/users/{id}/permissions[/{menuKey}]` เดิม (Phase 1 ทำ Backend ไว้แล้ว) — ลิงก์เข้าถึงจากไอคอนในหน้า Admin > Users ต่อแถว (โชว์เมื่อมีสิทธิ์ `admin_users` Edit) — บล็อกแก้สิทธิ์ตัวเอง (Disable ปุ่มทั้งหมด + ข้อความเตือน, Backend เช็คซ้ำอยู่แล้ว) |
 | **หน้า Admin > Users เอง** | เปลี่ยน Gate ทั้งหน้าจาก `me?.roleCode !== "ADMIN"` (Hardcode) เป็น `usePermission("admin_users")` เหมือนหน้าอื่น — "New user"/"Deactivate" ผูกกับ `canCreate`/`canEdit` จริง |
 | **ทดสอบ** | `npm run build` (Next.js 16 Turbopack) ผ่านสะอาด, ยืนยัน API Round-trip จริงกับ SQL Server: `PUT` Override 1 Field → `GET` เห็น Effective เปลี่ยนถูกต้อง → `DELETE` รีเซ็ต → กลับไป Inherit ถูกต้อง, บล็อกแก้สิทธิ์ตัวเองยังทำงาน (`409 self_permission_change`) |
-| **Deploy — สถาปัตยกรรม 3 ชั้น** | `mcphomepage-mcp.co.th:80` (Front-Door Site ใหม่) → Forward Path เต็ม → `Site "IS Inventory":50002` (มีอยู่แล้ว, HTTP ชั่วคราว) → แยก `is-inventory/api/*` ไป Backend (`127.0.0.1:5080`, ตัด Prefix) และที่เหลือไป Frontend (`127.0.0.1:3000`, คง Prefix เพราะตั้ง Next `basePath=/is-inventory`) — ทั้ง Backend และ Frontend Site/Service ผูก `127.0.0.1` เท่านั้น ไม่เปิดสู่ภายนอกตรงๆ |
-| **`next.config.ts` เพิ่ม `BASE_PATH`** | Build-time Env Var (ไม่ใช่ `NEXT_PUBLIC_*`, อ่านใน `next.config.ts` ตรงๆ) — Deploy นี้ตั้ง `BASE_PATH=/is-inventory` และ `NEXT_PUBLIC_API_URL=http://mcphomepage-mcp.co.th/is-inventory` ตอน Build ทั้งคู่ |
+| **Deploy — สถาปัตยกรรม 3 ชั้น (แผนตอนออกแบบ)** | `mcphomepage.mitsubishi-mcp.co.th:80` (Front-Door Site ใหม่) → Forward Path เต็ม → `Site "IS Inventory":50002` (มีอยู่แล้ว, HTTP ชั่วคราว) → แยก `is-inventory/api/*` ไป Backend (`127.0.0.1:5080`, ตัด Prefix) และที่เหลือไป Frontend (`127.0.0.1:3000`, คง Prefix เพราะตั้ง Next `basePath=/is-inventory`) — ทั้ง Backend และ Frontend Site/Service ผูก `127.0.0.1` เท่านั้น ไม่เปิดสู่ภายนอกตรงๆ (ของจริงที่ติดตั้งได้ต่างจากแผนนี้ที่ชั้นบนสุด — ดู §4.23) |
+| **`next.config.ts` เพิ่ม `BASE_PATH`** | Build-time Env Var (ไม่ใช่ `NEXT_PUBLIC_*`, อ่านใน `next.config.ts` ตรงๆ) — Deploy นี้ตั้ง `BASE_PATH=/is-inventory` และ `NEXT_PUBLIC_API_URL=http://mcphomepage.mitsubishi-mcp.co.th/is-inventory` ตอน Build ทั้งคู่ |
 | **ไฟล์ Deploy ใหม่/แก้** | `deploy/windows/install-frontdoor-site.ps1` + `frontdoor-web.config.xml` (ใหม่ — Front-Door Site), `reverse-proxy-web.config.xml` (แก้ Rule ให้ตรง `is-inventory/` Prefix), `install-backend.ps1`/`install-frontend-service.ps1` (แก้ Path เป็น `D:\IS Admin\IS Inventory\...`, ผูก Backend Site กับ `127.0.0.1` เท่านั้น) |
 | **Migration ที่ต้องรันเพิ่ม** | `17-module-user-menu-permissions.sql` + `18-module-user-site-team.sql` (จากรอบก่อน) เพิ่มเข้าไปในลำดับ Migration ของ `docs/DEPLOYMENT.md` §3.1 ด้วย — ขาดไม่ได้ |
 
 **หมายเหตุ:** ยังเป็น HTTP ชั่วคราว (ไม่มี Cert) ตามที่ผู้ใช้แจ้ง — เมื่อมี Cert แล้วแค่เปลี่ยน Binding ของ
-Front-Door Site จาก Port 80 เป็น 443 และใส่ Cert แต่ต้อง Build Frontend ใหม่ (NEXT_PUBLIC_API_URL ต้อง
+Front-Door จาก Port 80 เป็น 443 และใส่ Cert แต่ต้อง Build Frontend ใหม่ (NEXT_PUBLIC_API_URL ต้อง
 เปลี่ยนจาก `http://` เป็น `https://`) — Audit Log สำหรับการถูกบล็อกสิทธิ์ (409/403) ยังไม่ได้ทำ (ดู §4.20)
+
+---
+
+### 4.23 Deploy จริงบน Windows Server 2025 — ติดตั้งจนใช้งานได้จริง (22 ก.ย. 2569)
+
+**สรุป**: เดินตามชุดติดตั้งใน §4.22 บน Server จริงจนครบ ผู้ใช้ยืนยัน "ใช้งานได้แล้ว" ที่
+`http://mcphomepage.mitsubishi-mcp.co.th/is-inventory` — ระหว่างทางเจอปัญหาจริงหลายจุดที่ตอนออกแบบ
+ไม่ได้คาดไว้ บันทึกไว้ที่นี่เพื่อไม่ให้ Pilot/Rollout รอบถัดไปเจอซ้ำ:
+
+| ปัญหาที่เจอจริง | สาเหตุ | ทางแก้ |
+|---|---|---|
+| `.ps1` ทุกไฟล์ Parse Error ("Unexpected token") ตอนรันครั้งแรก | Windows PowerShell 5.1 อ่านไฟล์ที่ไม่มี UTF-8 BOM เป็น ANSI ทำให้ Comment ภาษาไทยพัง | เติม UTF-8 BOM ให้ทุก `.ps1` ใน `deploy/windows/` แล้ว (commit `93b954c`) — ถ้าพังอีกในอนาคตดูวิธีแก้ที่ §3 ของ DEPLOYMENT.md |
+| Backend ขึ้น **500.19 (0x8007000d)** ตอนเข้าตรง | ดาวน์โหลด/ติดตั้ง "ASP.NET Core Runtime x64" เฉยๆ ไม่ใช่ **Hosting Bundle** — ไม่มี `AspNetCoreModuleV2` | ลง `dotnet-hosting-8.0.x-win.exe` (ไม่ใช่ `aspnetcore-runtime-*-win-x64.exe`) แล้ว `iisreset` — วิธีเช็คว่าลงถูกไว้ใน DEPLOYMENT.md §1 |
+| Backend ขึ้น 400 "Invalid Hostname" ชั่วคราว | ผลข้างเคียงระหว่าง IIS restart ตอนลง Hosting Bundle เสร็จใหม่ๆ ไม่ใช่ปัญหาจริง | รอ/ทดสอบซ้ำหลัง `iisreset` เสร็จสมบูรณ์ |
+| `seed-admin` ล้มด้วย `ConnectionString property has not been initialized` | ตั้ง System Environment Variable แล้วแต่ยังใช้ PowerShell Window เดิม (Process เดิมไม่เห็นค่าที่เพิ่งตั้งระดับ Machine) | ปิด PowerShell Window ทั้งหมดแล้วเปิดใหม่ก่อนรันที่พึ่ง Env Var ที่เพิ่งตั้ง |
+| `CREATE USER isadmin FOR LOGIN isadmin` ล้มด้วย `Msg 15063 already has an account with the user name 'dbo'` | Login `isadmin` ถูกใช้รัน `CREATE DATABASE` ตอนต้น ทำให้ SQL Server Auto-map เป็น `dbo` ของ DB นั้นไปแล้ว จะ Map ซ้ำเป็น User อื่นไม่ได้ | ตัดสินใจ (ถามผู้ใช้ยืนยัน) ใช้ `isadmin`/`dbo` ตรงๆ ในการต่อ Connection String แทนการสร้าง Least-Privilege User แยก — เร็วกว่าและ `dbo` มีสิทธิ์ครอบคลุมอยู่แล้ว (ข้อเสีย: กว้างกว่าที่ตั้งใจไว้ตอนแรก ถ้าจะแก้ทีหลังต้องสร้าง SQL Login ใหม่แยกจาก `isadmin` ตั้งแต่ก่อน `CREATE DATABASE`) |
+| Front-Door ตาม §4.22 สร้างไม่ได้ — `mcphomepage-mcp.co.th` เพี้ยนจาก Domain จริง | ผู้ใช้แจ้งภายหลังว่าเครื่อง Join Domain อยู่แล้ว โดเมนจริงคือ `mitsubishi-mcp.co.th` ไม่ใช่ `mcphomepage-mcp.co.th` (พิมพ์คลาดตอนเริ่มงาน) — และเครื่องนี้มี Site "Datacenter" ผูก `mcphomepage.mitsubishi-mcp.co.th:80` อยู่ก่อนแล้ว IIS ไม่ยอมให้ผูก Hostname+Port ซ้ำ | แก้ Domain เป็น `mcphomepage.mitsubishi-mcp.co.th` ทุกที่ (Docs/Scripts/Frontend Build ใหม่) แล้วเปลี่ยนวิธี Front-Door จากสร้าง Site ใหม่ เป็นเพิ่ม Rule เข้าไปใน `web.config` ของ Site "Datacenter" ที่มีอยู่แล้วแทน (Backup ก่อนแก้ + ทดสอบว่า Path เดิมของ Datacenter ไม่พัง) — ดู DEPLOYMENT.md §3.4 ข้อ ข) แนวทางที่ 2 |
+
+**ผลตรวจสอบสุดท้าย** (ยิงจากเครื่อง Server เอง ด้วย Host header ปลอมข้าม DNS เพราะเครื่องอยู่หลัง
+Proxy องค์กรที่ทำให้ `Invoke-WebRequest` resolve ผ่าน hosts file ไม่ได้):
+- `http://127.0.0.1/Datacenter` (Host: `mcphomepage.mitsubishi-mcp.co.th`) → 200, เนื้อหาเดิมของ Datacenter ไม่กระทบ
+- `http://127.0.0.1/is-inventory` (Host: `mcphomepage.mitsubishi-mcp.co.th`) → 200, หน้า Login จริง
+- ผู้ใช้ยืนยันด้วยตัวเองว่า "ใช้งานได้แล้ว" ผ่าน URL จริงจากเครื่อง Server
+
+**สิ่งที่ยังไม่ได้ยืนยัน** (รอผู้ใช้ทำ Checklist เต็มใน DEPLOYMENT.md §4 ต่อ): ทดสอบเข้าถึงจากเครื่องอื่น
+ในวง LAN จริง (ไม่ใช่แค่จากตัว Server เอง), Smoke Test ฟีเจอร์หลัก (สร้าง Asset, Export Excel, File
+Share), Restart Resilience, Internet-Off Resilience
 
 ---
 

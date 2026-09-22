@@ -473,23 +473,27 @@ RequiresPermission 403) — มีแค่ฝั่ง "สำเร็จ" เ
 
 ---
 
-### 1.21 🟡 นอก Sprint Plan — สิทธิ์ต่อเมนูรายคน Phase 2 + Deploy จริงบน Windows Server 2025 (22 ก.ย. 2569)
+### 1.21 🟢 นอก Sprint Plan — สิทธิ์ต่อเมนูรายคน Phase 2 + Deploy จริงบน Windows Server 2025 (22 ก.ย. 2569, **ใช้งานได้แล้ว**)
 
-รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.22 — สรุปสั้น:
+รายละเอียดเต็มอยู่ที่ `docs/HANDOFF.md` §4.22 (แผน/ของที่ Build) และ §4.23 (ปัญหาจริงที่เจอตอนติดตั้ง
++ ผลยืนยันสุดท้าย) — สรุปสั้น:
 
 | ส่วน | สถานะ |
 |---|---|
 | `usePermission(menuKey)` Hook แทนที่ `roleCode === "ADMIN"/"IT_STAFF"` Hardcode ทั้ง 14 จุด (แยกปุ่ม Create/Edit/Delete ตาม Action จริง) | ✅ |
 | หน้า Admin จัดการสิทธิ์แบบตาราง `/admin/users/[id]/permissions` (19 เมนู × 4 Action, Inherit/Allow/Deny ต่อช่อง) | ✅ |
 | หน้า Admin > Users เปลี่ยน Gate จาก Hardcode Role เป็น `usePermission("admin_users")` | ✅ |
-| Deploy: สถาปัตยกรรม 3 ชั้น (Front-Door mcphomepage-mcp.co.th:80 → Site "IS Inventory":50002 → Backend/Frontend 127.0.0.1) | ✅ |
+| Deploy: Front-Door (`mcphomepage.mitsubishi-mcp.co.th:80` — รวม Rule เข้ากับ Site "Datacenter" ที่มีอยู่แล้ว ไม่ได้สร้าง Site ใหม่ตามแผนเดิม) → Site "IS Inventory":50002 → Backend/Frontend 127.0.0.1 — **ติดตั้งจริงและผู้ใช้ยืนยันใช้งานได้แล้ว** | ✅ |
 | `next.config.ts` เพิ่ม `BASE_PATH` (Build-time) รองรับ Deploy ใต้ Subpath `/is-inventory` | ✅ |
-| Build Backend win-x64 + Frontend Standalone พร้อมค่าจริง (`NEXT_PUBLIC_API_URL`/`BASE_PATH`) ส่งมอบแล้ว | ✅ |
+| Build Backend win-x64 + Frontend Standalone พร้อมค่าจริง (`NEXT_PUBLIC_API_URL`/`BASE_PATH`) ส่งมอบและติดตั้งแล้ว | ✅ |
 
 **ทดสอบยืนยันกับ SQL Server จริงแล้ว:** `npm run build` สะอาด, API Round-trip `PUT`→`GET`→`DELETE` ของ
-Permission Override ถูกต้องครบ, บล็อกแก้สิทธิ์ตัวเองยังทำงาน (`409`)
+Permission Override ถูกต้องครบ, บล็อกแก้สิทธิ์ตัวเองยังทำงาน (`409`), ติดตั้งจริงบน Windows Server 2025
+จนครบ (ดูปัญหาที่เจอจริงระหว่างทาง + วิธีแก้ที่ HANDOFF.md §4.23)
 
 **หมายเหตุ:** ยัง HTTP ชั่วคราว (รอ Cert) — Audit Log ฝั่ง "ถูกบล็อกสิทธิ์" ยังไม่ได้ทำ (ค้างจาก §1.19 เดิม)
+— Checklist Smoke Test เต็ม (เข้าจากเครื่องอื่นในวง LAN, Export Excel, File Share ฯลฯ) ยังไม่ได้ยืนยัน
+ครบทุกข้อ
 
 ---
 
